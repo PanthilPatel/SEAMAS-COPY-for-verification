@@ -1,25 +1,35 @@
 from typing import Dict, Any
-async def recommendation_agent(state: Dict [str, Any]) -> Dict[str,Any]:
-    """Recommendation Agent Node.
-    Consolidates data matrices from Prices Comparison and Review Analyzer to compile the final, optimized buting suffestion for the user."""
 
+async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    T9: Recommendation Agent Node.
+    Consolidates Price data and Review Sentiments to calculate an optimized score.
+    """
     price_data = state.get("price_data", [])
     analysis = state.get("analysis_report", {})
-
-    print(f"\n RECOMMENDATION AGENT INITIATED: Compiling Final Matches ---")
-
+    
+    print(f"\n--- RECOMMENDATION AGENT INITIATED: Evaluating Price & Sentiments ---")
+    
     recommended_deals = []
+    sentiment_summary = analysis.get("sentiment_summary", "").lower()
+    
     if price_data:
-        best_deal = min(price_data, key = lambda x: x.get("extracted_price", float('inf')))
-
-        recommended_deals.append({
-            "store": best_deal.get("marketplace"),
-            "price": best_deal.get("extracted_price"),
-            "verdict": f"Highly recommended due to positive sentiment trend and lowest available market pricing,",
-            "confidence_score": 0.92
-        }) 
-
+        for item in price_data:
+            base_score = 100000 - item.get("extracted_price", 0)  
+            
+            if "positive" in sentiment_summary or "high cost-to-performance" in sentiment_summary:
+                base_score += 5000 
+            
+            recommended_deals.append({
+                "store": item.get("marketplace"),
+                "price": item.get("extracted_price"),
+                "verdict": f"Scored and filtered using aggregated sentiment signals.",
+                "confidence_score": round(min(max(base_score / 100000, 0.1), 0.99), 2)
+            })
+            
+        recommended_deals.sort(key=lambda x: x["confidence_score"], reverse=True)
+        
     return {
         "recommendations": recommended_deals,
-        "logs": ["Successfully executed Recommendation selection matrix step."]
+        "logs": ["Successfully synthesized hybrid price-sentiment matrix values."]
     }
