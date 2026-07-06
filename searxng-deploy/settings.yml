@@ -1,0 +1,22 @@
+use_default_settings: true
+
+server:
+  port: 10000
+  bind_address: "0.0.0.0"
+  secret_key: "IWme1Ph8C7EwxhRDOb4DuPcwCQulF6" # Render will safely override this via env variables
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json # Crucial for your multi-agent backend data extraction
+
+engines:
+  - name: google
+    engine: google
+    shortcut: go
+    timeout: 4.0
+  - name: bing
+    engine: bing
+    shortcut: bi
+    timeout: 4.0
