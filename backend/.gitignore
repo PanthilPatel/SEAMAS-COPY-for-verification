@@ -1,0 +1,10 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables (Crucial to hide your API tokens!)
+.env
+
+# Local IDE settings
+.vscode/
