@@ -1,5 +1,7 @@
 import asyncio
 from agents.orchestrator import seamas_orchestrator
+from dotenv import load_dotenv
+load_dotenv() 
 
 async def test_seamas_pipeline():
     print("----- SEAMAS MULTI-AGENT SYSTEM TEST RUNNER-----")
@@ -35,7 +37,7 @@ async def test_seamas_pipeline():
     price_matrix = final_output.get('price_data', [])
     if price_matrix:
         for idx, item in enumerate(price_matrix, 1):
-            print(f"  {idx}. Store: {item.get('marketplace')} | Extracted Price: ₹{item.get('extracted_price')} | Status: {item.get('status')}")
+            print(f"  {idx}. Product: {item.get('product_name')} | Store: {item.get('marketplace')} | Extracted Price: ₹{item.get('extracted_price')} | Status: {item.get('status')}")
     else:
         print("  No pricing data populated.")
         
