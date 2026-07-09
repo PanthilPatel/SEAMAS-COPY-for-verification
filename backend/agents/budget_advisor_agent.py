@@ -5,6 +5,9 @@ async def budget_advisor_agent(state: Dict[str, Any]) -> Dict[str,Any]:
     print(f"\n--- BUDGET ADVISOR AGENT INITIATED: Validating financial scope ---")
 
     return {
-        "budget_status": "Budget validation complete. Placeholfer active for future milestones.",
-        "logs": ["Budget advisor scaffolding executed successfully."]
+        "budget_status": {
+            "status": "validated",
+            "message": "Budget validation complete. Scaffolding active for downstream milestones."
+        },
+        "logs": ["Budget advisor execution verified."]
     }

@@ -12,6 +12,10 @@ search:
     - html
     - json 
 
+plugins:
+  - name: Botdetection plugin
+    enabled: false 
+
 engines:
   - name: google
     engine: google

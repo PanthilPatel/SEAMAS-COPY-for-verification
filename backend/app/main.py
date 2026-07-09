@@ -11,17 +11,21 @@ from graph.graph import seamas_graph
 
 app = FastAPI(title="SEAMAS Multi-Agent Backend", version="1.0.0")
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.post("/api/chat")
-async def handle_agent_chat(payload: ChatRequest):
-    """Inbound chat endpoint executing the full compiled multi-agent state graph pipeline."""
+async def chat_endpoint(payload: ChatRequest):
     try:
         initial_state = {
             "query": payload.query,
@@ -29,15 +33,11 @@ async def handle_agent_chat(payload: ChatRequest):
             "price_data": [],
             "analysis_report": {},
             "recommendations": [],
-            "logs": [f"Session initialized via API for client query: '{payload.query}'."]
+            "budget_status": {}, 
+            "logs": [f"Session routing initialized via main API endpoint for context: '{payload.query}'."]
         }
         
-        final_state = await seamas_graph.ainvoke(initial_state)
-        return final_state
-        
+        response_state = await seamas_graph.ainvoke(initial_state)
+        return response_state
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Graph Execution Error: {str(e)}")
-
-@app.get("/api/health")
-def health_check():
-    return {"status": "healthy", "service": "SEAMAS Pipeline Core"}
+        raise HTTPException(status_code=500, detail=str(e))

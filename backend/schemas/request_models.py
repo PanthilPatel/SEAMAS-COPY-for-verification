@@ -1,6 +1,14 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 class ChatRequest(BaseModel):
-    query: str = Field(..., description = "The product search query or shopping criteria", example = "Laptop under 60000")
-    user_id: Optional[str] = Field(None, description="Optional unique identifier for user preferences history tracking")
+    query: str = Field(..., min_length=2, max_length=300, description="The client intent search string")
+    max_price: Optional[int] = Field(None, description="Optional upper boundary price target limit")
+
+    @field_validator("query")
+    @classmethod
+    def strip_and_validate_query(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Query string cannot be empty or purely composed of whitespaces.")
+        return cleaned
