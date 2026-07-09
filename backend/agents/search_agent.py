@@ -8,9 +8,15 @@ async def web_search_tool(query: str) -> List[Dict[str, Any]]:
     if searxng_url:
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
+                payload = {
+                    "q": query,
+                    "format": "json",
+                    "language": "en-IN",
+                    "engines": "google,bing"
+                }
                 response = await client.get(
                     f"{searxng_url}/search", 
-                    params={"q": query, "format": "json"}
+                    params=payload
                 )
                 if response.status_code == 200:
                     results = response.json().get("results", [])
