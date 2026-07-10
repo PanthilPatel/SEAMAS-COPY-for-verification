@@ -4,10 +4,6 @@ from typing import Dict, Any, List
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
 
-
-# ---------------------------------------------------------------------------
-# Pydantic Schemas for Structured Ollama Output
-# ---------------------------------------------------------------------------
 class PriceItem(BaseModel):
     product_name: str = Field(
         description=(
@@ -39,9 +35,6 @@ class PriceComparisonResponse(BaseModel):
     prices: List[PriceItem]
 
 
-# ---------------------------------------------------------------------------
-# Price Normalisation Helper (post-LLM safety net)
-# ---------------------------------------------------------------------------
 def _sanitize_price(raw_price: Any) -> int:
     """
     Converts whatever the LLM returned into a clean integer.
@@ -52,24 +45,19 @@ def _sanitize_price(raw_price: Any) -> int:
     if isinstance(raw_price, float):
         return int(raw_price)
     s = str(raw_price).strip().replace(",", "").replace("₹", "").replace("Rs.", "").strip()
-    # Handle shorthand: 90k, 90K
+
     k_match = re.match(r"^([\d.]+)\s*[kK]$", s)
     if k_match:
         return int(float(k_match.group(1)) * 1_000)
-    # Handle lakh shorthand: 1.2L, 1L
     l_match = re.match(r"^([\d.]+)\s*[lL]$", s)
     if l_match:
         return int(float(l_match.group(1)) * 100_000)
-    # Plain numeric
     num_match = re.match(r"^[\d.]+$", s)
     if num_match:
         return int(float(s))
     return 0
 
 
-# ---------------------------------------------------------------------------
-# LangGraph Node
-# ---------------------------------------------------------------------------
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
     query          = state.get("query", "")
@@ -141,15 +129,14 @@ Context Records:
         parsed_json = json.loads(raw_content)
         raw_rows    = parsed_json.get("prices", [])
 
-        # Post-process: sanitize prices and filter bad rows
         cleaned_rows = []
         for row in raw_rows:
             price = _sanitize_price(row.get("extracted_price", 0))
             if price == 0:
-                continue  # Skip rows where price could not be parsed
+                continue  
             marketplace = str(row.get("marketplace", "")).strip()
             if not marketplace or marketplace.lower() in {"online", "web", "india", "internet"}:
-                continue  # Skip non-informative marketplace tags
+                continue
             cleaned_rows.append(
                 {
                     "product_name":    str(row.get("product_name", "")).strip(),
