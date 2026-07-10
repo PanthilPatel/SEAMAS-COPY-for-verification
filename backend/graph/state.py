@@ -3,13 +3,12 @@ from typing_extensions import Annotated
 import operator
 
 class AgentState(TypedDict):
-    """The Central memory state for the SEAMAS multi-agent system (T5 Orchestrator)."""
+    """The central shared state for the SEAMAS multi-agent graph."""
     query: str
-    search_results: List[Dict[str, Any]]
+    search_results: Annotated[List[Dict[str, Any]], operator.add]
     price_data: List[Dict[str, Any]]
     analysis_report: Dict[str, Any]
-    recommendations: List[Dict[str, Any]]
-    negotiation_logs: List[str]
+    recommendations: List[str]
     budget_status: Dict[str, Any]
-
+    final_output: str
     logs: Annotated[List[str], operator.add]

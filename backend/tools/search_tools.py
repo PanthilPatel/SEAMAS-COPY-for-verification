@@ -4,9 +4,6 @@ import httpx
 from urllib.parse import urlparse
 from typing import List, Dict, Any
 
-# ---------------------------------------------------------------------------
-# Storefront Domain → Human-readable Label Mapping
-# ---------------------------------------------------------------------------
 _DOMAIN_STORE_MAP = {
     "amazon.in": "Amazon.in",
     "amazon.com": "Amazon.com",
@@ -62,9 +59,6 @@ def _build_shopping_query(query: str) -> str:
     return query.strip() + qualifiers
 
 
-# ---------------------------------------------------------------------------
-# Core Search Tool
-# ---------------------------------------------------------------------------
 async def web_search_tool(
     query: str,
     max_results: int = 15,
@@ -84,9 +78,6 @@ async def web_search_tool(
     """
     effective_query = _build_shopping_query(query) if augment_query else query
 
-    # ------------------------------------------------------------------
-    # Primary: SearXNG
-    # ------------------------------------------------------------------
     searxng_url = os.getenv("SEARXNG_BASE_URL", "http://localhost:8080").rstrip("/")
     if searxng_url:
         try:
@@ -135,9 +126,6 @@ async def web_search_tool(
         except Exception as e:
             print(f"[SearchTool] SearXNG failed: {e}. Switching to Tavily...")
 
-    # ------------------------------------------------------------------
-    # Fallback: Tavily
-    # ------------------------------------------------------------------
     tavily_key = os.getenv("TAVILY_API_KEY", "")
     if tavily_key:
         try:
