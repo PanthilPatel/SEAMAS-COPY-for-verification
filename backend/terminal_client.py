@@ -9,7 +9,7 @@ async def terminal_chat():
 
     url = "http://127.0.0.1:8000/api/chat"
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         while True:
             user_query = input("\n You: ")
             if user_query.strip().lower() in ['exit', 'quit']:
