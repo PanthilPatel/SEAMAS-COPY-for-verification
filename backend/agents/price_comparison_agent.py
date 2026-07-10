@@ -17,7 +17,6 @@ class PriceComparisonResponse(BaseModel):
 
 
 def clean_price(value: Any) -> int:
-    """Turn whatever the model gave us ('89,990', '90k', '1.2L', 139.0) into a plain int."""
     if isinstance(value, (int, float)):
         return int(value)
 
@@ -37,13 +36,6 @@ def clean_price(value: Any) -> int:
 
 
 def prices_mentioned_in(text: str) -> set:
-    """
-    Every ₹/Rs/$ number that actually shows up in the raw search text.
-    Used to sanity-check the model's output — Ollama sometimes inflates
-    a price (e.g. reads ₹139 as 13900), and this catches it.
-    Per-gram/per-kg prices are skipped since they're unit pricing noise,
-    not the actual item price.
-    """
     prices = set()
     for match in re.finditer(r"(?:₹|rs\.?|\$)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
         following_text = text[match.end():match.end() + 15].lower()
