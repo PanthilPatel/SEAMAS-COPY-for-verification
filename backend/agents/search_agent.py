@@ -17,20 +17,14 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     query = state.get("query", "")
     print(f"\n--- LIVE SEARCH AGENT INITIATED: Aggregating web data for '{query}' ---")
 
-    # -----------------------------------------------------------------------
-    # Fire both searches in parallel
-    # -----------------------------------------------------------------------
-    shopping_query  = query  # query augmentation handled inside web_search_tool
     sentiment_query = f"{query} review rating user feedback india"
 
+    shopping_query = query
     shopping_results, sentiment_results = await asyncio.gather(
         web_search_tool(shopping_query,  max_results=15, augment_query=True),
         web_search_tool(sentiment_query, max_results=10, augment_query=False),
     )
 
-    # -----------------------------------------------------------------------
-    # Merge & deduplicate by URL
-    # -----------------------------------------------------------------------
     seen_urls: set = set()
     merged: List[Dict[str, Any]] = []
 
@@ -41,7 +35,6 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         seen_urls.add(url)
         merged.append(record)
 
-    # Cap combined total at 20 to keep the Ollama context manageable
     merged = merged[:20]
 
     print(f"Search complete. Collected {len(merged)} web records "
