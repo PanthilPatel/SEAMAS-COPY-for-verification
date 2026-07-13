@@ -81,48 +81,58 @@ async def web_search_tool(
     searxng_url = os.getenv("SEARXNG_BASE_URL", "http://localhost:8080").rstrip("/")
     if searxng_url:
         try:
-            print(f"[SearchTool] Querying SearXNG: {searxng_url}")
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.get(
-                    f"{searxng_url}/search",
-                    params={
-                        "q": effective_query,
-                        "format": "json",
-                        "language": "en-IN",
-                        "engines": "google,bing,duckduckgo",
-                        "safesearch": "0",
-                    },
-                )
-                if response.status_code == 200:
-                    raw_results = response.json().get("results", [])
-                    if raw_results:
-                        records = []
-                        seen_urls = set()
-                        for r in raw_results:
-                            url = r.get("url", "")
-                            if url in seen_urls:
-                                continue
-                            seen_urls.add(url)
-                            store_label = _domain_to_store(url)
-                            records.append(
-                                {
-                                    "engine": store_label,
-                                    "title": r.get("title", ""),
-                                    "content": r.get("content", r.get("snippet", "")),
-                                    "url": url,
-                                }
-                            )
-                            if len(records) >= max_results:
-                                break
+            records = []
+            seen_urls = set()
+            max_pages = 3
 
-                        print(
-                            f"[SearchTool] SearXNG returned {len(records)} deduplicated records."
-                        )
-                        return records
-                    else:
-                        print("[SearchTool] SearXNG returned 200 OK but 0 results.")
-                else:
-                    print(f"[SearchTool] SearXNG HTTP {response.status_code}. Falling back...")
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for page in range(1, max_pages + 1):
+                    if len(records) >= max_results:
+                        break
+
+                    print(f"[SearchTool] Querying SearXNG page {page}: {searxng_url}")
+                    response = await client.get(
+                        f"{searxng_url}/search",
+                        params={
+                            "q": effective_query,
+                            "format": "json",
+                            "language": "en-IN",
+                            "engines": "google,bing,duckduckgo",
+                            "safesearch": "0",
+                            "pageno": page,
+                        },
+                    )
+
+                    if response.status_code != 200:
+                        print(f"[SearchTool] SearXNG HTTP {response.status_code} on page {page}. Stopping pagination.")
+                        break
+
+                    raw_results = response.json().get("results", [])
+                    if not raw_results:
+                        print(f"[SearchTool] SearXNG page {page} returned 0 results. Stopping pagination.")
+                        break
+
+                    for r in raw_results:
+                        url = r.get("url", "")
+                        if url in seen_urls:
+                            continue
+                        seen_urls.add(url)
+                        store_label = _domain_to_store(url)
+                        records.append({
+                            "engine": store_label,
+                            "title": r.get("title", ""),
+                            "content": r.get("content", r.get("snippet", "")),
+                            "url": url,
+                        })
+                        if len(records) >= max_results:
+                            break
+
+            if records:
+                print(f"[SearchTool] SearXNG returned {len(records)} deduplicated records across pages.")
+                return records
+            else:
+                print("[SearchTool] SearXNG returned 0 usable results across all pages.")
+
         except Exception as e:
             print(f"[SearchTool] SearXNG failed: {e}. Switching to Tavily...")
 

@@ -11,29 +11,40 @@ async def recommendation(state: Dict[str, Any]) -> Dict[str, Any]:
         recommendation_list = []
 
         if price_data:
-            recommendation_list.append(f"Found {len(price_data)} relevant marketplace listings.")
+            verified_count = sum(1 for x in price_data if x.get("is_verified"))
+            recommendation_list.append(
+                f"Found {verified_count} verified listing(s) out of {len(price_data)} total matches."
+            )
             valid_prices = [x for x in price_data if isinstance(x.get("extracted_price"), (int, float))]
 
             if valid_prices:
-                in_budget = [x for x in valid_prices if x.get("status") == "Target Match"]
+                verified = [x for x in valid_prices if x.get("is_verified", True)]
+                pool = verified if verified else valid_prices
 
-                if in_budget:
-                    best_deal = min(in_budget, key=lambda x: x.get("extracted_price"))
+                in_budget = [x for x in pool if x.get("status") == "Target Match"]
+                candidates = in_budget if in_budget else pool
+
+                best_deal = min(candidates, key=lambda x: x.get("extracted_price"))
+
+                if verified:
                     recommendation_list.append(
-                        f"Best deal within budget: {best_deal.get('marketplace')} for Rs. {best_deal.get('extracted_price')}."
+                        f"Best verified deal: {best_deal.get('marketplace')} — "
+                        f"{best_deal.get('product_name')} for Rs. {best_deal.get('extracted_price')}."
                     )
-                    if len(in_budget) > 1:
-                        recommendation_list.append(
-                            f"{len(in_budget)} listings fit within your budget out of {len(valid_prices)} found."
-                        )
                 else:
-                    cheapest_overall = min(valid_prices, key=lambda x: x.get("extracted_price"))
                     recommendation_list.append(
-                        f"No listings found within budget — closest option is {cheapest_overall.get('marketplace')} "
-                        f"at Rs. {cheapest_overall.get('extracted_price')}, which exceeds the target."
+                        f"No verified listings found. Closest unconfirmed match: "
+                        f"{best_deal.get('marketplace')} — {best_deal.get('product_name')} "
+                        f"for ~Rs. {best_deal.get('extracted_price')} (from a category/search page, not a specific product)."
+                    )
+
+                if not in_budget and budget_status.get("ceiling"):
+                    recommendation_list.append(
+                        f"No listings found within the Rs. {budget_status.get('ceiling')} budget — "
+                        f"showing the closest available option instead."
                     )
             else:
-                recommendation_list.append(" Listings found, but prices could not be numerically verified.")
+                recommendation_list.append("Listings found, but prices could not be numerically verified.")
         else:
             recommendation_list.append("No clear pricing matches extracted from the raw search data.")
 
@@ -53,7 +64,7 @@ async def recommendation(state: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         print(f"CRITICAL RUNTIME CRASH: {str(e)}")
         return {
-            "recommendations": [f"Recommendation engine failed to parse internal data details."],
+            "recommendations": ["Recommendation engine failed to parse internal data details."],
             "logs": [f"Crash log: {str(e)}"]
         }
 

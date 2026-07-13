@@ -41,8 +41,44 @@ def prices_mentioned_in(text: str) -> set:
         following_text = text[match.end():match.end() + 15].lower()
         if "per g" in following_text or "/g" in following_text or "/kg" in following_text or "per kg" in following_text:
             continue
-        prices.add(int(float(match.group(1).replace(",", ""))))
+        try:
+            prices.add(int(float(match.group(1).replace(",", ""))))
+        except ValueError:
+            continue
     return prices
+
+
+def find_source_url(search_results: List[Dict[str, Any]], marketplace: str, price: int) -> str:
+    for r in search_results:
+        if r.get("engine") != marketplace:
+            continue
+        content = r.get("content") or ""
+        if str(price) in content.replace(",", ""):
+            return r.get("url", "")
+    for r in search_results:
+        if r.get("engine") == marketplace:
+            return r.get("url", "")
+    return ""
+
+
+def is_specific_product_page(url: str) -> bool:
+    """
+    True only if the URL contains a recognizable product-identifier pattern.
+    Defaults to 'not verified' unless a real product signature is present —
+    safer than trying to blocklist every category-page format.
+    """
+    if not url:
+        return False
+
+    product_signatures = [
+        r"/dp/[A-Z0-9]{6,}",
+        r"/p/itm[a-z0-9]+",
+        r"/p/[A-Z0-9]{6,}",
+        r"-p-[a-z0-9]+",
+        r"/product/[a-z0-9-]*\d",
+        r"/products/[a-z0-9-]*\d",
+    ]
+    return any(re.search(pattern, url, re.IGNORECASE) for pattern in product_signatures)
 
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -54,8 +90,6 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
     if not search_results:
         return {"price_data": [], "logs": ["No search results to extract prices from."]}
-
-    print(f"[DEBUG] Sample content: {[(r.get('content') or '')[:150] for r in search_results[:5]]}")
 
     context = "\n\n".join(
         f"[Record {i}]\nStore: {r.get('engine', 'Web')}\nTitle: {r.get('title', '')}\n"
@@ -88,7 +122,11 @@ Records:
             model="llama3.1",
             messages=[{"role": "user", "content": prompt}],
             format=PriceComparisonResponse.model_json_schema(),
-            options={"temperature": 0.05, "num_ctx": 8192},
+            options={
+                "temperature": 0.05,
+                "num_ctx": 8192,
+                "num_predict": 2048,
+            },
         )
 
         rows = json.loads(response["message"]["content"]).get("prices", [])
@@ -108,17 +146,31 @@ Records:
                 continue
 
             status = "Target Match" if not budget or price <= budget else "Out of Budget"
+            source_url = find_source_url(search_results, marketplace, price)
 
             results.append({
                 "product_name": str(row.get("product_name", "")).strip(),
                 "marketplace": marketplace,
                 "extracted_price": price,
                 "status": status,
+                "url": source_url,
+                "is_verified": is_specific_product_page(source_url),
             })
 
-        if len(results) >= 3:
-            median = sorted(r["extracted_price"] for r in results)[len(results) // 2]
-            results = [r for r in results if r["extracted_price"] <= median * 15]
+        best_by_url = {}
+        for r in results:
+            key = r["url"] or r["product_name"]
+            if key not in best_by_url or r["extracted_price"] < best_by_url[key]["extracted_price"]:
+                best_by_url[key] = r
+        results = list(best_by_url.values())
+
+        if len(results) >= 2:
+            values = sorted(r["extracted_price"] for r in results)
+            median = values[len(values) // 2]
+            results = [
+                r for r in results
+                if median * 0.05 <= r["extracted_price"] <= median * 15
+            ]
 
         print(f"Extracted {len(results)} price listings from {len(search_results)} search results.")
         return {"price_data": results, "logs": [f"Extracted {len(results)} price listings."]}

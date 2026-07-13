@@ -32,11 +32,31 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         if analysis_report.get("cons"):
             markdown_output.append("- **Cons:** " + ", ".join(analysis_report["cons"]) + "\n")
 
-    if cleaned_prices:
-        markdown_output.append("### Verified Marketplace Offers")
-        for p in cleaned_prices:
-            markdown_output.append(f"- **[{p.get('marketplace', 'Web')}]** {p.get('product_name')} \u2192 **Rs. {p.get('extracted_price')}** ({p.get('status')})")
+    verified_prices = [p for p in cleaned_prices if p.get("is_verified")]
+    unverified_prices = [p for p in cleaned_prices if not p.get("is_verified")]
 
+    if not verified_prices and not unverified_prices:
+        markdown_output.append("### Verified Marketplace Offers\nNo confirmed listings found for this query")
+    else:
+        if verified_prices:
+            markdown_output.append("### Verified Marketplace Offers")
+            for p in verified_prices:
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} ➔ **Rs. {p.get('extracted_price')}** ({p.get('status')})"
+                url = p.get("url")
+                if url:
+                    markdown_output.append(f"- [{label}]({url})")
+                else:
+                    markdown_output.append(f"- {label}")
+
+        if unverified_prices:
+            markdown_output.append("\n### Other Mentions (unconfirmed pricing — from category/search pages)")
+            for p in unverified_prices:
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} ➔ **~Rs. {p.get('extracted_price')}** (approximate)"
+                url = p.get("url")
+                if url:
+                    markdown_output.append(f"- [{label}]({url})")
+                else:
+                    markdown_output.append(f"- {label}")    
     markdown_output.append("\n### Recommendations")
     for r in recommendations:
         markdown_output.append(f"- {r}")
