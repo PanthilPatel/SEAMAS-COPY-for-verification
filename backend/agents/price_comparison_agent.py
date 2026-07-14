@@ -164,15 +164,11 @@ Records:
             model="qwen2.5:latest",
             messages=[{"role": "user", "content": prompt}],
             format=PriceComparisonResponse.model_json_schema(),
-<<<<<<< HEAD
             options={
                 "temperature": 0.3,
                 "num_ctx": 8192,
                 "num_predict": 16138,
             },
-=======
-            options={"temperature": 0.05, "num_ctx": 8192, "num_predict": 16384},
->>>>>>> 9a63f2f (Filter blocked websites in search agent and optimize price comparison noise filtration)
         )
 
         rows = json.loads(response["message"]["content"]).get("prices", [])
@@ -230,10 +226,5 @@ Records:
         return {"price_data": results, "logs": [f"Processed {len(results)} sanitized rows."]}
 
     except Exception as e:
-<<<<<<< HEAD
         print(f"Price extraction failed: {e}")
         return {"price_data": [], "logs": [f"Price extraction failed: {e}"]}
-=======
-        print(f"Sanitized price extraction failed: {e}")
-        return {"price_data": [], "logs": [f"Failure: {e}"]}
->>>>>>> 9a63f2f (Filter blocked websites in search agent and optimize price comparison noise filtration)
