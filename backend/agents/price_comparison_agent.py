@@ -138,7 +138,7 @@ Records:
             options={
                 "temperature": 0.3,
                 "num_ctx": 8192,
-                "num_predict": 2048,
+                "num_predict": 16138,
             },
         )
 
