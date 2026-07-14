@@ -4,24 +4,19 @@ from typing import Dict, Any, List
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
 
-
 class PriceItem(BaseModel):
-    product_name: str = Field(description="Full product name including brand, model, storage/variant.")
-    marketplace: str = Field(description="Store name, e.g. 'Amazon.in', 'Flipkart', 'Croma'.")
+    product_name: str = Field(description="Full product name including brand and style description.")
+    marketplace: str = Field(description="Store name, e.g. 'Flipkart', 'Urban Monkey', 'Amazon.in'.")
     extracted_price: int = Field(description="Price as a plain integer, no symbols or commas.")
     status: str = Field(description="'Target Match' or 'Out of Budget'.")
-
 
 class PriceComparisonResponse(BaseModel):
     prices: List[PriceItem]
 
-
 def clean_price(value: Any) -> int:
     if isinstance(value, (int, float)):
         return int(value)
-
     text = str(value).strip().replace(",", "").replace("₹", "").replace("Rs.", "").replace("$", "")
-
     try:
         if text.lower().endswith("k"):
             return int(float(text[:-1]) * 1_000)
@@ -31,13 +26,11 @@ def clean_price(value: Any) -> int:
             return int(float(text))
     except ValueError:
         pass
-
     return 0
-
 
 def prices_mentioned_in(text: str) -> set:
     prices = set()
-    for match in re.finditer(r"(?:₹|rs\.?|\$)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
+    for match in re.finditer(r"(?:₹|rs\.?|\$|inr)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
         following_text = text[match.end():match.end() + 15].lower()
         if "per g" in following_text or "/g" in following_text or "/kg" in following_text or "per kg" in following_text:
             continue
@@ -45,54 +38,65 @@ def prices_mentioned_in(text: str) -> set:
             prices.add(int(float(match.group(1).replace(",", ""))))
         except ValueError:
             continue
+    for match in re.finditer(r"\b\d{2,6}\b", text):
+        try:
+            prices.add(int(match.group(0)))
+        except ValueError:
+            continue
     return prices
-
 
 def find_source_url(search_results: List[Dict[str, Any]], marketplace: str, price: int) -> str:
     for r in search_results:
-        if r.get("engine") != marketplace:
+        if r.get("engine") != marketplace and marketplace.lower() not in (r.get("url") or "").lower():
             continue
         content = r.get("content") or ""
-        if str(price) in content.replace(",", ""):
+        title = r.get("title") or ""
+        combined = (title + " " + content).replace(",", "")
+        if str(price) in combined:
             return r.get("url", "")
     for r in search_results:
-        if r.get("engine") == marketplace:
+        if marketplace.lower() in (r.get("url") or "").lower():
             return r.get("url", "")
     return ""
-
 
 def is_specific_product_page(url: str) -> bool:
     if not url:
         return False
 
     from urllib.parse import urlparse
-    path = urlparse(url).path.lower()
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+    domain = parsed.netloc.lower()
     last_segment = path.rstrip("/").split("/")[-1]
 
+    brand_pass = ["urbanmonkey.com", "neweracap.in", "supervek.in"]
+    if any(b in domain for b in brand_pass):
+        if not any(word in path for word in ["about", "contact", "privacy", "terms"]):
+            return True
+
     category_keywords = [
-        "collections", "category", "categories", "product-category",
-        "brand", "brands", "shop-by", "catalog", "search", "impcat", "pr",
+        "/category", "/categories", "/product-category", "/brands", "/shop-by", 
+        "/catalog", "search", "impcat", "/list-of-", "buying-guide", "product-reviews", 
+        "/reviews", "employee-review", "mutual-funds"
     ]
-    if not last_segment or any(kw in path for kw in category_keywords):
+    if any(kw in path for kw in category_keywords):
         return False
 
     known_patterns = [
-        r"/dp/[A-Z0-9]{6,}",
-        r"/p/itm[a-z0-9]+",
-        r"/p/[A-Z0-9]{6,}",
-        r"-p-[a-z0-9]+",
-        r"/p-[a-z0-9]{6,}",
-        r"/product/[a-z0-9-]*\d",
-        r"/products/[a-z0-9-]*\d",
+        r"/dp/[a-z0-9]{10}",        
+        r"/p/itm[a-z0-9]+",           
+        r"/product/[a-z0-9-]",        
+        r"/products/[a-z0-9-]",       
+        r"/buy-[a-z0-9-]"             
     ]
-    if any(re.search(pattern, url, re.IGNORECASE) for pattern in known_patterns):
+    if any(re.search(pattern, path, re.IGNORECASE) for pattern in known_patterns):
         return True
 
-    if len(last_segment) > 20 or re.search(r"\d{3,}", last_segment) or last_segment.count("-") >= 3:
-        return True
+    if len(last_segment) > 20 or re.search(r"\d{4,}", last_segment) or last_segment.count("-") >= 3:
+        if not any(word in path for word in ["review", "blog", "news", "article"]):
+            return True
 
     return False
-
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
@@ -104,27 +108,52 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if not search_results:
         return {"price_data": [], "logs": ["No search results to extract prices from."]}
 
+    junk_keywords = [
+        "capsule", "mutual fund", "small-cap", "mid-cap", "flexi-cap", 
+        "glassdoor", "interview", "jumper cap", "securities", "assimilation"
+    ]
+    
+    filtered_records = []
+    for r in search_results:
+        url = r.get("url", "").lower()
+        title_content = (r.get("title", "") + " " + (r.get("content") or "")).lower()
+        if any(junk in title_content for junk in junk_keywords):
+            continue
+        
+        if "youtube.com" in url or "youtu.be" in url:
+            continue
+        if any(pc in url for pc in ["/news/", "/article/", "/articles/", "/blog/", "/blogs/", "/press-release/", "/press/"]):
+            continue
+        
+        from urllib.parse import urlparse
+        try:
+            domain = urlparse(url).netloc.lower()
+        except Exception:
+            domain = ""
+        if any(dk in domain for dk in ["news", "article", "blog", "youtube", "twitter", "reddit", "quora", "facebook", "instagram"]):
+            continue
+            
+        filtered_records.append(r)
+
+    if not filtered_records:
+        return {"price_data": [], "logs": ["All results flagged as semantic noise."]}
+
     context = "\n\n".join(
         f"[Record {i}]\nStore: {r.get('engine', 'Web')}\nTitle: {r.get('title', '')}\n"
-        f"Content: {(r.get('content') or '')[:400]}"
-        for i, r in enumerate(search_results, start=1)
+        f"Content: {(r.get('content') or '')[:1000]}"
+        for i, r in enumerate(filtered_records, start=1)
     )
 
-    prompt = f"""You are extracting product prices for Indian e-commerce.
-
+    prompt = f"""You are extracting structural retail product prices for e-commerce.
 Query: "{query}"
 
-Look through the records below and pull out real price listings.
-One row per store + product variant.
+Look through the real records below and extract verified prices for actual headwear/hats/caps.
+One row per variant or storefront offer.
 
 Rules:
-- Use the store's actual name (Amazon.in, Flipkart, Croma...), never "Online" or "Web".
-- Prices must be plain integers copied exactly as written — don't scale or round them.
-  If the text says ₹139, the answer is 139, not 13900.
-- If a price is in dollars ($), still extract it as a plain integer (e.g. $999 -> 999).
-- Only include products that are actually the item being searched for, not unrelated
-  accessories, reviews, or other products mentioned in passing.
-- Skip anything with no clear price.
+- Never include software, stock tickers, financial mutual funds, or medical pills.
+- Extract the actual merchant store brand (e.g., 'Urban Monkey', 'Flipkart', 'Tata Cliq').
+- Prices must be extracted as plain numbers exactly as written.
 
 Records:
 {context}
@@ -135,15 +164,20 @@ Records:
             model="qwen2.5:latest",
             messages=[{"role": "user", "content": prompt}],
             format=PriceComparisonResponse.model_json_schema(),
+<<<<<<< HEAD
             options={
                 "temperature": 0.3,
                 "num_ctx": 8192,
                 "num_predict": 16138,
             },
+=======
+            options={"temperature": 0.05, "num_ctx": 8192, "num_predict": 16384},
+>>>>>>> 9a63f2f (Filter blocked websites in search agent and optimize price comparison noise filtration)
         )
 
         rows = json.loads(response["message"]["content"]).get("prices", [])
-        real_prices = prices_mentioned_in(context)
+        full_text_corpus = context + "\n" + "\n".join(r.get("title", "") for r in filtered_records)
+        real_prices = prices_mentioned_in(full_text_corpus)
 
         results = []
         for row in rows:
@@ -159,7 +193,7 @@ Records:
                 continue
 
             status = "Target Match" if not budget or price <= budget else "Out of Budget"
-            source_url = find_source_url(search_results, marketplace, price)
+            source_url = find_source_url(filtered_records, marketplace, price)
 
             results.append({
                 "product_name": str(row.get("product_name", "")).strip(),
@@ -177,16 +211,8 @@ Records:
                 best_by_url[key] = r
         results = list(best_by_url.values())
 
-        if len(results) >= 2:
-            values = sorted(r["extracted_price"] for r in results)
-            median = values[len(values) // 2]
-            results = [
-                r for r in results
-                if median * 0.05 <= r["extracted_price"] <= median * 15
-            ]
-
         priced_urls = {r["url"] for r in results if r.get("url")}
-        for r in search_results:
+        for r in filtered_records:
             url = r.get("url", "")
             if url in priced_urls:
                 continue
@@ -200,9 +226,14 @@ Records:
             })
 
         priced_count = sum(1 for r in results if r.get("extracted_price") is not None)
-        print(f"Extracted {priced_count} priced listing(s), {len(results) - priced_count} unpriced record(s) — {len(results)} total from {len(search_results)} search results.")
-        return {"price_data": results, "logs": [f"Extracted {priced_count} priced, {len(results)} total records."]}
+        print(f"Extracted {priced_count} priced listing(s) after noise filtration.")
+        return {"price_data": results, "logs": [f"Processed {len(results)} sanitized rows."]}
 
     except Exception as e:
+<<<<<<< HEAD
         print(f"Price extraction failed: {e}")
         return {"price_data": [], "logs": [f"Price extraction failed: {e}"]}
+=======
+        print(f"Sanitized price extraction failed: {e}")
+        return {"price_data": [], "logs": [f"Failure: {e}"]}
+>>>>>>> 9a63f2f (Filter blocked websites in search agent and optimize price comparison noise filtration)

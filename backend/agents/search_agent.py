@@ -15,20 +15,36 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         web_search_tool(sentiment_query, max_results=20, augment_query=False),
     )
 
+    from urllib.parse import urlparse
+
     seen_urls: set = set()
     merged: List[Dict[str, Any]] = []
 
     for record in shopping_results + sentiment_results:
-        url = record.get("url", "")
-        if url and url in seen_urls:
+        url = record.get("url", "").lower()
+        if not url:
             continue
-        seen_urls.add(url)
+        if url in seen_urls:
+            continue
+
+        if "youtube.com" in url or "youtu.be" in url:
+            continue
+        if any(pc in url for pc in ["/news/", "/article/", "/articles/", "/blog/", "/blogs/", "/press-release/", "/press/"]):
+            continue
+        try:
+            domain = urlparse(url).netloc.lower()
+        except Exception:
+            domain = ""
+        if any(dk in domain for dk in ["news", "article", "blog", "youtube", "twitter", "reddit", "quora", "facebook", "instagram"]):
+            continue
+
+        seen_urls.add(record.get("url", ""))
         merged.append(record)
 
     merged = merged[:50]
 
     print(f"Search complete. Collected {len(merged)} web records "
-          f"({len(shopping_results)} shopping + {len(sentiment_results)} sentiment, deduplicated).")
+          f"({len(shopping_results)} shopping + {len(sentiment_results)} sentiment, deduplicated and filtered).")
 
     return {
         "search_results": merged,

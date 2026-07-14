@@ -49,14 +49,12 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
         if unverified_prices:
-            markdown_output.append("\n### Other Mentions (unconfirmed pricing — from category/search pages)")
             for p in unverified_prices:
                 label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} ➔ **~Rs. {p.get('extracted_price')}** (approximate)"
                 url = p.get("url")
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
     if unpriced:
-        markdown_output.append(f"\n### No Price Found ({len(unpriced)})")
         for p in unpriced:
             label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')}"
             url = p.get("url")
