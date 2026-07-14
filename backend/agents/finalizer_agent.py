@@ -32,8 +32,11 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         if analysis_report.get("cons"):
             markdown_output.append("- **Cons:** " + ", ".join(analysis_report["cons"]) + "\n")
 
-    verified_prices = [p for p in cleaned_prices if p.get("is_verified")]
-    unverified_prices = [p for p in cleaned_prices if not p.get("is_verified")]
+    priced = [p for p in cleaned_prices if p.get("extracted_price") is not None]
+    unpriced = [p for p in cleaned_prices if p.get("extracted_price") is None]
+
+    verified_prices = [p for p in priced if p.get("is_verified")]
+    unverified_prices = [p for p in priced if not p.get("is_verified")]
 
     if not verified_prices and not unverified_prices:
         markdown_output.append("### Verified Marketplace Offers\nNo confirmed listings found for this query")
@@ -43,20 +46,22 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             for p in verified_prices:
                 label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} ➔ **Rs. {p.get('extracted_price')}** ({p.get('status')})"
                 url = p.get("url")
-                if url:
-                    markdown_output.append(f"- [{label}]({url})")
-                else:
-                    markdown_output.append(f"- {label}")
+                markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
         if unverified_prices:
             markdown_output.append("\n### Other Mentions (unconfirmed pricing — from category/search pages)")
             for p in unverified_prices:
                 label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} ➔ **~Rs. {p.get('extracted_price')}** (approximate)"
                 url = p.get("url")
-                if url:
-                    markdown_output.append(f"- [{label}]({url})")
-                else:
-                    markdown_output.append(f"- {label}")    
+                markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
+
+    if unpriced:
+        markdown_output.append(f"\n### No Price Found ({len(unpriced)})")
+        for p in unpriced:
+            label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')}"
+            url = p.get("url")
+            markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
+
     markdown_output.append("\n### Recommendations")
     for r in recommendations:
         markdown_output.append(f"- {r}")

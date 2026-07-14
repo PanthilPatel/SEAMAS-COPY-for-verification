@@ -39,7 +39,6 @@ def _domain_to_store(url: str) -> str:
         return "Web"
     try:
         hostname = urlparse(url).hostname or ""
-        # Strip leading 'www.'
         hostname = re.sub(r"^www\.", "", hostname)
         return _DOMAIN_STORE_MAP.get(hostname, hostname or "Web")
     except Exception:
@@ -48,15 +47,12 @@ def _domain_to_store(url: str) -> str:
 
 def _build_shopping_query(query: str) -> str:
     """
-    Appends structured commerce qualifiers to push the search engine
-    toward capturing competitive Indian storefront prices.
+    Appends light commerce qualifiers to bias the search toward buyable
+    listings, without restricting to a fixed set of big retailers — this
+    lets smaller/local Indian e-commerce sites surface too, instead of
+    only the handful of major platforms.
     """
-    qualifiers = (
-        " price buy india "
-        "site:amazon.in OR site:flipkart.com OR site:croma.com "
-        "OR site:reliancedigital.in OR site:vijaysales.com OR site:tatacliq.com"
-    )
-    return query.strip() + qualifiers
+    return query.strip() + " price buy online india"    
 
 
 async def web_search_tool(
@@ -83,7 +79,7 @@ async def web_search_tool(
         try:
             records = []
             seen_urls = set()
-            max_pages = 3
+            max_pages = 5
 
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for page in range(1, max_pages + 1):
@@ -97,7 +93,7 @@ async def web_search_tool(
                             "q": effective_query,
                             "format": "json",
                             "language": "en-IN",
-                            "engines": "google,bing,duckduckgo",
+                            "engines": "google cse",
                             "safesearch": "0",
                             "pageno": page,
                         },
@@ -111,6 +107,8 @@ async def web_search_tool(
                     if not raw_results:
                         print(f"[SearchTool] SearXNG page {page} returned 0 results. Stopping pagination.")
                         break
+
+                    count_before = len(records)
 
                     for r in raw_results:
                         url = r.get("url", "")
@@ -126,6 +124,10 @@ async def web_search_tool(
                         })
                         if len(records) >= max_results:
                             break
+
+                    new_this_page = len(records) - count_before
+                    print(f"[SearchTool] Page {page}: SearXNG returned {len(raw_results)} raw results, "
+                          f"{new_this_page} new unique record(s) added (running total: {len(records)})")
 
             if records:
                 print(f"[SearchTool] SearXNG returned {len(records)} deduplicated records across pages.")

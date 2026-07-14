@@ -62,23 +62,36 @@ def find_source_url(search_results: List[Dict[str, Any]], marketplace: str, pric
 
 
 def is_specific_product_page(url: str) -> bool:
-    """
-    True only if the URL contains a recognizable product-identifier pattern.
-    Defaults to 'not verified' unless a real product signature is present —
-    safer than trying to blocklist every category-page format.
-    """
     if not url:
         return False
 
-    product_signatures = [
+    from urllib.parse import urlparse
+    path = urlparse(url).path.lower()
+    last_segment = path.rstrip("/").split("/")[-1]
+
+    category_keywords = [
+        "collections", "category", "categories", "product-category",
+        "brand", "brands", "shop-by", "catalog", "search", "impcat", "pr",
+    ]
+    if not last_segment or any(kw in path for kw in category_keywords):
+        return False
+
+    known_patterns = [
         r"/dp/[A-Z0-9]{6,}",
         r"/p/itm[a-z0-9]+",
         r"/p/[A-Z0-9]{6,}",
         r"-p-[a-z0-9]+",
+        r"/p-[a-z0-9]{6,}",
         r"/product/[a-z0-9-]*\d",
         r"/products/[a-z0-9-]*\d",
     ]
-    return any(re.search(pattern, url, re.IGNORECASE) for pattern in product_signatures)
+    if any(re.search(pattern, url, re.IGNORECASE) for pattern in known_patterns):
+        return True
+
+    if len(last_segment) > 20 or re.search(r"\d{3,}", last_segment) or last_segment.count("-") >= 3:
+        return True
+
+    return False
 
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -119,11 +132,11 @@ Records:
 
     try:
         response = await AsyncClient().chat(
-            model="llama3.1",
+            model="qwen2.5:latest",
             messages=[{"role": "user", "content": prompt}],
             format=PriceComparisonResponse.model_json_schema(),
             options={
-                "temperature": 0.05,
+                "temperature": 0.3,
                 "num_ctx": 8192,
                 "num_predict": 2048,
             },
@@ -172,8 +185,23 @@ Records:
                 if median * 0.05 <= r["extracted_price"] <= median * 15
             ]
 
-        print(f"Extracted {len(results)} price listings from {len(search_results)} search results.")
-        return {"price_data": results, "logs": [f"Extracted {len(results)} price listings."]}
+        priced_urls = {r["url"] for r in results if r.get("url")}
+        for r in search_results:
+            url = r.get("url", "")
+            if url in priced_urls:
+                continue
+            results.append({
+                "product_name": r.get("title", "Untitled"),
+                "marketplace": r.get("engine", "Web"),
+                "extracted_price": None,
+                "status": "No price found",
+                "url": url,
+                "is_verified": False,
+            })
+
+        priced_count = sum(1 for r in results if r.get("extracted_price") is not None)
+        print(f"Extracted {priced_count} priced listing(s), {len(results) - priced_count} unpriced record(s) — {len(results)} total from {len(search_results)} search results.")
+        return {"price_data": results, "logs": [f"Extracted {priced_count} priced, {len(results)} total records."]}
 
     except Exception as e:
         print(f"Price extraction failed: {e}")

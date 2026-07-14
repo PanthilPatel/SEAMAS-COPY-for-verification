@@ -3,40 +3,60 @@ from typing import Dict, Any, List
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
 
+
 class AnalysisReport(BaseModel):
-    sentiment_summary: str = Field(description="One impactful sentence summarizing market consensus.")
-    pros: List[str] = Field(description="Array of up to 3 text-grounded advantages.")
-    cons: List[str] = Field(description="Array of up to 2 product limitations.")
+    sentiment_summary: str = Field(description="One or two sentence overall sentiment summary.")
+    pros: List[str] = Field(description="Up to 3 pros grounded in the source text.")
+    cons: List[str] = Field(description="Up to 2 cons grounded in the source text.")
+
 
 async def review_analyzer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
     query = state.get("query", "")
-    
-    print(f"\n OLLAMA REVIEW ANALYZER AGENT INITIATED ---")
+
+    print("--- OLLAMA REVIEW ANALYZER AGENT INITIATED ---")
+
     if not search_results:
-        default_fail = {"sentiment_summary": "No data", "pros": [], "cons": []}
-        return {"analysis_report": default_fail, "logs": ["Skipped analysis."]}
-        
-    context_data = "\n".join([f"Text: {item.get('content')}" for item in search_results])
-    prompt = f"Perform a consensus sentiment evaluation for '{query}' based on these user reviews:\n{context_data}"
-    
+        return {
+            "analysis_report": {"sentiment_summary": "No web text data available.", "pros": [], "cons": []},
+            "logs": ["No web records available for sentiment extraction."]
+        }
+
+    context = "\n\n".join(
+        f"Title: {r.get('title', '')}\nContent: {(r.get('content') or '')[:400]}"
+        for r in search_results
+    )
+
+    prompt = f"""You are an expert consumer sentiment analyzer.
+
+Query: "{query}"
+
+Analyze the raw web text below and summarize buyer sentiment.
+Give a one-to-two sentence sentiment summary, up to 3 pros, and up to 2 cons —
+all grounded directly in the text, don't invent anything not implied by it.
+
+Raw Search Context:
+{context}
+"""
+
     try:
         response = await AsyncClient().chat(
-            model='llama3.1',
-            messages=[{'role': 'user', 'content': prompt}],
+            model="qwen2.5:latest",
+            messages=[{"role": "user", "content": prompt}],
             format=AnalysisReport.model_json_schema(),
-            options={'temperature': 0.2}
+            options={"temperature": 0.2, "num_ctx": 8192, "num_predict": 2048},
         )
-        
-        raw_content = response['message']['content']
-        report_data = json.loads(raw_content)
-        
-        print(f"Local sentiment processing locked down.")
+
+        parsed = json.loads(response["message"]["content"])
+        print("Successfully extracted sentiment report.")
         return {
-            "analysis_report": report_data,
-            "logs": ["Executed Review Analyzer via local Ollama pipeline."]
+            "analysis_report": parsed,
+            "logs": ["Successfully executed Review Analyzer."]
         }
+
     except Exception as e:
-        print(f"Ollama Analytics Error: {e}")
-        fallback = {"sentiment_summary": "Failed to parse locally", "pros": [], "cons": []}
-        return {"analysis_report": fallback, "logs": [str(e)]}
+        print(f"Sentiment analysis failed: {e}")
+        return {
+            "analysis_report": {"sentiment_summary": "Failed to analyze sentiments.", "pros": [], "cons": []},
+            "logs": [f"Review analyzer failed: {str(e)}"]
+        }

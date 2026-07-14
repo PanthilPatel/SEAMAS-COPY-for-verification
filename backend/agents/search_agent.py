@@ -4,16 +4,6 @@ from tools.search_tools import web_search_tool
 
 
 async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Search Agent LangGraph node.
-
-    Fires two parallel searches:
-      1. Shopping-focused  — forces Indian storefront coverage
-      2. Sentiment-focused — review/rating/specification signals
-
-    The two result sets are merged and deduplicated by URL before
-    being returned on the `search_results` key (Annotated / operator.add).
-    """
     query = state.get("query", "")
     print(f"\n--- LIVE SEARCH AGENT INITIATED: Aggregating web data for '{query}' ---")
 
@@ -21,8 +11,8 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
     shopping_query = query
     shopping_results, sentiment_results = await asyncio.gather(
-        web_search_tool(shopping_query,  max_results=15, augment_query=True),
-        web_search_tool(sentiment_query, max_results=10, augment_query=False),
+        web_search_tool(shopping_query,  max_results=30, augment_query=True),
+        web_search_tool(sentiment_query, max_results=20, augment_query=False),
     )
 
     seen_urls: set = set()
@@ -35,7 +25,7 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         seen_urls.add(url)
         merged.append(record)
 
-    merged = merged[:20]
+    merged = merged[:50]
 
     print(f"Search complete. Collected {len(merged)} web records "
           f"({len(shopping_results)} shopping + {len(sentiment_results)} sentiment, deduplicated).")
