@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ChatInterface from '../components/ChatInterface';
 import SentimentBanner from '../components/SentimentBanner';
 import FilterSidebar from '../components/FilterSidebar';
@@ -11,13 +11,46 @@ export default function UserDashboard() {
     const [error, setError] = useState(null);
     const [currentQuery, setCurrentQuery] = useState('');
 
+    // Dynamic current agent tracker state
+    const [activeAgent, setActiveAgent] = useState('');
+
+    // Primary multi-agent state management blocks
     const [priceData, setPriceData] = useState([]);
     const [sentimentReport, setSentimentReport] = useState(null);
     const [maxBudgetCeiling, setMaxBudgetCeiling] = useState(0);
 
+    // Filter and sort tracking values
     const [selectedMarketplaces, setSelectedMarketplaces] = useState([]);
     const [priceRange, setPriceRange] = useState(150000);
     const [sortBy, setSortBy] = useState('default');
+
+    // Simulated live agent node transition effects during the loading phase
+    useEffect(() => {
+        let interval;
+        if (loading) {
+            const agents = [
+                'Live Search Agent (Ingesting engine indexes...)',
+                'Budget Advisor Agent (Evaluating price ceilings...)',
+                'Price Comparison Agent (Running structural data parses...)',
+                'Review Analyzer Agent (Aggregating qualitative buyer sentiment...)',
+                'Recommendation Agent (Synthesizing optimal match arrays...)',
+                'Finalizer Agent (Packaging system state payload...)'
+            ];
+            let currentIdx = 0;
+            setActiveAgent(agents[0]);
+
+            interval = setInterval(() => {
+                currentIdx++;
+                if (currentIdx < agents.length) {
+                    setActiveAgent(agents[currentIdx]);
+                }
+            }, 2500); // Transitions to show active worker steps cleanly
+        } else {
+            setActiveAgent('');
+        }
+
+        return () => clearInterval(interval);
+    }, [loading]);
 
     const handleQuerySubmit = async (query) => {
         setLoading(true);
@@ -109,11 +142,27 @@ export default function UserDashboard() {
                 </div>
 
                 {loading && (
-                    <div className="flex flex-col items-center justify-center py-24 space-y-4">
-                        <div className="w-10 h-10 rounded-full border-3 border-slate-700 border-t-indigo-500 animate-spin"></div>
-                        <p className="text-xs text-slate-400 font-medium tracking-wide animate-pulse">
-                            Orchestrating background worker nodes, extracting prices, and running semantic analysis...
-                        </p>
+                    <div className="flex flex-col items-center justify-center py-24 space-y-6 bg-[#171717]/40 border border-slate-800/30 rounded-3xl max-w-xl mx-auto p-8 shadow-sm">
+                        <div className="relative flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-full border-2 border-indigo-500/10 border-t-indigo-500 animate-spin"></div>
+                            <span className="absolute flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                            </span>
+                        </div>
+
+                        <div className="text-center space-y-2">
+                            <div className="inline-flex items-center space-x-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
+                                <span className="h-1.5 w-1.5 bg-indigo-400 rounded-full animate-pulse"></span>
+                                <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400 font-bold">Active Node</span>
+                            </div>
+                            <p className="text-sm font-semibold text-white tracking-wide transition-all duration-300">
+                                {activeAgent}
+                            </p>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                                Please hold while local intelligence clusters parse structured dataset properties.
+                            </p>
+                        </div>
                     </div>
                 )}
 
