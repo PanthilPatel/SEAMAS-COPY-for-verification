@@ -17,12 +17,21 @@ export default function UserDashboard() {
     // Primary multi-agent state management blocks
     const [priceData, setPriceData] = useState([]);
     const [sentimentReport, setSentimentReport] = useState(null);
-    const [maxBudgetCeiling, setMaxBudgetCeiling] = useState(0);
+    const [maxBudgetCeiling, setMaxBudgetCeiling] = useState(250000);
 
     // Filter and sort tracking values
     const [selectedMarketplaces, setSelectedMarketplaces] = useState([]);
-    const [priceRange, setPriceRange] = useState(150000);
+    const [priceRange, setPriceRange] = useState(250000);
     const [sortBy, setSortBy] = useState('default');
+
+    // PAGINATION STATES
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 12; // Configured for 10-15 products per page view
+
+    // Reset pagination page index whenever a fresh search triggers
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [currentQuery, selectedMarketplaces, priceRange, sortBy]);
 
     // Simulated live agent node transition effects during the loading phase
     useEffect(() => {
@@ -44,7 +53,7 @@ export default function UserDashboard() {
                 if (currentIdx < agents.length) {
                     setActiveAgent(agents[currentIdx]);
                 }
-            }, 2500); // Transitions to show active worker steps cleanly
+            }, 2000);
         } else {
             setActiveAgent('');
         }
@@ -57,6 +66,13 @@ export default function UserDashboard() {
         setError(null);
         setCurrentQuery(query);
 
+        // 🚀 FIXED: Instantly reset state configurations to clear older search constraints
+        setPriceRange(250000);
+        setMaxBudgetCeiling(250000);
+        setSelectedMarketplaces([]);
+        setSortBy('default');
+        setCurrentPage(1);
+
         try {
             const data = await apiService.sendChatQuery(query);
 
@@ -68,14 +84,13 @@ export default function UserDashboard() {
 
             const validPrices = extractedPrices
                 .map(p => p.extracted_price)
-                .filter(p => p !== null && p !== undefined);
+                .filter(p => p !== null && p !== undefined && p > 0);
 
-            const absoluteMax = validPrices.length > 0 ? Math.max(...validPrices) : 150000;
+            const absoluteMax = validPrices.length > 0 ? Math.max(...validPrices) : 250000;
+
+            // Auto-expands the layout boundaries to match the highest priced product
             setMaxBudgetCeiling(absoluteMax);
             setPriceRange(absoluteMax);
-
-            setSelectedMarketplaces([]);
-            setSortBy('default');
 
         } catch (err) {
             setError(err.message || 'An unexpected error occurred during agent graph routing.');
@@ -91,6 +106,7 @@ export default function UserDashboard() {
         return [...new Set(stores)];
     }, [priceData]);
 
+    // Sanitize, filter, and sort full product lists
     const processedItems = useMemo(() => {
         let output = [...priceData];
 
@@ -112,8 +128,17 @@ export default function UserDashboard() {
         return output;
     }, [priceData, selectedMarketplaces, priceRange, sortBy]);
 
+    // PAGINATION CALCULATIONS
+    const totalPages = Math.ceil(processedItems.length / ITEMS_PER_PAGE);
+
+    const paginatedItems = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return processedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [processedItems, currentPage]);
+
     return (
         <div className="min-h-screen bg-[#202124] text-[#e8eaed] font-sans antialiased selection:bg-indigo-500/30">
+            {/* Navigation Header */}
             <header className="bg-[#171717] border-b border-slate-800/60 sticky top-0 z-30 shadow-md">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -130,7 +155,9 @@ export default function UserDashboard() {
                 </div>
             </header>
 
+            {/* Main Container Workspace */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Centralized Search Gateway */}
                 <div className="max-w-3xl mx-auto mb-8">
                     <ChatInterface onQuerySubmit={handleQuerySubmit} loading={loading} />
                     {error && (
@@ -141,6 +168,7 @@ export default function UserDashboard() {
                     )}
                 </div>
 
+                {/* Dynamic Telemetry Loading Indicator */}
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-24 space-y-6 bg-[#171717]/40 border border-slate-800/30 rounded-3xl max-w-xl mx-auto p-8 shadow-sm">
                         <div className="relative flex items-center justify-center">
@@ -166,11 +194,13 @@ export default function UserDashboard() {
                     </div>
                 )}
 
+                {/* Loaded Dashboard Layout Panels */}
                 {!loading && currentQuery && (
                     <>
                         <SentimentBanner report={sentimentReport} />
 
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start mt-6">
+                            {/* Left Side Filter Panel Column */}
                             <div className="lg:col-span-1 lg:sticky lg:top-24 bg-[#171717] border border-slate-800/40 p-5 rounded-2xl shadow-sm">
                                 <FilterSidebar
                                     marketplaces={uniqueMarketplaces}
@@ -184,23 +214,67 @@ export default function UserDashboard() {
                                 />
                             </div>
 
-                            <div className="lg:col-span-3 space-y-4">
+                            {/* Right Side Shopping Grid Output Column */}
+                            <div className="lg:col-span-3 space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[#171717]/60 border border-slate-800/30 p-4 rounded-xl">
                                     <div>
                                         <h2 className="text-md font-semibold text-white tracking-wide">Browse Products</h2>
-                                        <p className="text-xs text-slate-400 mt-0.5">Showing {processedItems.length} curated search results matches.</p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Showing {paginatedItems.length} of {processedItems.length} matching entries.
+                                        </p>
                                     </div>
                                     <div className="shrink-0">
                                         <ComparisonExport data={processedItems} query={currentQuery} />
                                     </div>
                                 </div>
 
-                                <ProductGrid items={processedItems} />
+                                {/* Render only current chunk selection split */}
+                                <ProductGrid items={paginatedItems} />
+
+                                {/* INTERACTIVE PAGINATION CONTROLS */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-center space-x-2 bg-[#171717]/40 border border-slate-800/30 p-4 rounded-2xl mt-4">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2a2b2e] border border-slate-700/60 text-slate-300 transition hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <div className="flex items-center space-x-1 px-2">
+                                            {[...Array(totalPages)].map((_, index) => {
+                                                const pageNum = index + 1;
+                                                return (
+                                                    <button
+                                                        key={pageNum}
+                                                        onClick={() => setCurrentPage(pageNum)}
+                                                        className={`h-7 w-7 rounded-lg text-xs font-mono font-bold transition flex items-center justify-center ${currentPage === pageNum
+                                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                                            : 'bg-transparent text-slate-400 hover:bg-[#2a2b2e] hover:text-white'
+                                                            }`}
+                                                    >
+                                                        {pageNum}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2a2b2e] border border-slate-700/60 text-slate-300 transition hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
                 )}
 
+                {/* Uninitialized State */}
                 {!loading && !currentQuery && (
                     <div className="text-center py-28 bg-[#171717] border border-slate-800/60 rounded-3xl max-w-xl mx-auto p-8 shadow-md">
                         <div className="h-12 w-12 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400 mx-auto mb-4">

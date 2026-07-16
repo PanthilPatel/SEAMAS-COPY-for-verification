@@ -57,7 +57,7 @@ def _build_shopping_query(query: str) -> str:
 
 async def web_search_tool(
     query: str,
-    max_results: int = 15,
+    max_results: int = 20,
     augment_query: bool = True,
 ) -> List[Dict[str, Any]]:
     """
@@ -66,11 +66,11 @@ async def web_search_tool(
 
     Args:
         query:          Raw user query string.
-        max_results:    Maximum number of records to return (default 15).
+        max_results:    Maximum number of records to return (default 20).
         augment_query:  If True, appends Indian e-commerce site qualifiers.
 
     Returns:
-        List of dicts: { engine, title, content, url }
+        List of dicts: { engine, title, content, url, thumbnail }
     """
     effective_query = _build_shopping_query(query) if augment_query else query
 
@@ -121,6 +121,7 @@ async def web_search_tool(
                             "title": r.get("title", ""),
                             "content": r.get("content", r.get("snippet", "")),
                             "url": url,
+                            "thumbnail": r.get("thumbnail") or r.get("img_src") or r.get("image") or "",
                         })
                         if len(records) >= max_results:
                             break
@@ -149,27 +150,36 @@ async def web_search_tool(
                         "api_key": tavily_key,
                         "query": effective_query,
                         "search_depth": "advanced",
-                        "max_results": max_results,
+                        "max_results": max(max_results, 20),
+                        "include_images": True,
                         "include_raw_content": False,
                         "include_answer": False,
                     },
                 )
                 if response.status_code == 200:
-                    raw_results = response.json().get("results", [])
+                    res_json = response.json()
+                    raw_results = res_json.get("results", [])
+                    images = res_json.get("images", [])
                     records = []
                     seen_urls = set()
-                    for r in raw_results:
+                    for idx, r in enumerate(raw_results):
                         url = r.get("url", "")
                         if url in seen_urls:
                             continue
                         seen_urls.add(url)
                         store_label = _domain_to_store(url)
+                        
+                        thumbnail = r.get("thumbnail") or r.get("image") or r.get("img_src")
+                        if not thumbnail and idx < len(images):
+                            thumbnail = images[idx]
+
                         records.append(
                             {
                                 "engine": store_label,
                                 "title": r.get("title", ""),
                                 "content": r.get("content", r.get("snippet", "")),
                                 "url": url,
+                                "thumbnail": thumbnail or "",
                             }
                         )
                         if len(records) >= max_results:

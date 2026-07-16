@@ -1,7 +1,6 @@
 import json
 import re
-import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
 
@@ -10,9 +9,14 @@ class PriceItem(BaseModel):
     marketplace: str = Field(description="Store name, e.g. 'Flipkart', 'Urban Monkey', 'Amazon.in'.")
     extracted_price: int = Field(description="Price as a plain integer, no symbols or commas.")
     status: str = Field(description="'Target Match' or 'Out of Budget'.")
+    # Extended attribute payloads for dynamic extraction
+    color: Optional[str] = Field(default=None, description="Extracted color (e.g., 'Black', 'Red', 'Blue', 'White').")
+    size: Optional[str] = Field(default=None, description="Extracted sizing identifier if applicable (e.g., 'M', 'XL', '7', '8').")
+    discount_percentage: Optional[int] = Field(default=0, description="Extracted discount percentage calculated from text properties if present.")
 
 class PriceComparisonResponse(BaseModel):
     prices: List[PriceItem]
+    detected_category: str = Field(description="Broad classification segment: 'clothing', 'electronics', or 'general'.")
 
 def clean_price(value: Any) -> int:
     if isinstance(value, (int, float)):
@@ -46,10 +50,23 @@ def prices_mentioned_in(text: str) -> set:
             continue
     return prices
 
+def find_source_record(search_results: List[Dict[str, Any]], marketplace: str, price: int) -> Dict[str, Any]:
+    for r in search_results:
+        if r.get("engine") != marketplace and marketplace.lower() not in (r.get("url") or "").lower():
+            continue
+        content = r.get("content") or ""
+        title = r.get("title") or ""
+        combined = (title + " " + content).replace(",", "")
+        if str(price) in combined:
+            return r
+    for r in search_results:
+        if marketplace.lower() in (r.get("url") or "").lower():
+            return r
+    return {}
+
 def is_specific_product_page(url: str) -> bool:
     if not url:
         return False
-
     from urllib.parse import urlparse
     parsed = urlparse(url)
     path = parsed.path.lower()
@@ -82,108 +99,80 @@ def is_specific_product_page(url: str) -> bool:
     if len(last_segment) > 20 or re.search(r"\d{4,}", last_segment) or last_segment.count("-") >= 3:
         if not any(word in path for word in ["review", "blog", "news", "article"]):
             return True
-
     return False
+
+def select_real_product_image(matched_rec: Dict[str, Any]) -> str:
+    tavily_images = matched_rec.get("images", [])
+    logo_signatures = [
+        "logo", "badge", "rating", "icon", "favicon", "banner", "avatar", 
+        "brand", "header", "footer", "sprite", "og-image", "og_image",
+        "myntra", "amazon", "flipkart", "croma", "peterengland", "octave", "superkicks"
+    ]
+    if isinstance(tavily_images, list) and len(tavily_images) > 0:
+        for img in tavily_images:
+            img_str = str(img).lower()
+            if not any(sig in img_str for sig in logo_signatures):
+                return img
+        if not any(sig in str(tavily_images[0]).lower() for sig in ["logo", "banner"]):
+            return tavily_images[0]
+            
+    fallback_thumb = matched_rec.get("thumbnail") or matched_rec.get("img_src") or matched_rec.get("thumbnail_src") or ""
+    if fallback_thumb and not any(sig in str(fallback_thumb).lower() for sig in logo_signatures):
+        return fallback_thumb
+    return "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&q=80"
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
     query = state.get("query", "")
     budget = state.get("budget_status", {}).get("ceiling")
 
-    print("\n--- OLLAMA PRICE COMPARISON AGENT INITIATED ---")
-
+    print("\n--- OLLAMA INTENT-CLASSIFYING PRICE COMPARISON INITIATED ---")
     if not search_results:
-        return {"price_data": [], "logs": ["No search results to extract prices from."]}
+        return {"price_data": [], "category": "general", "logs": ["No search results found."]}
 
-    junk_keywords = [
-        "capsule", "mutual fund", "small-cap", "mid-cap", "flexi-cap", 
-        "glassdoor", "interview", "jumper cap", "securities", "assimilation"
-    ]
-    
+    junk_keywords = ["capsule", "mutual fund", "small-cap", "mid-cap", "flexi-cap", "glassdoor", "interview", "securities"]
     filtered_records = []
     for r in search_results:
         url = r.get("url", "").lower()
         title_content = (r.get("title", "") + " " + (r.get("content") or "")).lower()
-        if any(junk in title_content for junk in junk_keywords):
+        if any(junk in title_content for junk in junk_keywords) or "youtube.com" in url or "youtu.be" in url:
             continue
-        
-        if "youtube.com" in url or "youtu.be" in url:
-            continue
-        if any(pc in url for pc in ["/news/", "/article/", "/articles/", "/blog/", "/blogs/", "/press-release/", "/press/"]):
-            continue
-        
-        from urllib.parse import urlparse
-        try:
-            domain = urlparse(url).netloc.lower()
-        except Exception:
-            domain = ""
-        if any(dk in domain for dk in ["news", "article", "blog", "youtube", "twitter", "reddit", "quora", "facebook", "instagram"]):
-            continue
-            
         filtered_records.append(r)
 
     if not filtered_records:
-        return {"price_data": [], "logs": ["All results flagged as semantic noise."]}
+        return {"price_data": [], "category": "general", "logs": ["All structural noise filtered out."]}
 
     context = "\n\n".join(
-        f"[Record {i}]\nStore: {r.get('engine', 'Web')}\nTitle: {r.get('title', '')}\n"
-        f"Content: {(r.get('content') or '')[:1000]}"
+        f"[Record {i}]\nStore: {r.get('engine', 'Web')}\nTitle: {r.get('title', '')}\nContent: {(r.get('content') or '')[:1000]}"
         for i, r in enumerate(filtered_records, start=1)
     )
 
-    prompt = f"""You are a strict data extraction engine. Your job is to extract a raw JSON object containing retail product prices from web search contexts.
+    prompt = f"""You are a multi-agent parser extracting e-commerce arrays.
 Query: "{query}"
 
-Analyze the records below and extract verified prices for retail items matching the search topic.
-You MUST output ONLY a valid JSON object matching this structure. Do not include any introductory text, conversation, or thoughts.
+Analyze the dataset records. Deduce if this query targets 'clothing' or 'electronics' or 'general'.
+Extract every valid product matching the intent with its metadata attributes.
 
-Required Structure:
-{{
-  "prices": [
-    {{
-      "product_name": "Full product description including name and brand",
-      "marketplace": "Merchant store name, e.g., Amazon.in, Apple Store, Flipkart, Croma",
-      "extracted_price": 1900,
-      "status": "Target Match"
-    }}
-  ]
-}}
+Rules:
+- For clothing items: extract attributes like 'color', 'size' (e.g. S, M, L, XL, XXL) if stated.
+- Parse standard integer discounts (e.g., if text says '40% off', discount_percentage is 40).
 
 Records:
 {context}
 """
 
     try:
-        response = await AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434")).chat(
-            model="qwen2.5", 
+        response = await AsyncClient().chat(
+            model="qwen2.5:latest",
             messages=[{"role": "user", "content": prompt}],
-            format="json",  
-            options={
-                "temperature": 0.0,  
-                "num_ctx": 8192,
-                "num_predict": 16384,
-            },
+            format=PriceComparisonResponse.model_json_schema(),
+            options={"temperature": 0.2, "num_ctx": 8192},
         )
 
-        raw_content = response["message"]["content"].strip()
+        parsed_payload = json.loads(response["message"]["content"])
+        rows = parsed_payload.get("prices", [])
+        detected_category = parsed_payload.get("detected_category", "general")
         
-        cleaned_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
-        
-        if not cleaned_content or cleaned_content == "":
-            cleaned_content = '{"prices": []}'
-            
-        if cleaned_content.startswith("```"):
-            cleaned_content = re.sub(r"^```(?:json)?\n?|```$", "", cleaned_content, flags=re.MULTILINE).strip()
-        
-        json_match = re.search(r"\{.*\}", cleaned_content, re.DOTALL)
-        final_json_str = json_match.group(0) if json_match else cleaned_content
-        
-        try:
-            parsed_data = json.loads(final_json_str)
-        except json.JSONDecodeError:
-            parsed_data = {"prices": []}
-
-        rows = parsed_data.get("prices", [])
         full_text_corpus = context + "\n" + "\n".join(r.get("title", "") for r in filtered_records)
         real_prices = prices_mentioned_in(full_text_corpus)
 
@@ -194,51 +183,28 @@ Records:
 
             if price == 0 or marketplace.lower() in {"online", "web", "india", ""}:
                 continue
-
             if price not in real_prices and price // 100 in real_prices:
                 price = price // 100
             elif price not in real_prices:
                 continue
 
             status = "Target Match" if not budget or price <= budget else "Out of Budget"
+            matched_rec = find_source_record(filtered_records, marketplace, price)
             
-            source_url = ""
-            matched_record = {}
-            
-            for r in filtered_records:
-                if r.get("engine") == marketplace or marketplace.lower() in (r.get("url") or "").lower():
-                    content = r.get("content") or ""
-                    title = r.get("title") or ""
-                    combined = (title + " " + content).replace(",", "")
-                    if str(price) in combined:
-                        source_url = r.get("url", "")
-                        matched_record = r
-                        break
-            
-            if not source_url:
-                for r in filtered_records:
-                    if marketplace.lower() in (r.get("url") or "").lower():
-                        source_url = r.get("url", "")
-                        matched_record = r
-                        break
-
-            extracted_img = (
-                matched_record.get("thumbnail") or 
-                matched_record.get("img_src") or 
-                matched_record.get("thumbnail_src") or 
-                ""
-            )
-
             results.append({
                 "product_name": str(row.get("product_name", "")).strip(),
                 "marketplace": marketplace,
                 "extracted_price": price,
                 "status": status,
-                "url": source_url,
-                "is_verified": is_specific_product_page(source_url),
-                "image_url": extracted_img
+                "url": matched_rec.get("url", ""),
+                "is_verified": is_specific_product_page(matched_rec.get("url", "")),
+                "image_url": select_real_product_image(matched_rec),
+                "color": row.get("color"),
+                "size": row.get("size"),
+                "discount_percentage": row.get("discount_percentage", 0)
             })
 
+        # Drop duplicates by URL/Name
         best_by_url = {}
         for r in results:
             key = r["url"] or r["product_name"]
@@ -246,10 +212,12 @@ Records:
                 best_by_url[key] = r
         results = list(best_by_url.values())
 
-        priced_count = sum(1 for r in results if r.get("extracted_price") is not None)
-        print(f"Extracted {priced_count} priced listing(s) after noise filtration.")
-        return {"price_data": results, "logs": [f"Processed {len(results)} sanitized rows."]}
+        return {
+            "price_data": results, 
+            "category": detected_category, 
+            "logs": [f"Successfully matched category context: {detected_category}"]
+        }
 
     except Exception as e:
-        print(f"Price extraction failed: {e}")
-        return {"price_data": [], "logs": [f"Price extraction failed: {e}"]}
+        print(f"Price comparison classification agent execution error: {e}")
+        return {"price_data": [], "category": "general", "logs": [str(e)]}
