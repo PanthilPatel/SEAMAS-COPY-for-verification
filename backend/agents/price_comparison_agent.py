@@ -5,15 +5,19 @@ from ollama import AsyncClient
 from pydantic import BaseModel, Field
 
 class PriceItem(BaseModel):
-    product_name: str = Field(description="Full product name including brand and style description.")
-    marketplace: str = Field(description="Store name, e.g. 'Flipkart', 'Urban Monkey', 'Amazon.in'.")
-    extracted_price: int = Field(description="Price as a plain integer, no symbols or commas.")
-    status: str = Field(description="'Target Match' or 'Out of Budget'.")
-    # Extended attribute payloads for dynamic extraction
-    color: Optional[str] = Field(default=None, description="Extracted color (e.g., 'Black', 'Red', 'Blue', 'White').")
-    size: Optional[str] = Field(default=None, description="Extracted sizing identifier if applicable (e.g., 'M', 'XL', '7', '8').")
-    discount_percentage: Optional[int] = Field(default=0, description="Extracted discount percentage calculated from text properties if present.")
-
+    product_name: str = Field(description="Full product name including brand, model, and style specification.")
+    marketplace: str = Field(description="Exact storefront name, e.g. 'Amazon', 'Flipkart', 'Myntra'.")
+    extracted_price: int = Field(description="Price as a plain integer without symbols or commas.")
+    currency: str = Field(default="₹", description="Currency symbol of the listing, e.g., ₹ or $.")
+    brand: Optional[str] = Field(default=None, description="Brand name of the product.")
+    rating:  Optional[float] = Field(default=0.0, description="Product rating value out of 5 stars (e.g., 4.5).")
+    reviews: Optional[int] = Field(default=0, description="Total number of customer reviews counted.")
+    delivery: Optional[str] = Field(default="Standard Delivery", description="Delivery info like 'Free Delivery' or 'Delivery charges apply'.")
+    discount: Optional[str] = Field(default=None, description="Discount text if present, e.g., '20% OFF'.")
+    image_url: str = Field(description="Clean, direct image asset link of the actual product.")
+    url: str = Field(description="Direct target URL page to purchase the product.")
+    status: str = Field(default="Target Match")
+    
 class PriceComparisonResponse(BaseModel):
     prices: List[PriceItem]
     detected_category: str = Field(description="Broad classification segment: 'clothing', 'electronics', or 'general'.")

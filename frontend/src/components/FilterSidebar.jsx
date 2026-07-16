@@ -1,126 +1,245 @@
 import React from 'react';
 
+// ─────────────────────────────────────────────
+// Section heading helper
+// ─────────────────────────────────────────────
+function SectionHeading({ label }) {
+    return (
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">
+            {label}
+        </h3>
+    );
+}
+
+// ─────────────────────────────────────────────
+// FilterSidebar
+// All filters map directly to real backend fields:
+//   marketplace  → price_data[].marketplace
+//   extracted_price → price_data[].extracted_price
+//   is_verified  → price_data[].is_verified
+//   status       → price_data[].status ("Target Match" | "Out of Budget")
+// ─────────────────────────────────────────────
 export default function FilterSidebar({
-    marketplaces,
-    selectedMarketplaces,
+    // Marketplace filter
+    marketplaces = [],
+    selectedMarketplaces = [],
     setSelectedMarketplaces,
-    maxPriceLimit,
-    priceRange,
+    // Price range filter
+    maxPriceLimit = 250000,
+    priceRange = 250000,
     setPriceRange,
-    sortBy,
-    setSortBy
+    // Sort
+    sortBy = 'default',
+    setSortBy,
+    // Verification filter (maps to is_verified)
+    verifiedOnly = false,
+    setVerifiedOnly,
+    // Budget filter (maps to status === "Target Match")
+    inBudgetOnly = false,
+    setInBudgetOnly,
+    // Whether a budget ceiling was detected
+    hasBudget = false,
 }) {
-    const handleMarketplaceChange = (market) => {
-        if (selectedMarketplaces.includes(market)) {
-            setSelectedMarketplaces(selectedMarketplaces.filter(m => m !== market));
+    const toggleMarketplace = (store) => {
+        if (selectedMarketplaces.includes(store)) {
+            setSelectedMarketplaces(selectedMarketplaces.filter(s => s !== store));
         } else {
-            setSelectedMarketplaces([...selectedMarketplaces, market]);
+            setSelectedMarketplaces([...selectedMarketplaces, store]);
         }
     };
 
+    const activeFilterCount = [
+        verifiedOnly,
+        inBudgetOnly,
+        selectedMarketplaces.length > 0,
+        priceRange < maxPriceLimit,
+        sortBy !== 'default',
+    ].filter(Boolean).length;
+
     return (
-        <aside className="w-full text-[#e3e3e3] space-y-6 pr-2 selection:bg-indigo-500/30">
-            {/* Refine Section */}
-            <div>
-                <h3 className="text-sm font-semibold tracking-wide text-slate-400 uppercase mb-3">Refine results</h3>
-                <div className="space-y-2 text-sm text-slate-200">
-                    <div className="flex items-center space-x-2 opacity-80">
-                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        <span>Nearby listings only</span>
-                    </div>
-                    <div className="flex items-center space-x-2 opacity-80">
-                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        <span>On sale</span>
-                    </div>
-                </div>
+        <div className="space-y-5 text-[#e8eaed]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white">Filters</h2>
+                {activeFilterCount > 0 && (
+                    <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">
+                        {activeFilterCount} active
+                    </span>
+                )}
             </div>
 
-            <hr className="border-slate-800" />
+            <div className="h-px bg-slate-800" />
 
-            {/* Sort By Section */}
+            {/* ── Sort By ── */}
             <div>
-                <h3 className="text-sm font-semibold text-white mb-3">Sort by</h3>
-                <div className="space-y-2 text-sm">
+                <SectionHeading label="Sort By" />
+                <div className="space-y-1.5">
                     {[
                         { id: 'default', label: 'Relevance' },
-                        { id: 'price-asc', label: 'Price: low to high' },
-                        { id: 'price-desc', label: 'Price: high to low' }
-                    ].map((option) => (
-                        <label key={option.id} className="flex items-center space-x-3 cursor-pointer group">
+                        { id: 'price-asc', label: 'Price: Low → High' },
+                        { id: 'price-desc', label: 'Price: High → Low' },
+                    ].map(opt => (
+                        <label
+                            key={opt.id}
+                            className="flex items-center space-x-2.5 cursor-pointer group"
+                        >
+                            <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                sortBy === opt.id
+                                    ? 'border-indigo-500 bg-indigo-500'
+                                    : 'border-slate-600 group-hover:border-slate-400'
+                            }`}>
+                                {sortBy === opt.id && (
+                                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                            </div>
                             <input
                                 type="radio"
-                                name="sort-group"
-                                checked={sortBy === option.id}
-                                onChange={() => setSortBy(option.id)}
-                                className="bg-transparent border-slate-650 checked:bg-indigo-500 text-indigo-500 h-4 w-4 rounded-full focus:ring-0 focus:ring-offset-0 focus:outline-none"
+                                name="sort-option"
+                                checked={sortBy === opt.id}
+                                onChange={() => setSortBy(opt.id)}
+                                className="sr-only"
                             />
-                            <span className={`transition-colors group-hover:text-white ${sortBy === option.id ? 'text-white font-medium' : 'text-slate-400'}`}>
-                                {option.label}
+                            <span className={`text-xs transition-colors ${
+                                sortBy === opt.id ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-300'
+                            }`}>
+                                {opt.label}
                             </span>
                         </label>
                     ))}
                 </div>
             </div>
 
-            <hr className="border-slate-800" />
+            <div className="h-px bg-slate-800" />
 
-            {/* Price Section */}
+            {/* ── Listing Type (is_verified) ── */}
             <div>
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-sm font-semibold text-white">Price</h3>
-                    <span className="text-xs font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md font-medium">
-                        Max: ₹{Number(priceRange).toLocaleString()}
+                <SectionHeading label="Listing Type" />
+                <label className="flex items-center space-x-2.5 cursor-pointer group">
+                    <div
+                        onClick={() => setVerifiedOnly(!verifiedOnly)}
+                        className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                            verifiedOnly
+                                ? 'border-emerald-500 bg-emerald-500'
+                                : 'border-slate-600 group-hover:border-slate-400'
+                        }`}
+                    >
+                        {verifiedOnly && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </div>
+                    <div>
+                        <div className={`text-xs font-medium transition-colors ${verifiedOnly ? 'text-emerald-400' : 'text-slate-300 group-hover:text-white'}`}>
+                            Verified Listings Only
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                            Prices from actual product pages
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* ── Budget Status (status field) ── */}
+            {hasBudget && (
+                <>
+                    <div>
+                        <SectionHeading label="Budget Fit" />
+                        <label className="flex items-center space-x-2.5 cursor-pointer group">
+                            <div
+                                onClick={() => setInBudgetOnly(!inBudgetOnly)}
+                                className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                                    inBudgetOnly
+                                        ? 'border-indigo-500 bg-indigo-500'
+                                        : 'border-slate-600 group-hover:border-slate-400'
+                                }`}
+                            >
+                                {inBudgetOnly && (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </div>
+                            <div>
+                                <div className={`text-xs font-medium transition-colors ${inBudgetOnly ? 'text-indigo-400' : 'text-slate-300 group-hover:text-white'}`}>
+                                    Within Budget Only
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                    Hide over-budget listings
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <div className="h-px bg-slate-800" />
+                </>
+            )}
+
+            {/* ── Price Range (extracted_price) ── */}
+            <div>
+                <div className="flex items-center justify-between mb-2.5">
+                    <SectionHeading label="Max Price" />
+                    <span className="text-[10px] font-mono font-bold bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-slate-300">
+                        ₹{priceRange.toLocaleString('en-IN')}
                     </span>
                 </div>
                 <input
                     type="range"
                     min="0"
-                    max={maxPriceLimit > 0 ? maxPriceLimit : 150000}
+                    max={maxPriceLimit}
+                    step={Math.max(100, Math.floor(maxPriceLimit / 100))}
                     value={priceRange}
                     onChange={(e) => setPriceRange(Number(e.target.value))}
-                    className="w-full accent-indigo-500 cursor-pointer h-1 bg-slate-800 rounded-lg appearance-none focus:outline-none mb-3"
+                    className="w-full h-1.5 rounded-full accent-indigo-500 cursor-pointer"
+                    style={{
+                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${(priceRange / maxPriceLimit) * 100}%, #334155 ${(priceRange / maxPriceLimit) * 100}%, #334155 100%)`
+                    }}
                 />
-                <div className="flex items-center space-x-2">
-                    <div className="relative flex-grow">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">₹</span>
-                        <input
-                            type="text"
-                            readOnly
-                            value={Number(priceRange).toLocaleString()}
-                            className="w-full bg-[#1e1e1e] border border-slate-800 rounded-lg py-1.5 pl-5 pr-2 text-xs text-slate-300 focus:outline-none"
-                        />
-                    </div>
-                    <button className="bg-[#2a2a2a] hover:bg-[#333] border border-slate-800 text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-colors">
-                        Go
-                    </button>
+                <div className="flex justify-between text-[10px] text-slate-600 mt-1.5">
+                    <span>₹0</span>
+                    <span>₹{maxPriceLimit.toLocaleString('en-IN')}</span>
                 </div>
             </div>
 
-            <hr className="border-slate-800" />
+            <div className="h-px bg-slate-800" />
 
-            {/* Marketplace Stores Section */}
-            <div>
-                <h3 className="text-sm font-semibold text-white mb-3">Merchant Stores</h3>
-                {marketplaces.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic">No merchant stores detected.</p>
-                ) : (
-                    <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-                        {marketplaces.map((market) => (
-                            <label key={market} className="flex items-center space-x-3 text-sm cursor-pointer select-none group">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedMarketplaces.includes(market)}
-                                    onChange={() => handleMarketplaceChange(market)}
-                                    className="rounded border-slate-700 bg-transparent text-indigo-500 focus:ring-0 focus:ring-offset-0 focus:outline-none h-4 w-4"
-                                />
-                                <span className={`truncate transition-colors ${selectedMarketplaces.includes(market) ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-200'}`}>
-                                    {market}
-                                </span>
-                            </label>
-                        ))}
+            {/* ── Marketplace (marketplace field) ── */}
+            {marketplaces.length > 0 && (
+                <div>
+                    <SectionHeading label="Marketplace" />
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {marketplaces.map(store => {
+                            const isSelected = selectedMarketplaces.includes(store);
+                            return (
+                                <label
+                                    key={store}
+                                    className="flex items-center space-x-2.5 cursor-pointer group"
+                                    onClick={() => toggleMarketplace(store)}
+                                >
+                                    <div className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                        isSelected
+                                            ? 'border-indigo-500 bg-indigo-500'
+                                            : 'border-slate-600 group-hover:border-slate-400'
+                                    }`}>
+                                        {isSelected && (
+                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                    <span className={`text-xs truncate transition-colors ${
+                                        isSelected ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-300'
+                                    }`}>
+                                        {store}
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
-                )}
-            </div>
-        </aside>
+                </div>
+            )}
+        </div>
     );
 }

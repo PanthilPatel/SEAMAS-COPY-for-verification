@@ -7,7 +7,7 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 180000, // Generous timeout for local reasoning workflows
+    timeout: 600000, // Generous timeout for local reasoning workflows (10 mins)
 });
 
 export const apiService = {
