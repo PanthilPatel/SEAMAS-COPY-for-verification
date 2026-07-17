@@ -1,51 +1,43 @@
 import React from 'react';
 
 // ─────────────────────────────────────────────
-// Section heading helper
+// FilterSidebar — Premium glassmorphism panel
 // ─────────────────────────────────────────────
-function SectionHeading({ label }) {
+
+function SectionLabel({ label, icon }) {
     return (
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">
-            {label}
-        </h3>
+        <div className="flex items-center space-x-2 mb-3">
+            {icon && <span className="text-indigo-400 opacity-70">{icon}</span>}
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</h3>
+        </div>
     );
 }
 
-// ─────────────────────────────────────────────
-// FilterSidebar
-// All filters map directly to real backend fields:
-//   marketplace  → price_data[].marketplace
-//   extracted_price → price_data[].extracted_price
-//   is_verified  → price_data[].is_verified
-//   status       → price_data[].status ("Target Match" | "Out of Budget")
-// ─────────────────────────────────────────────
+function Divider() {
+    return <div className="h-px my-4" style={{ background: 'rgba(255,255,255,0.05)' }} />;
+}
+
 export default function FilterSidebar({
-    // Marketplace filter
     marketplaces = [],
     selectedMarketplaces = [],
     setSelectedMarketplaces,
-    // Price range filter
     maxPriceLimit = 250000,
     priceRange = 250000,
     setPriceRange,
-    // Sort
     sortBy = 'default',
     setSortBy,
-    // Verification filter (maps to is_verified)
     verifiedOnly = false,
     setVerifiedOnly,
-    // Budget filter (maps to status === "Target Match")
     inBudgetOnly = false,
     setInBudgetOnly,
-    // Whether a budget ceiling was detected
     hasBudget = false,
 }) {
     const toggleMarketplace = (store) => {
-        if (selectedMarketplaces.includes(store)) {
-            setSelectedMarketplaces(selectedMarketplaces.filter(s => s !== store));
-        } else {
-            setSelectedMarketplaces([...selectedMarketplaces, store]);
-        }
+        setSelectedMarketplaces(
+            selectedMarketplaces.includes(store)
+                ? selectedMarketplaces.filter(s => s !== store)
+                : [...selectedMarketplaces, store]
+        );
     };
 
     const activeFilterCount = [
@@ -56,190 +48,201 @@ export default function FilterSidebar({
         sortBy !== 'default',
     ].filter(Boolean).length;
 
+    const clearAll = () => {
+        setSelectedMarketplaces([]);
+        setPriceRange(maxPriceLimit);
+        setSortBy('default');
+        setVerifiedOnly(false);
+        setInBudgetOnly(false);
+    };
+
+    const sortOptions = [
+        { id: 'default',    label: 'Relevance' },
+        { id: 'price-asc',  label: 'Price ↑' },
+        { id: 'price-desc', label: 'Price ↓' },
+    ];
+
     return (
-        <div className="space-y-5 text-[#e8eaed]">
+        <div className="space-y-1 text-white">
 
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white">Filters</h2>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <h2 className="text-sm font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                        Filters
+                    </h2>
+                    {activeFilterCount > 0 && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </div>
                 {activeFilterCount > 0 && (
-                    <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">
-                        {activeFilterCount} active
-                    </span>
+                    <button onClick={clearAll}
+                        className="text-[10px] text-slate-500 hover:text-indigo-400 transition-colors font-medium">
+                        Clear all
+                    </button>
                 )}
             </div>
 
-            <div className="h-px bg-slate-800" />
+            <Divider />
 
-            {/* ── Sort By ── */}
+            {/* Sort By */}
             <div>
-                <SectionHeading label="Sort By" />
-                <div className="space-y-1.5">
-                    {[
-                        { id: 'default', label: 'Relevance' },
-                        { id: 'price-asc', label: 'Price: Low → High' },
-                        { id: 'price-desc', label: 'Price: High → Low' },
-                    ].map(opt => (
-                        <label
+                <SectionLabel label="Sort By" />
+                <div className="flex flex-wrap gap-1.5">
+                    {sortOptions.map(opt => (
+                        <button
                             key={opt.id}
-                            className="flex items-center space-x-2.5 cursor-pointer group"
+                            onClick={() => setSortBy(opt.id)}
+                            className="flex-1 text-xs font-semibold py-1.5 px-2 rounded-lg transition-all duration-200"
+                            style={sortBy === opt.id ? {
+                                background: 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3))',
+                                border: '1px solid rgba(99,102,241,0.5)',
+                                color: '#a5b4fc',
+                            } : {
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(255,255,255,0.06)',
+                                color: '#64748b',
+                            }}
                         >
-                            <div className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                sortBy === opt.id
-                                    ? 'border-indigo-500 bg-indigo-500'
-                                    : 'border-slate-600 group-hover:border-slate-400'
-                            }`}>
-                                {sortBy === opt.id && (
-                                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                                )}
-                            </div>
-                            <input
-                                type="radio"
-                                name="sort-option"
-                                checked={sortBy === opt.id}
-                                onChange={() => setSortBy(opt.id)}
-                                className="sr-only"
-                            />
-                            <span className={`text-xs transition-colors ${
-                                sortBy === opt.id ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-300'
-                            }`}>
-                                {opt.label}
-                            </span>
-                        </label>
+                            {opt.label}
+                        </button>
                     ))}
                 </div>
             </div>
 
-            <div className="h-px bg-slate-800" />
+            <Divider />
 
-            {/* ── Listing Type (is_verified) ── */}
+            {/* Price Range */}
             <div>
-                <SectionHeading label="Listing Type" />
-                <label className="flex items-center space-x-2.5 cursor-pointer group">
-                    <div
-                        onClick={() => setVerifiedOnly(!verifiedOnly)}
-                        className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
-                            verifiedOnly
-                                ? 'border-emerald-500 bg-emerald-500'
-                                : 'border-slate-600 group-hover:border-slate-400'
-                        }`}
-                    >
-                        {verifiedOnly && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                            </svg>
-                        )}
+                <SectionLabel label="Max Price" />
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-600">₹0</span>
+                        <span className="text-sm font-bold gradient-text" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                            ₹{Number(priceRange).toLocaleString('en-IN')}
+                        </span>
                     </div>
-                    <div>
-                        <div className={`text-xs font-medium transition-colors ${verifiedOnly ? 'text-emerald-400' : 'text-slate-300 group-hover:text-white'}`}>
-                            Verified Listings Only
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
-                            Prices from actual product pages
-                        </div>
-                    </div>
-                </label>
-            </div>
-
-            <div className="h-px bg-slate-800" />
-
-            {/* ── Budget Status (status field) ── */}
-            {hasBudget && (
-                <>
-                    <div>
-                        <SectionHeading label="Budget Fit" />
-                        <label className="flex items-center space-x-2.5 cursor-pointer group">
-                            <div
-                                onClick={() => setInBudgetOnly(!inBudgetOnly)}
-                                className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
-                                    inBudgetOnly
-                                        ? 'border-indigo-500 bg-indigo-500'
-                                        : 'border-slate-600 group-hover:border-slate-400'
-                                }`}
-                            >
-                                {inBudgetOnly && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <div className={`text-xs font-medium transition-colors ${inBudgetOnly ? 'text-indigo-400' : 'text-slate-300 group-hover:text-white'}`}>
-                                    Within Budget Only
-                                </div>
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                    Hide over-budget listings
-                                </div>
-                            </div>
-                        </label>
-                    </div>
-                    <div className="h-px bg-slate-800" />
-                </>
-            )}
-
-            {/* ── Price Range (extracted_price) ── */}
-            <div>
-                <div className="flex items-center justify-between mb-2.5">
-                    <SectionHeading label="Max Price" />
-                    <span className="text-[10px] font-mono font-bold bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded text-slate-300">
-                        ₹{priceRange.toLocaleString('en-IN')}
-                    </span>
-                </div>
-                <input
-                    type="range"
-                    min="0"
-                    max={maxPriceLimit}
-                    step={Math.max(100, Math.floor(maxPriceLimit / 100))}
-                    value={priceRange}
-                    onChange={(e) => setPriceRange(Number(e.target.value))}
-                    className="w-full h-1.5 rounded-full accent-indigo-500 cursor-pointer"
-                    style={{
-                        background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${(priceRange / maxPriceLimit) * 100}%, #334155 ${(priceRange / maxPriceLimit) * 100}%, #334155 100%)`
-                    }}
-                />
-                <div className="flex justify-between text-[10px] text-slate-600 mt-1.5">
-                    <span>₹0</span>
-                    <span>₹{maxPriceLimit.toLocaleString('en-IN')}</span>
+                    <input
+                        type="range"
+                        min={0}
+                        max={maxPriceLimit}
+                        step={Math.max(500, Math.floor(maxPriceLimit / 200))}
+                        value={priceRange}
+                        onChange={e => setPriceRange(Number(e.target.value))}
+                    />
                 </div>
             </div>
 
-            <div className="h-px bg-slate-800" />
+            <Divider />
 
-            {/* ── Marketplace (marketplace field) ── */}
+            {/* Marketplaces */}
             {marketplaces.length > 0 && (
                 <div>
-                    <SectionHeading label="Marketplace" />
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    <SectionLabel label="Marketplace" />
+                    <div className="space-y-1.5">
                         {marketplaces.map(store => {
-                            const isSelected = selectedMarketplaces.includes(store);
+                            const active = selectedMarketplaces.includes(store);
                             return (
-                                <label
+                                <button
                                     key={store}
-                                    className="flex items-center space-x-2.5 cursor-pointer group"
                                     onClick={() => toggleMarketplace(store)}
+                                    className="w-full flex items-center justify-between py-2 px-3 rounded-xl text-xs font-medium transition-all duration-200"
+                                    style={active ? {
+                                        background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))',
+                                        border: '1px solid rgba(99,102,241,0.35)',
+                                        color: '#a5b4fc',
+                                    } : {
+                                        background: 'rgba(255,255,255,0.02)',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        color: '#64748b',
+                                    }}
                                 >
-                                    <div className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                        isSelected
-                                            ? 'border-indigo-500 bg-indigo-500'
-                                            : 'border-slate-600 group-hover:border-slate-400'
-                                    }`}>
-                                        {isSelected && (
-                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
+                                    <div className="flex items-center space-x-2">
+                                        <div className="h-5 w-5 rounded flex items-center justify-center text-[9px] font-black shrink-0"
+                                            style={active
+                                                ? { background: 'rgba(99,102,241,0.3)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.4)' }
+                                                : { background: 'rgba(255,255,255,0.04)', color: '#475569', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                            {store.charAt(0)}
+                                        </div>
+                                        <span>{store}</span>
                                     </div>
-                                    <span className={`text-xs truncate transition-colors ${
-                                        isSelected ? 'text-white font-medium' : 'text-slate-400 group-hover:text-slate-300'
-                                    }`}>
-                                        {store}
-                                    </span>
-                                </label>
+                                    {active && (
+                                        <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </button>
                             );
                         })}
                     </div>
                 </div>
             )}
+
+            {marketplaces.length > 0 && <Divider />}
+
+            {/* Toggles */}
+            <div className="space-y-2.5">
+                <SectionLabel label="Quick Filters" />
+
+                {/* Verified only */}
+                <button
+                    onClick={() => setVerifiedOnly(v => !v)}
+                    className="w-full flex items-center justify-between py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200"
+                    style={verifiedOnly ? {
+                        background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.12))',
+                        border: '1px solid rgba(16,185,129,0.3)',
+                        color: '#34d399',
+                    } : {
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        color: '#475569',
+                    }}
+                >
+                    <div className="flex items-center space-x-2">
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Verified listings only</span>
+                    </div>
+                    <div className={`w-8 h-4 rounded-full transition-colors relative ${verifiedOnly ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                        <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform shadow-sm ${verifiedOnly ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </div>
+                </button>
+
+                {/* In budget only */}
+                {hasBudget && (
+                    <button
+                        onClick={() => setInBudgetOnly(v => !v)}
+                        className="w-full flex items-center justify-between py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200"
+                        style={inBudgetOnly ? {
+                            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12))',
+                            border: '1px solid rgba(99,102,241,0.3)',
+                            color: '#a5b4fc',
+                        } : {
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            color: '#475569',
+                        }}
+                    >
+                        <div className="flex items-center space-x-2">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span>Within budget only</span>
+                        </div>
+                        <div className={`w-8 h-4 rounded-full transition-colors relative ${inBudgetOnly ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                            <div className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform shadow-sm ${inBudgetOnly ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </div>
+                    </button>
+                )}
+            </div>
         </div>
     );
 }

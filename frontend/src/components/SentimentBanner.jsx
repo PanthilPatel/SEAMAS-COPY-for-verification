@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
 
-// ─────────────────────────────────────────────
-// SentimentBanner
-// Maps to real backend fields:
-//   report.summary → analysis_report.summary
-//   report.pros    → analysis_report.pros
-//   report.cons    → analysis_report.cons
-// ─────────────────────────────────────────────
 export default function SentimentBanner({ report }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -17,67 +10,96 @@ export default function SentimentBanner({ report }) {
     const hasProsOrCons = (report.pros?.length > 0) || (report.cons?.length > 0);
 
     return (
-        <div className="bg-[#171717] border border-slate-800/60 rounded-2xl overflow-hidden shadow-sm mb-6 transition-all duration-300">
+        <div className="mb-6 rounded-2xl overflow-hidden animate-slide-up"
+            style={{
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06), rgba(14,14,22,0.9))',
+                border: '1px solid rgba(99,102,241,0.2)',
+                boxShadow: '0 4px 24px rgba(99,102,241,0.08)',
+            }}>
 
-            {/* ── Always-visible header row ── */}
-            <div className="flex items-start justify-between gap-4 p-4">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 p-5">
                 <div className="flex items-start space-x-3 min-w-0">
-                    {/* Pulsing AI indicator */}
-                    <div className="relative flex h-2 w-2 mt-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+
+                    {/* Animated AI dot */}
+                    <div className="relative flex h-2.5 w-2.5 mt-1.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+                            style={{ background: '#818cf8' }} />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5"
+                            style={{ background: 'linear-gradient(135deg, #6366f1, #a78bfa)' }} />
                     </div>
-                    <div className="min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest"
+                                style={{ color: '#818cf8' }}>
                                 AI Market Insights
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                                style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                Live Analysis
                             </span>
                         </div>
                         {report.summary && (
-                            <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
+                            <p className="text-sm text-slate-300 leading-relaxed"
+                                style={{ fontFamily: "'Inter', sans-serif" }}>
                                 {report.summary}
                             </p>
                         )}
                     </div>
                 </div>
 
-                {/* Expand / Collapse button — only shown when there's more to see */}
                 {hasProsOrCons && (
                     <button
                         onClick={() => setIsExpanded(v => !v)}
-                        className="shrink-0 flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/40 px-2.5 py-1.5 rounded-lg transition-all duration-200"
-                        aria-label={isExpanded ? 'Collapse insights' : 'Expand insights'}
+                        className="shrink-0 flex items-center space-x-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all duration-200"
+                        style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: '#94a3b8',
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(99,102,241,0.12)';
+                            e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)';
+                            e.currentTarget.style.color = '#a5b4fc';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                            e.currentTarget.style.color = '#94a3b8';
+                        }}
                     >
-                        <span>{isExpanded ? 'Less' : 'Details'}</span>
+                        <span>{isExpanded ? 'Collapse' : 'View Details'}</span>
                         <svg
-                            className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
+                            className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
                 )}
             </div>
 
-            {/* ── Expandable Pros & Cons ── */}
+            {/* Expandable pros/cons */}
             {isExpanded && hasProsOrCons && (
-                <div className="border-t border-slate-800/60 px-4 pb-4 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in"
+                    style={{ borderTop: '1px solid rgba(99,102,241,0.12)' }}>
 
                     {/* Pros */}
                     {report.pros?.length > 0 && (
-                        <div>
-                            <div className="flex items-center space-x-1.5 mb-2">
-                                <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                        <div className="pt-4">
+                            <div className="flex items-center space-x-2 mb-3">
+                                <div className="h-5 w-5 rounded-lg flex items-center justify-center"
+                                    style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                                    <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Praises</span>
                             </div>
-                            <ul className="space-y-1.5">
+                            <ul className="space-y-2">
                                 {report.pros.map((pro, i) => (
-                                    <li key={i} className="flex items-start space-x-2">
-                                        <span className="text-emerald-500 mt-0.5 shrink-0 text-xs">✓</span>
+                                    <li key={i} className="flex items-start space-x-2.5">
+                                        <span className="mt-1 h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
                                         <span className="text-xs text-slate-300 leading-relaxed">{pro}</span>
                                     </li>
                                 ))}
@@ -87,17 +109,20 @@ export default function SentimentBanner({ report }) {
 
                     {/* Cons */}
                     {report.cons?.length > 0 && (
-                        <div>
-                            <div className="flex items-center space-x-1.5 mb-2">
-                                <svg className="w-3.5 h-3.5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                        <div className="pt-4">
+                            <div className="flex items-center space-x-2 mb-3">
+                                <div className="h-5 w-5 rounded-lg flex items-center justify-center"
+                                    style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.22)' }}>
+                                    <svg className="w-3 h-3 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Complaints</span>
                             </div>
-                            <ul className="space-y-1.5">
+                            <ul className="space-y-2">
                                 {report.cons.map((con, i) => (
-                                    <li key={i} className="flex items-start space-x-2">
-                                        <span className="text-rose-500 mt-0.5 shrink-0 text-xs">✗</span>
+                                    <li key={i} className="flex items-start space-x-2.5">
+                                        <span className="mt-1 h-1.5 w-1.5 rounded-full shrink-0 bg-rose-500" />
                                         <span className="text-xs text-slate-300 leading-relaxed">{con}</span>
                                     </li>
                                 ))}
