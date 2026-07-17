@@ -12,11 +12,17 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     shopping_query_3 = f"{query} marketplace listings online"
     sentiment_query = f"{query} review rating user feedback india"
 
+    sem = asyncio.Semaphore(2)
+
+    async def sem_search(q, max_res, aug):
+        async with sem:
+            return await web_search_tool(q, max_results=max_res, augment_query=aug)
+
     res_shop1, res_shop2, res_shop3, res_sentiment = await asyncio.gather(
-        web_search_tool(shopping_query_1, max_results=40, augment_query=True),
-        web_search_tool(shopping_query_2, max_results=40, augment_query=False),
-        web_search_tool(shopping_query_3, max_results=40, augment_query=True),
-        web_search_tool(sentiment_query, max_results=20, augment_query=False),
+        sem_search(shopping_query_1, 40, True),
+        sem_search(shopping_query_2, 40, False),
+        sem_search(shopping_query_3, 40, True),
+        sem_search(sentiment_query, 20, False),
     )
 
     seen_urls: set = set()

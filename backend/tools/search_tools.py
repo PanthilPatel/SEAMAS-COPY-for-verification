@@ -81,7 +81,7 @@ async def web_search_tool(
             seen_urls = set()
             max_pages = 5
 
-            async with httpx.AsyncClient(timeout=4.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 for page in range(1, max_pages + 1):
                     if len(records) >= max_results:
                         break
@@ -137,7 +137,7 @@ async def web_search_tool(
                 print("[SearchTool] SearXNG returned 0 usable results across all pages.")
 
         except Exception as e:
-            print(f"[SearchTool] SearXNG failed: {e}. Switching to Tavily...")
+            print(f"[SearchTool] SearXNG failed: {repr(e)}. Switching to Tavily...")
 
     tavily_key = os.getenv("TAVILY_API_KEY", "")
     if tavily_key:
@@ -192,7 +192,7 @@ async def web_search_tool(
                 else:
                     print(f"[SearchTool] Tavily HTTP {response.status_code}: {response.text[:200]}")
         except Exception as e:
-            print(f"[SearchTool] Tavily also failed: {e}")
+            print(f"[SearchTool] Tavily also failed: {repr(e)}")
 
     print("[SearchTool] All search sources exhausted. Returning empty list.")
     return []
