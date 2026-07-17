@@ -243,9 +243,22 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
 
     # Search entire search results corpus for a matching thumbnail image if matched_rec has none
     if all_records and product_name:
-        prod_words = [w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name) 
-                      if w.lower() not in ["with", "from", "inch", "full", "backlit", "panel", "monitor", "laptop", "phone", "shoe", "brand", "official", "store"]]
+        # Extract all significant words, excluding super-generic ones
+        generic_words = {
+            "with", "from", "inch", "full", "backlit", "panel", "brand", "official", "store",
+            "laptop", "phone", "shoe", "stand", "buy", "online", "india", "price", "best",
+            "new", "set", "pack", "combo", "value", "deal", "offer", "free", "delivery",
+            "and", "for", "the", "pro", "max", "plus", "lite", "mini", "ultra"
+        }
+        prod_words = [w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name)
+                      if w.lower() not in generic_words]
+
         if prod_words:
+            # The first significant word is almost always the brand/unique ID — it MUST match
+            brand_word = prod_words[0]
+            # Need strict match: brand present + at least 2 more specific words match
+            required_matches = max(2, min(3, len(prod_words)))
+
             for r in all_records:
                 thumb = r.get("thumbnail") or r.get("img_src") or r.get("thumbnail_src") or ""
                 if not thumb:
@@ -253,10 +266,16 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
                 thumb_str = str(thumb).lower()
                 if any(pattern in thumb_str for pattern in forbidden_patterns) or any(dec in thumb_str for dec in ["vector", "banner", "logo"]):
                     continue
-                
+                # Skip unsplash — that's a category fallback, not a real product image
+                if "unsplash.com" in thumb_str:
+                    continue
+
                 title_lower = r.get("title", "").lower()
+                # Brand/unique word MUST be present in the title
+                if brand_word not in title_lower:
+                    continue
                 match_count = sum(1 for w in prod_words if w in title_lower)
-                if match_count >= min(2, len(prod_words)):
+                if match_count >= required_matches:
                     return thumb
 
     # Dynamically select a beautiful category-specific fallback image
