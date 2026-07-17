@@ -13,12 +13,13 @@ async def review_analyzer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if not search_results:
         return {"analysis_report": {}, "logs": ["No search records available for review processing."]}
 
+    # ⚡ OPTIMIZATION 1: Trim the text corpus limit down to 3500 chars (plenty for high-quality sentiment extraction)
     corpus = "\n".join(
-        f"- {r.get('title', '')}: {r.get('content', '')[:600]}"
+        f"- {r.get('title', '')}: {r.get('content', '')[:300]}"
         for r in search_results if r.get('content')
-    )[:7000]
+    )[:3500]
 
-    prompt = f"""You are a consumer sentiment synthesis agent. Analyze the true customer testimonials and web mentions for: "{query}".
+    prompt = f"""You are a consumer sentiment synthesis agent. Analyze the customer testimonials and web mentions for: "{query}".
 Summarize the aggregate market opinion into a JSON object matching this structural specification exactly:
 {{
   "summary": "A concise 1-2 sentence market trend and availability overview summary statement.",
@@ -43,12 +44,11 @@ Context Dataset:
             format="json",
             options={
                 "temperature": 0.0,
-                "num_ctx": 16384,
+                "num_ctx": 4096,  # ⚡ OPTIMIZATION 2: Cut down context token size from 16k to 4k for immediate compute turnaround
             },
         )
 
         raw_content = response["message"]["content"].strip()
-        
         cleaned_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
         
         if cleaned_content.startswith("```"):

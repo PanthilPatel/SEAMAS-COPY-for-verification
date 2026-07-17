@@ -81,7 +81,7 @@ async def web_search_tool(
             seen_urls = set()
             max_pages = 5
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=4.0) as client:
                 for page in range(1, max_pages + 1):
                     if len(records) >= max_results:
                         break
@@ -93,7 +93,7 @@ async def web_search_tool(
                             "q": effective_query,
                             "format": "json",
                             "language": "en-IN",
-                            "engines": "google cse",
+                            "engines": "google",
                             "safesearch": "0",
                             "pageno": page,
                         },

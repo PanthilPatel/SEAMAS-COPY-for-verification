@@ -48,7 +48,7 @@ async def recommendation(state: Dict[str, Any]) -> Dict[str, Any]:
         else:
             recommendation_list.append("No clear pricing matches extracted from the raw search data.")
 
-        sentiment = analysis_report.get("sentiment_summary", "")
+        sentiment = analysis_report.get("summary") or analysis_report.get("sentiment_summary", "")
         if sentiment and sentiment != "No data":
             recommendation_list.append(f"Market sentiment analysis: {sentiment}")
 

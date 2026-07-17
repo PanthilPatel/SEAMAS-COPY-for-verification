@@ -26,7 +26,8 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         markdown_output.append(f"### Budget Status\n- **Assessment:** {budget_status.get('status', 'N/A')}\n")
 
     if analysis_report:
-        markdown_output.append(f"### Market Sentiment\n- **Summary:** {analysis_report.get('sentiment_summary', 'Neutral')}")
+        sentiment_summary = analysis_report.get("summary") or analysis_report.get("sentiment_summary", "Neutral")
+        markdown_output.append(f"### Market Sentiment\n- **Summary:** {sentiment_summary}")
         if analysis_report.get("pros"):
             markdown_output.append("- **Pros:** " + ", ".join(analysis_report["pros"]))
         if analysis_report.get("cons"):
