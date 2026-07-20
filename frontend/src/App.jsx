@@ -1,12 +1,14 @@
 import React from 'react';
 import UserDashboard from './pages/UserDashboard';
 
-function App() {
+export default function App() {
     return (
-        <div className="antialiased font-sans">
-            <UserDashboard />
+        <div className="relative min-h-screen text-[#F8FAFC] antialiased">
+            <div className="seamas-ambient" aria-hidden="true" />
+            <div className="seamas-grid" aria-hidden="true" />
+            <div className="relative z-10 w-full h-full">
+                <UserDashboard />
+            </div>
         </div>
     );
-}
-
-export default App;
+}   
