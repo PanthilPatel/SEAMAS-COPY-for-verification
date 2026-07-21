@@ -1,9 +1,5 @@
 import React from 'react';
 
-// ─────────────────────────────────────────────
-// FilterSidebar — Premium glassmorphism panel
-// ─────────────────────────────────────────────
-
 function SectionLabel({ label, icon }) {
     return (
         <div className="flex items-center space-x-2 mb-3">
@@ -57,15 +53,14 @@ export default function FilterSidebar({
     };
 
     const sortOptions = [
-        { id: 'default',    label: 'Relevance' },
-        { id: 'price-asc',  label: 'Price ↑' },
+        { id: 'default', label: 'Relevance' },
+        { id: 'price-asc', label: 'Price ↑' },
         { id: 'price-desc', label: 'Price ↓' },
     ];
 
     return (
         <div className="space-y-1 text-white">
 
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
                     <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +87,6 @@ export default function FilterSidebar({
 
             <Divider />
 
-            {/* Sort By */}
             <div>
                 <SectionLabel label="Sort By" />
                 <div className="flex flex-wrap gap-1.5">
@@ -119,7 +113,6 @@ export default function FilterSidebar({
 
             <Divider />
 
-            {/* Price Range */}
             <div>
                 <SectionLabel label="Max Price" />
                 <div className="space-y-3">
@@ -142,7 +135,6 @@ export default function FilterSidebar({
 
             <Divider />
 
-            {/* Marketplaces */}
             {marketplaces.length > 0 && (
                 <div>
                     <SectionLabel label="Marketplace" />
@@ -187,11 +179,9 @@ export default function FilterSidebar({
 
             {marketplaces.length > 0 && <Divider />}
 
-            {/* Toggles */}
             <div className="space-y-2.5">
                 <SectionLabel label="Quick Filters" />
 
-                {/* Verified only */}
                 <button
                     onClick={() => setVerifiedOnly(v => !v)}
                     className="w-full flex items-center justify-between py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200"
@@ -216,7 +206,6 @@ export default function FilterSidebar({
                     </div>
                 </button>
 
-                {/* In budget only */}
                 {hasBudget && (
                     <button
                         onClick={() => setInBudgetOnly(v => !v)}

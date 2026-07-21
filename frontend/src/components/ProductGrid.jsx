@@ -7,41 +7,33 @@ const toneMap = {
     indigo: 'text-indigo-300 border-indigo-400/25 bg-indigo-400/[0.06]',
 };
 
-// Reusable ProductCard matching emergent's exact visual code
 function ProductCard({ product, onCardClick, priority = false }) {
     const [wished, setWished] = useState(false);
     const [imgError, setImgError] = useState(false);
 
-    // Map properties from either real API data model or mock model
     const title = product.product_name || product.title || '';
     const subtitle = product.subtitle || (product.is_verified ? 'Verified product listing' : 'Scraped search index');
     const marketplace = product.marketplace || 'Store';
     const price = product.extracted_price != null ? Number(product.extracted_price) : Number(product.price || 0);
-    // Use only real MRP data from backend — never fabricate a markup
     const original = product.original_price ? Number(product.original_price) : null;
     const rating = product.rating || 4.5;
     const reviews = product.reviews || 1200;
     const image = product.image_url || product.image;
     const isLarge = product.span === 'lg';
 
-    // Only compute discount when we have a genuine original price
     const discount = original && original > price ? Math.round(((original - price) / original) * 100) : 0;
     const isOverBudget = product.status === 'Out of Budget';
 
-    // Map store color tones
     const tone = product.marketplaceTone || (product.is_verified ? 'indigo' : 'cyan');
 
     return (
         <article
             onClick={() => onCardClick && onCardClick(product)}
-            className={`seamas-glass card-reveal product-card-glow group relative flex flex-col overflow-hidden rounded-3xl transition-colors hover:border-white/[0.14] cursor-pointer ${
-                isLarge ? 'md:row-span-2' : ''
-            }`}
+            className={`seamas-glass card-reveal product-card-glow group relative flex flex-col overflow-hidden rounded-3xl transition-colors hover:border-white/[0.14] cursor-pointer ${isLarge ? 'md:row-span-2' : ''
+                }`}
         >
-            {/* Image Section */}
             <div className={`relative overflow-hidden shrink-0 ${isLarge ? 'aspect-[4/5]' : 'aspect-[4/3]'}`}
                 style={{ background: 'linear-gradient(160deg, #1a1a2a 0%, #111120 100%)' }}>
-                {/* Subtle bottom fade so card details blend in */}
                 <div
                     aria-hidden="true"
                     className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent"
@@ -64,7 +56,6 @@ function ProductCard({ product, onCardClick, priority = false }) {
                     </div>
                 )}
 
-                {/* Marketplace tag */}
                 <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-2.5 py-1 backdrop-blur-md">
                     <Store className="h-3 w-3 text-neutral-200" strokeWidth={1.75} />
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-100">
@@ -72,21 +63,18 @@ function ProductCard({ product, onCardClick, priority = false }) {
                     </span>
                 </div>
 
-                {/* Wishlist Heart Toggle */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         setWished(!wished);
                     }}
-                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-colors btn-magnetic ${
-                        wished ? 'bg-rose-500/20 text-rose-300' : 'bg-black/40 text-neutral-200 hover:bg-black/60'
-                    }`}
+                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-colors btn-magnetic ${wished ? 'bg-rose-500/20 text-rose-300' : 'bg-black/40 text-neutral-200 hover:bg-black/60'
+                        }`}
                     aria-label="Add to wishlist"
                 >
                     <Heart className={`h-4 w-4 ${wished ? 'fill-rose-400 text-rose-400' : ''}`} strokeWidth={1.75} />
                 </button>
 
-                {/* Discount pill / Budget Status */}
                 {isOverBudget ? (
                     <div className="absolute bottom-4 left-4 z-10 inline-flex items-center rounded-full border border-rose-500/30 bg-rose-500/[0.15] px-2.5 py-1 backdrop-blur-md">
                         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-rose-300">
@@ -102,17 +90,14 @@ function ProductCard({ product, onCardClick, priority = false }) {
                 ) : null}
             </div>
 
-            {/* Details Body */}
             <div className="flex flex-1 flex-col justify-between gap-4 p-5">
                 <div>
-                    {/* Tag list */}
                     <div className="mb-3 flex flex-wrap gap-1.5">
                         {(product.tags || ['Verified Store', 'Live Stock']).map((t) => (
                             <span
                                 key={t}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${
-                                    toneMap[tone] ?? toneMap.cyan
-                                }`}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${toneMap[tone] ?? toneMap.cyan
+                                    }`}
                             >
                                 <BadgeCheck className="h-2.5 w-2.5" strokeWidth={2} />
                                 {t}
@@ -125,17 +110,15 @@ function ProductCard({ product, onCardClick, priority = false }) {
                     </h3>
                     <p className="mt-1 text-[13px] leading-relaxed text-neutral-500 line-clamp-2">{subtitle}</p>
 
-                    {/* Rating stars */}
                     <div className="mt-3 flex items-center gap-2">
                         <div className="flex items-center gap-0.5">
                             {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                     key={i}
-                                    className={`h-3 w-3 ${
-                                        i < Math.round(rating)
+                                    className={`h-3 w-3 ${i < Math.round(rating)
                                             ? 'fill-amber-300 text-amber-300'
                                             : 'text-neutral-700'
-                                    }`}
+                                        }`}
                                     strokeWidth={1.5}
                                 />
                             ))}
@@ -147,7 +130,6 @@ function ProductCard({ product, onCardClick, priority = false }) {
                     </div>
                 </div>
 
-                {/* Pricing & CTA Visit */}
                 <div className="flex items-end justify-between">
                     <div>
                         <div className="flex items-baseline gap-2">
@@ -190,13 +172,11 @@ function ProductCard({ product, onCardClick, priority = false }) {
     );
 }
 
-// Unified ProductGrid component
 export default function ProductGrid({ items, query, ready, onCardClick }) {
     if (!ready || !items || items.length === 0) return null;
 
     return (
         <section className="relative z-10 mx-auto w-full max-w-6xl text-left">
-            {/* Header */}
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
@@ -229,7 +209,6 @@ export default function ProductGrid({ items, query, ready, onCardClick }) {
                 </div>
             </div>
 
-            {/* Bento grid layout matching developer custom design style */}
             <div className="grid auto-rows-[1fr] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item, idx) => (
                     <ProductCard

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChatInterface from '../components/ChatInterface';
 import SentimentBanner from '../components/SentimentBanner';
 import FilterSidebar from '../components/FilterSidebar';
@@ -28,7 +29,8 @@ import {
     Sliders,
     Zap,
     ExternalLink,
-    RotateCcw
+    RotateCcw,
+    LogOut
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
@@ -52,7 +54,6 @@ function ProductDetailsDrawer({ product, onClose }) {
                     boxShadow: '-20px 0 80px rgba(0,0,0,0.85)',
                 }}>
 
-                {/* Header */}
                 <div className="shrink-0 px-6 py-5 border-b border-white/5 flex items-center justify-between">
                     <div className="flex flex-col text-left">
                         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">Product Analysis</span>
@@ -65,10 +66,8 @@ function ProductDetailsDrawer({ product, onClose }) {
                     </button>
                 </div>
 
-                {/* Body Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
 
-                    {/* Immersive Image Display */}
                     <div className="w-full h-64 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center overflow-hidden relative group">
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                         {!imgError ? (
@@ -83,7 +82,6 @@ function ProductDetailsDrawer({ product, onClose }) {
                         )}
                     </div>
 
-                    {/* Metadata Header */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-200">
@@ -96,7 +94,6 @@ function ProductDetailsDrawer({ product, onClose }) {
                             )}
                         </div>
 
-                        {/* Price */}
                         <div className="border-b border-white/5 pb-4">
                             <div className="flex items-baseline gap-3">
                                 <div className="text-4xl font-bold font-display text-white">
@@ -116,7 +113,6 @@ function ProductDetailsDrawer({ product, onClose }) {
                         </div>
                     </div>
 
-                    {/* Specifications / Insights */}
                     <div className="space-y-4">
                         <h4 className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">Pipeline Insights</h4>
                         <div className="space-y-2.5">
@@ -138,7 +134,6 @@ function ProductDetailsDrawer({ product, onClose }) {
                     </div>
                 </div>
 
-                {/* Action CTA */}
                 <div className="shrink-0 p-6 border-t border-white/5 bg-white/[0.01] flex gap-3">
                     {product.url ? (
                         <a
@@ -169,9 +164,6 @@ function ProductDetailsDrawer({ product, onClose }) {
     );
 }
 
-// ─────────────────────────────────────────────
-// Agent Orchestration Engine Node Component
-// ─────────────────────────────────────────────
 const AGENT_LIST = [
     { id: 'search', name: 'Search Agent', role: 'Sweeps 14 marketplaces in parallel', icon: Radar },
     { id: 'price', name: 'Price Comparison Agent', role: 'Cross-checks history & true discounts', icon: LineChart },
@@ -259,9 +251,6 @@ function AgentNode({ agent, state }) {
     );
 }
 
-// ─────────────────────────────────────────────
-// Command Palette Search Dialog Modal
-// ─────────────────────────────────────────────
 function CommandPalette({ isOpen, onClose, onSubmit, recentQueries }) {
     const [input, setInput] = useState('');
     const inputRef = useRef(null);
@@ -325,9 +314,6 @@ function CommandPalette({ isOpen, onClose, onSubmit, recentQueries }) {
     );
 }
 
-// ─────────────────────────────────────────────
-// Navigation Sidebar Component
-// ─────────────────────────────────────────────
 const NAV = [
     {
         group: 'Workspace',
@@ -365,7 +351,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 )}
             </div>
 
-            {/* New search trigger */}
             <div className="px-3">
                 <button
                     onClick={onNewSearch}
@@ -381,7 +366,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 </button>
             </div>
 
-            {/* Links List */}
             <nav className="mt-6 flex-1 space-y-6 px-3">
                 {NAV.map((section) => (
                     <div key={section.group}>
@@ -425,7 +409,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 ))}
             </nav>
 
-            {/* Nominal state indicator */}
             {!collapsed && (
                 <div className="mx-3 mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-2">
@@ -446,7 +429,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 </div>
             )}
 
-            {/* Profile collapse footer */}
             <div className="border-t border-white/[0.05] p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 text-[11px] font-medium text-white ring-1 ring-white/10 select-none">
@@ -475,6 +457,13 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 }
 
 export default function UserDashboard() {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem('seamas_user_session');
+        navigate('/');
+    };
+
     const [activeTab, setActiveTab] = useState('discover');
     const [showCommandPalette, setShowCommandPalette] = useState(false);
     const [recentQueries, setRecentQueries] = useState([
@@ -511,7 +500,6 @@ export default function UserDashboard() {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [collapsed, setCollapsed] = useState(false);
 
-    // Keyboard shortcut helper for search palette Command + K
     useEffect(() => {
         const handleKeyDown = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -523,16 +511,9 @@ export default function UserDashboard() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Pipeline-accurate agent simulation mirroring backend orchestrator:
-    // Stage 1: search (sequential)
-    // Stage 2: budget + price + review (parallel)
-    // Stage 3: recommendation (sequential)
-    // Stage 4: finalizer (sequential)
-    // Each stage advances ~every 8s to approximate real backend timing.
     useEffect(() => {
         if (!loading) return;
 
-        // Reset all to IDLE at start
         setAgentStatusMap({});
 
         const pipeline = [
@@ -546,7 +527,6 @@ export default function UserDashboard() {
         let elapsed = 0;
 
         pipeline.forEach((stage, stageIdx) => {
-            // Activate this stage's agents
             const activateAt = elapsed;
             timers.push(setTimeout(() => {
                 setAgentStatusMap(prev => {
@@ -556,7 +536,6 @@ export default function UserDashboard() {
                 });
             }, activateAt));
 
-            // Complete previous stage's agents when next stage starts (except last stage)
             if (stageIdx > 0) {
                 const prevIds = pipeline[stageIdx - 1].ids;
                 timers.push(setTimeout(() => {
@@ -576,15 +555,13 @@ export default function UserDashboard() {
         return () => timers.forEach(t => clearTimeout(t));
     }, [loading]);
 
-    // Maps backend log keywords to frontend agent IDs
-    // Keywords must match the actual log strings returned by each backend agent.
     const LOG_AGENT_MAP = [
-        { id: 'search',         successKey: 'search agent aggregated',                    errorKey: 'search agent error' },
-        { id: 'price',          successKey: 'successfully matched category context',       errorKey: 'price comparison agent error' },
-        { id: 'reviews',        successKey: 'qualitative sentiment arrays packaged',       errorKey: 'sentiment evaluation failed' },
-        { id: 'budget',         successKey: 'financial parameter',                         errorKey: 'budget agent error' },
-        { id: 'recommendation', successKey: 'recommendation engine resolved',              errorKey: 'crash log' },
-        { id: 'finalizer',      successKey: 'state sanitation completed',                  errorKey: 'finalizer error' },
+        { id: 'search', successKey: 'search agent aggregated', errorKey: 'search agent error' },
+        { id: 'price', successKey: 'successfully matched category context', errorKey: 'price comparison agent error' },
+        { id: 'reviews', successKey: 'qualitative sentiment arrays packaged', errorKey: 'sentiment evaluation failed' },
+        { id: 'budget', successKey: 'financial parameter', errorKey: 'budget agent error' },
+        { id: 'recommendation', successKey: 'recommendation engine resolved', errorKey: 'crash log' },
+        { id: 'finalizer', successKey: 'state sanitation completed', errorKey: 'finalizer error' },
     ];
 
     const deriveAgentStatesFromLogs = (logs = []) => {
@@ -595,15 +572,12 @@ export default function UserDashboard() {
             const hasSuccess = logText.includes(successKey.toLowerCase());
             if (hasError) result[id] = AGENT_STATES.ERROR;
             else if (hasSuccess) result[id] = AGENT_STATES.COMPLETED;
-            // If neither matched in logs, still mark as COMPLETED if response arrived
-            // (agent ran but its log wasn't captured — default to COMPLETED, not IDLE)
             else result[id] = AGENT_STATES.IDLE;
         });
         return result;
     };
 
     const handleQuerySubmit = async (query) => {
-        // Append query to history threads if unique
         if (query && !recentQueries.includes(query)) {
             setRecentQueries(prev => [query, ...prev]);
         }
@@ -626,9 +600,6 @@ export default function UserDashboard() {
             setMaxBudgetCeiling(absoluteMax);
             setPriceRange(absoluteMax);
 
-            // After response arrives: derive per-agent final states from logs,
-            // then force any remaining RUNNING or IDLE agents to COMPLETED so the
-            // pipeline always resolves fully when the backend has responded.
             const logDerived = deriveAgentStatesFromLogs(data.logs || []);
             setAgentStatusMap(prev => {
                 const next = { ...prev };
@@ -636,8 +607,6 @@ export default function UserDashboard() {
                     if (logDerived[id] === AGENT_STATES.ERROR) {
                         next[id] = AGENT_STATES.ERROR;
                     } else {
-                        // If log had a confirmed COMPLETED keyword use it, otherwise
-                        // fall back to COMPLETED since the whole pipeline finished.
                         next[id] = AGENT_STATES.COMPLETED;
                     }
                 });
@@ -645,7 +614,6 @@ export default function UserDashboard() {
             });
         } catch (err) {
             setError(err.message || 'An error occurred.');
-            // Mark all currently-running agents as error on network/server failure
             setAgentStatusMap(prev => {
                 const next = { ...prev };
                 Object.keys(next).forEach(id => {
@@ -683,29 +651,23 @@ export default function UserDashboard() {
         return base;
     }, [filteredItems, sortBy]);
 
-    // Track wishlist toggles dynamically in dashboard
     const handleCardClick = (product) => {
         setSelectedProduct(product);
     };
-
-    // Compute pipeline progress from the per-agent status map
     const completedCount = AGENT_LIST.filter(a => agentStatusMap[a.id] === AGENT_STATES.COMPLETED || agentStatusMap[a.id] === AGENT_STATES.ERROR).length;
     const progressPercent = Math.round((completedCount / AGENT_LIST.length) * 100);
 
     return (
         <div className="relative min-h-screen text-white flex overflow-hidden">
 
-            {/* Visual ambient canvases */}
             <div className="seamas-ambient" aria-hidden="true" />
             <div className="seamas-grid" aria-hidden="true" />
             <div className="seamas-noise" />
 
-            {/* Profile details drawer modal */}
             {selectedProduct && (
                 <ProductDetailsDrawer product={selectedProduct} onClose={() => setSelectedProduct(null)} />
             )}
 
-            {/* Command Palette popup dialog */}
             <CommandPalette
                 isOpen={showCommandPalette}
                 onClose={() => setShowCommandPalette(false)}
@@ -713,7 +675,6 @@ export default function UserDashboard() {
                 recentQueries={recentQueries}
             />
 
-            {/* Sidebar Left Navigation */}
             <Sidebar
                 collapsed={collapsed}
                 setCollapsed={setCollapsed}
@@ -724,10 +685,8 @@ export default function UserDashboard() {
                 threadCount={recentQueries.length}
             />
 
-            {/* Main scrollable body panel */}
             <div className="flex-grow flex flex-col min-w-0 z-10 relative">
 
-                {/* Upper toolbar */}
                 <header className="h-16 flex items-center justify-between px-8 z-10 shrink-0 bg-transparent">
                     <div className="relative w-80 text-left">
                         <button
@@ -738,20 +697,23 @@ export default function UserDashboard() {
                             <span className="ml-auto font-mono text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">⌘ K</span>
                         </button>
                     </div>
+
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors border border-transparent hover:border-rose-400/20"
+                    >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Log Out</span>
+                    </button>
                 </header>
 
                 <main className="flex-grow overflow-y-auto px-8 py-8 space-y-12 animate-spring-up text-left">
 
-                    {/* DISCOVER TAB */}
                     {activeTab === 'discover' && (
                         <>
-                            {/* Perplexity center gateway centerpiece */}
                             <ChatInterface onQuerySubmit={handleQuerySubmit} loading={loading} />
-
-                            {/* AgentOrchestrationEngine Node Map */}
                             {(loading || currentQuery) && (
                                 <section className="relative z-10 mx-auto w-full max-w-6xl">
-                                    {/* Orchestration Header */}
                                     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                                         <div>
                                             <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
@@ -796,9 +758,7 @@ export default function UserDashboard() {
                                         </div>
                                     </div>
 
-                                    {/* Node Graph */}
                                     <div className="relative">
-                                        {/* Connecting edge trace (SVG) */}
                                         <svg
                                             aria-hidden="true"
                                             className="pointer-events-none absolute inset-x-0 top-8 hidden h-24 w-full lg:block"
@@ -830,11 +790,8 @@ export default function UserDashboard() {
                                     </div>
                                 </section>
                             )}
-
-                            {/* Results Recommendations Showcase Bento Grid */}
                             {!loading && currentQuery && (
                                 <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-                                    {/* Dynamic Filters Sidebar */}
                                     <div className="lg:col-span-1 rounded-2xl p-4 seamas-glass border-white/[0.04]">
                                         <FilterSidebar
                                             marketplaces={availableMarketplaces}
@@ -853,7 +810,6 @@ export default function UserDashboard() {
                                         />
                                     </div>
 
-                                    {/* Recommendations grid column */}
                                     <div className="lg:col-span-3 space-y-6">
                                         <SentimentBanner report={sentimentReport} />
                                         <ProductGrid items={sortedItems} query={currentQuery} ready={true} onCardClick={handleCardClick} />
@@ -863,7 +819,6 @@ export default function UserDashboard() {
                         </>
                     )}
 
-                    {/* AGENT CONSOLE TAB */}
                     {activeTab === 'agents' && (
                         <div className="w-full max-w-6xl mx-auto space-y-8">
                             <div className="flex justify-between items-center border-b border-white/5 pb-4">
@@ -878,7 +833,6 @@ export default function UserDashboard() {
                                 </div>
                             </div>
 
-                            {/* Performance Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="seamas-glass p-5 rounded-2xl border border-white/5 space-y-2">
                                     <div className="flex items-center justify-between text-neutral-400 text-xs">
@@ -906,7 +860,6 @@ export default function UserDashboard() {
                                 </div>
                             </div>
 
-                            {/* Detailed Agent Directory */}
                             <div className="space-y-4">
                                 <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Agent Configuration & Status</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -933,7 +886,6 @@ export default function UserDashboard() {
                         </div>
                     )}
 
-                    {/* THREADS / HISTORY TAB */}
                     {activeTab === 'history' && (
                         <div className="w-full max-w-4xl mx-auto space-y-6">
                             <div className="text-left border-b border-white/5 pb-4">
@@ -972,7 +924,6 @@ export default function UserDashboard() {
                         </div>
                     )}
 
-                    {/* WISHLIST TAB */}
                     {activeTab === 'wishlist' && (
                         <div className="w-full max-w-6xl mx-auto space-y-6">
                             <div className="text-left border-b border-white/5 pb-4">
@@ -997,7 +948,6 @@ export default function UserDashboard() {
                                 <div className="grid auto-rows-[1fr] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {wishlistItems.map((item, idx) => (
                                         <div key={idx} className="relative">
-                                            {/* Renders standard Card format */}
                                             <ProductGrid items={[item]} ready={true} onCardClick={handleCardClick} />
                                         </div>
                                     ))}
@@ -1006,7 +956,6 @@ export default function UserDashboard() {
                         </div>
                     )}
 
-                    {/* SETTINGS TAB */}
                     {activeTab === 'settings' && (
                         <div className="w-full max-w-3xl mx-auto space-y-8">
                             <div className="text-left border-b border-white/5 pb-4">
@@ -1014,7 +963,6 @@ export default function UserDashboard() {
                                 <h2 className="text-3xl font-display font-semibold text-white mt-1">Settings Configuration</h2>
                             </div>
 
-                            {/* API Setting Panel */}
                             <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
                                 <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
                                     <ExternalLink className="h-4 w-4 text-cyan-400" />
@@ -1031,7 +979,6 @@ export default function UserDashboard() {
                                 </div>
                             </div>
 
-                            {/* Search Setting Panel */}
                             <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
                                 <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
                                     <Sliders className="h-4 w-4 text-indigo-400" />

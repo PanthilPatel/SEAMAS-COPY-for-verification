@@ -7,21 +7,18 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Simulated mock authentication for development setup
-        // For production, connect this hook to your active Supabase Client SDK instance
         setTimeout(() => {
             setUser({
                 id: 'usr_dev_99',
-                email: 'panthil@example.com',
-                role: 'user' // Toggle between 'user' and 'admin' to verify path privileges
+                email: 'admin@example.com',
+                role: 'admin'
             });
             setLoading(false);
         }, 500);
     }, []);
 
     const login = async (email, password) => {
-        // Add real authorization adapter execution here
-        setUser({ id: 'usr_dev_99', email, role: 'user' });
+        setUser({ id: 'usr_dev_99', email, role: 'admin' });
     };
 
     const logout = async () => {

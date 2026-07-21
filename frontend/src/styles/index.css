@@ -2,12 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ═══════════════════════════════════════════════════════════
-   SEAMAS · Design Tokens  v3.0 — Premium Motion Edition
-   ═══════════════════════════════════════════════════════════ */
-
 :root {
-    /* Surface */
     --seamas-bg: 240 6% 4%;
     --seamas-bg-elev-1: 240 6% 6%;
     --seamas-bg-elev-2: 240 6% 8%;
@@ -15,26 +10,22 @@
     --seamas-border: 0 0% 100% / 0.08;
     --seamas-border-strong: 0 0% 100% / 0.16;
 
-    /* Text */
     --seamas-fg: 0 0% 100%;
     --seamas-fg-muted: 240 5% 65%;
     --seamas-fg-dim: 240 4% 46%;
     --seamas-fg-faint: 240 4% 32%;
 
-    /* Accent */
     --seamas-cyan: 187 92% 43%;
     --seamas-indigo: 239 84% 67%;
     --seamas-amber: 38 92% 50%;
     --seamas-emerald: 158 64% 52%;
     --seamas-rose: 350 89% 60%;
 
-    /* Motion */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-expo: cubic-bezier(0.7, 0, 0.84, 0);
 
-    /* shadcn compat */
     --background: 240 6% 4%;
     --foreground: 0 0% 100%;
     --card: 240 6% 6%;
@@ -57,7 +48,9 @@
     --radius: 0.875rem;
 }
 
-html, body, #root {
+html,
+body,
+#root {
     background: hsl(var(--seamas-bg));
     color: hsl(var(--seamas-fg));
     min-height: 100vh;
@@ -80,30 +73,37 @@ body {
     letter-spacing: -0.03em;
 }
 
-.font-mono, code, kbd {
+.font-mono,
+code,
+kbd {
     font-family: "Space Mono", ui-monospace, monospace;
     font-feature-settings: "ss01", "ss02";
 }
 
-/* ═══ Selection ═══ */
 ::selection {
     background: hsl(var(--seamas-cyan) / 0.28);
     color: #fff;
 }
 
-/* ═══ Scrollbar ═══ */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
     background: hsl(0 0% 100% / 0.08);
     border-radius: 999px;
     transition: background 0.2s;
 }
-::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 100% / 0.18); }
 
-/* ═══════════════════════════════════════════════
-   AMBIENT BACKGROUND
-   ═══════════════════════════════════════════════ */
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(0 0% 100% / 0.18);
+}
+
 
 .seamas-ambient {
     position: fixed;
@@ -119,8 +119,15 @@ body {
 }
 
 @keyframes ambient-breathe {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.85; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.85;
+    }
 }
 
 .seamas-grid {
@@ -148,9 +155,6 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ═══════════════════════════════════════════════
-   GLASS SURFACES
-   ═══════════════════════════════════════════════ */
 
 .seamas-glass {
     background: hsl(240 8% 8% / 0.55);
@@ -169,9 +173,6 @@ body {
     border: 1px solid hsl(0 0% 100% / 0.09);
 }
 
-/* ═══════════════════════════════════════════════
-   GRADIENT TEXT
-   ═══════════════════════════════════════════════ */
 
 .text-gradient {
     background: linear-gradient(120deg, #fff 0%, #e4e4e7 40%, hsl(187 92% 70%) 70%, hsl(239 84% 78%) 100%);
@@ -180,9 +181,6 @@ body {
     color: transparent;
 }
 
-/* ═══════════════════════════════════════════════
-   AURORA CTA BUTTON
-   ═══════════════════════════════════════════════ */
 
 .aurora-cta {
     background:
@@ -194,29 +192,49 @@ body {
 }
 
 @keyframes aurora-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
 }
 
-/* ═══════════════════════════════════════════════
-   AGENT NODE ANIMATIONS
-   ═══════════════════════════════════════════════ */
-
 @keyframes agent-pulse-ring {
-    0% { box-shadow: 0 0 0 0 hsl(187 92% 55% / 0.6); }
-    70% { box-shadow: 0 0 0 16px hsl(187 92% 55% / 0); }
-    100% { box-shadow: 0 0 0 0 hsl(187 92% 55% / 0); }
+    0% {
+        box-shadow: 0 0 0 0 hsl(187 92% 55% / 0.6);
+    }
+
+    70% {
+        box-shadow: 0 0 0 16px hsl(187 92% 55% / 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 hsl(187 92% 55% / 0);
+    }
 }
 
 .agent-running {
     animation: agent-pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Agent node completed shimmer sweep */
 @keyframes agent-complete-sweep {
-    0% { opacity: 0; transform: translateX(-100%); }
-    30% { opacity: 1; }
-    100% { opacity: 0; transform: translateX(100%); }
+    0% {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+
+    30% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(100%);
+    }
 }
 
 .agent-complete-sweep::after {
@@ -229,32 +247,31 @@ body {
     border-radius: inherit;
 }
 
-/* ═══════════════════════════════════════════════
-   SHIMMER SKELETON
-   ═══════════════════════════════════════════════ */
 
 @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
 }
 
 .shimmer {
-    background: linear-gradient(
-        90deg,
-        hsl(0 0% 100% / 0) 0%,
-        hsl(0 0% 100% / 0.08) 50%,
-        hsl(0 0% 100% / 0) 100%
-    );
+    background: linear-gradient(90deg,
+            hsl(0 0% 100% / 0) 0%,
+            hsl(0 0% 100% / 0.08) 50%,
+            hsl(0 0% 100% / 0) 100%);
     background-size: 200% 100%;
     animation: shimmer 2.2s linear infinite;
 }
 
-/* ═══════════════════════════════════════════════
-   SVG EDGE FLOW
-   ═══════════════════════════════════════════════ */
 
 @keyframes edge-flow {
-    to { stroke-dashoffset: -20; }
+    to {
+        stroke-dashoffset: -20;
+    }
 }
 
 .edge-flow {
@@ -262,21 +279,18 @@ body {
     animation: edge-flow 1.2s linear infinite;
 }
 
-/* ═══════════════════════════════════════════════
-   PAGE & SECTION ENTRY ANIMATIONS
-   ═══════════════════════════════════════════════ */
-
-/* Spring-up for main content sections */
 @keyframes spring-up {
     0% {
         opacity: 0;
         transform: translateY(28px) scale(0.98);
         filter: blur(4px);
     }
+
     60% {
         opacity: 1;
         filter: blur(0px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -288,22 +302,26 @@ body {
     animation: spring-up 0.65s var(--ease-out-expo) both;
 }
 
-/* Fade-in for overlays/modals */
 @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .animate-fade-in {
     animation: fade-in 0.25s var(--ease-smooth) both;
 }
 
-/* Slide-in from right for drawers */
 @keyframes slide-in-right {
     from {
         opacity: 0;
         transform: translateX(48px);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -314,12 +332,12 @@ body {
     animation: slide-in-right 0.4s var(--ease-out-expo) both;
 }
 
-/* Scale-in for command palette */
 @keyframes scale-in {
     from {
         opacity: 0;
         transform: translateX(-50%) scale(0.95) translateY(-8px);
     }
+
     to {
         opacity: 1;
         transform: translateX(-50%) scale(1) translateY(0);
@@ -330,16 +348,13 @@ body {
     animation: scale-in 0.3s var(--ease-spring) both;
 }
 
-/* ═══════════════════════════════════════════════
-   STAGGERED CARD REVEAL
-   ═══════════════════════════════════════════════ */
-
 @keyframes card-reveal {
     0% {
         opacity: 0;
         transform: translateY(32px) scale(0.96);
         filter: blur(6px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -351,17 +366,45 @@ body {
     animation: card-reveal 0.5s var(--ease-out-expo) both;
 }
 
-/* Stagger delays for product grid children */
-.card-reveal:nth-child(1)  { animation-delay: 0.05s; }
-.card-reveal:nth-child(2)  { animation-delay: 0.10s; }
-.card-reveal:nth-child(3)  { animation-delay: 0.15s; }
-.card-reveal:nth-child(4)  { animation-delay: 0.20s; }
-.card-reveal:nth-child(5)  { animation-delay: 0.25s; }
-.card-reveal:nth-child(6)  { animation-delay: 0.30s; }
-.card-reveal:nth-child(7)  { animation-delay: 0.35s; }
-.card-reveal:nth-child(8)  { animation-delay: 0.38s; }
-.card-reveal:nth-child(9)  { animation-delay: 0.41s; }
-.card-reveal:nth-child(n+10) { animation-delay: 0.44s; }
+.card-reveal:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.card-reveal:nth-child(2) {
+    animation-delay: 0.10s;
+}
+
+.card-reveal:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.card-reveal:nth-child(4) {
+    animation-delay: 0.20s;
+}
+
+.card-reveal:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.card-reveal:nth-child(6) {
+    animation-delay: 0.30s;
+}
+
+.card-reveal:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.card-reveal:nth-child(8) {
+    animation-delay: 0.38s;
+}
+
+.card-reveal:nth-child(9) {
+    animation-delay: 0.41s;
+}
+
+.card-reveal:nth-child(n+10) {
+    animation-delay: 0.44s;
+}
 
 /* ═══════════════════════════════════════════════
    PRODUCT CARD HOVER GLOW
@@ -379,11 +422,9 @@ body {
     position: absolute;
     inset: -1px;
     border-radius: inherit;
-    background: radial-gradient(
-        400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-        hsl(187 92% 55% / 0.12),
-        transparent 60%
-    );
+    background: radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+            hsl(187 92% 55% / 0.12),
+            transparent 60%);
     opacity: 0;
     transition: opacity 0.4s var(--ease-smooth);
     pointer-events: none;
@@ -407,6 +448,7 @@ body {
         opacity: 0;
         transform: translateY(20px) scale(0.94);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -417,21 +459,51 @@ body {
     animation: agent-node-enter 0.45s var(--ease-out-expo) both;
 }
 
-.agent-node-enter:nth-child(1) { animation-delay: 0.00s; }
-.agent-node-enter:nth-child(2) { animation-delay: 0.07s; }
-.agent-node-enter:nth-child(3) { animation-delay: 0.14s; }
-.agent-node-enter:nth-child(4) { animation-delay: 0.21s; }
-.agent-node-enter:nth-child(5) { animation-delay: 0.28s; }
-.agent-node-enter:nth-child(6) { animation-delay: 0.35s; }
+.agent-node-enter:nth-child(1) {
+    animation-delay: 0.00s;
+}
+
+.agent-node-enter:nth-child(2) {
+    animation-delay: 0.07s;
+}
+
+.agent-node-enter:nth-child(3) {
+    animation-delay: 0.14s;
+}
+
+.agent-node-enter:nth-child(4) {
+    animation-delay: 0.21s;
+}
+
+.agent-node-enter:nth-child(5) {
+    animation-delay: 0.28s;
+}
+
+.agent-node-enter:nth-child(6) {
+    animation-delay: 0.35s;
+}
 
 /* ═══════════════════════════════════════════════
    FLOATING PARTICLES (ambient decoration)
    ═══════════════════════════════════════════════ */
 
 @keyframes float-particle {
-    0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.4; }
-    33%       { transform: translateY(-18px) translateX(8px) scale(1.1); opacity: 0.7; }
-    66%       { transform: translateY(-8px) translateX(-6px) scale(0.95); opacity: 0.5; }
+
+    0%,
+    100% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0.4;
+    }
+
+    33% {
+        transform: translateY(-18px) translateX(8px) scale(1.1);
+        opacity: 0.7;
+    }
+
+    66% {
+        transform: translateY(-8px) translateX(-6px) scale(0.95);
+        opacity: 0.5;
+    }
 }
 
 .particle {
@@ -447,9 +519,20 @@ body {
    ═══════════════════════════════════════════════ */
 
 @keyframes price-pop {
-    0% { transform: scale(0.85); opacity: 0; }
-    60% { transform: scale(1.06); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .price-pop {
@@ -461,7 +544,9 @@ body {
    ═══════════════════════════════════════════════ */
 
 @keyframes progress-fill {
-    from { stroke-dasharray: 0 106.8; }
+    from {
+        stroke-dasharray: 0 106.8;
+    }
 }
 
 .progress-arc {
@@ -479,6 +564,7 @@ body {
         transform: translateY(-12px);
         max-height: 0;
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -503,8 +589,15 @@ body {
    ═══════════════════════════════════════════════ */
 
 @keyframes skeleton-pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.9; }
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 0.9;
+    }
 }
 
 .skeleton {
@@ -522,12 +615,10 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        hsl(0 0% 100% / 0.06) 50%,
-        transparent 100%
-    );
+    background: linear-gradient(90deg,
+            transparent 0%,
+            hsl(0 0% 100% / 0.06) 50%,
+            transparent 100%);
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;
 }
@@ -556,8 +647,15 @@ body {
    ═══════════════════════════════════════════════ */
 
 @keyframes glow-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 hsl(158 64% 52% / 0.4); }
-    50% { box-shadow: 0 0 12px 2px hsl(158 64% 52% / 0.2); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 hsl(158 64% 52% / 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 2px hsl(158 64% 52% / 0.2);
+    }
 }
 
 .badge-glow {
@@ -598,7 +696,10 @@ kbd.seamas-kbd {
    ═══════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
         animation-duration: 0.001ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
@@ -606,5 +707,7 @@ kbd.seamas-kbd {
 }
 
 @layer base {
-    * { border-color: hsl(var(--border)); }
+    * {
+        border-color: hsl(var(--border));
+    }
 }

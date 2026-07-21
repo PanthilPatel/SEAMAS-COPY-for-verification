@@ -8,13 +8,14 @@ from pydantic import BaseModel, Field
 class PriceItem(BaseModel):
     product_name: str = Field(description="Full product name including brand, model, and style specification.")
     marketplace: str = Field(description="Exact storefront name, e.g. 'Amazon', 'Flipkart', 'Myntra'.")
-    extracted_price: int = Field(description="Price as a plain integer without symbols or commas.")
+    extracted_price: int = Field(description="The CURRENT sale/offer price as a plain integer in Indian Rupees (INR). This is the price the customer actually pays today. Do NOT use EMI amounts or bank offer prices.")
+    original_price: Optional[int] = Field(default=None, description="The original MRP or crossed-out price before discount, as a plain integer in INR. Only set this if a genuine MRP/strikethrough price is explicitly shown in the record. Leave null if not visible.")
     currency: str = Field(default="₹", description="Currency symbol of the listing, e.g., ₹ or $.")
     brand: Optional[str] = Field(default=None, description="Brand name of the product.")
-    rating:  Optional[float] = Field(default=0.0, description="Product rating value out of 5 stars (e.g., 4.5).")
+    rating: Optional[float] = Field(default=0.0, description="Product rating value out of 5 stars (e.g., 4.5).")
     reviews: Optional[int] = Field(default=0, description="Total number of customer reviews counted.")
     delivery: Optional[str] = Field(default="Standard Delivery", description="Delivery info like 'Free Delivery' or 'Delivery charges apply'.")
-    discount: Optional[str] = Field(default=None, description="Discount text if present, e.g., '20% OFF'.")
+    discount: Optional[str] = Field(default=None, description="Discount percentage text if present, e.g., '67% OFF'.")
     image_url: Optional[str] = Field(default="", description="Clean, direct image asset link of the actual product.")
     url: Optional[str] = Field(default="", description="Direct target URL page to purchase the product.")
     status: str = Field(default="Target Match")
@@ -215,73 +216,126 @@ def is_specific_product_page(url: str) -> bool:
             return True
     return False
 
-def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "", all_records: List[Dict[str, Any]] = None) -> str:
-    forbidden_patterns = [
-        "logo", "badge", "rating", "icon", "favicon", "avatar", "sprite", "og-image", "og_image",
-        "header", "footer", "nav", "menu", "theme", "bg-", "background", "sidebar", "widget",
-        "banner", "billboard", "slider", "carousel", "hero-", "promotional", "campaign", "ad-",
-        "myntra-logo", "flipkart-logo", "amazon-logo", "zimson-logo", "ajio-logo", "luxe",
-        "horizontal", "landscape", "square-logo", "brand-identity", "store-front", "retailer"
+def _is_store_logo(url: str) -> bool:
+    """
+    Returns True if the given image URL is almost certainly a store/brand logo
+    rather than a real product image. Uses both URL path keywords AND known CDN
+    patterns that serve store identity assets.
+    """
+    u = url.lower()
+
+    # 1. Explicit keyword patterns in the URL path
+    forbidden_keywords = [
+        "logo", "badge", "rating", "icon", "favicon", "avatar", "sprite",
+        "og-image", "og_image", "opengraph", "open-graph",
+        "header", "footer", "nav", "menu", "theme", "bg-", "background",
+        "sidebar", "widget", "banner", "billboard", "slider", "carousel",
+        "hero-", "promotional", "campaign", "ad-image", "advertisement",
+        "square-logo", "brand-identity", "store-front", "retailer",
+        "vector", "illustration", "graphic", "clipart",
+        # Store-specific logo filename patterns
+        "amazon-logo", "flipkart-logo", "myntra-logo", "ajio-logo",
+        "ubuy-logo", "zimson-logo", "croma-logo",
+        # Common store brand image patterns in CDN paths
+        "/amazon/", "/ubuy/", "/flipkart/", "/meesho/", "/myntra/",
     ]
+    if any(kw in u for kw in forbidden_keywords):
+        return True
+
+    # 2. (Removed overly aggressive gstatic CDN check — gstatic hosts real products too)
+
+    # 3. Detect store brand images by checking if a major marketplace name appears
+    # as a significant part of the URL hostname (not the path where products live)
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        hostname = parsed.netloc.lower()
+        store_domains = [
+            "ubuy.com", "ubuy.co.in", "amazon.com", "amazon.in",
+            "flipkart.com", "myntra.com", "meesho.com", "croma.com",
+            "ajio.com", "snapdeal.com", "jiomart.com",
+        ]
+        # If the IMAGE itself is hosted on a store domain AND the path has no
+        # product-ID-like segments, it's likely a store branding asset
+        for store in store_domains:
+            if store in hostname:
+                path = parsed.path.lower()
+                product_signals = ["/dp/", "/p/", "/product", "/buy", "/item", "/images/i/"]
+                if not any(sig in path for sig in product_signals):
+                    return True
+    except Exception:
+        pass
+
+    return False
+
+
+def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "", all_records: List[Dict[str, Any]] = None) -> str:
+    """Selects the best real product image from search result metadata.
+    Falls back to a category-specific Unsplash placeholder if no clean image found."""
 
     tavily_images = matched_rec.get("images", [])
-    
-    if isinstance(tavily_images, list) and len(tavily_images) > 0:
+    if isinstance(tavily_images, list):
         for img in tavily_images:
-            img_str = str(img).lower()
-            if any(pattern in img_str for pattern in forbidden_patterns):
-                continue
-            if any(decoration in img_str for decoration in ["vector", "illustration", "graphic", "clipart"]):
-                continue
-            return img
+            if img and not _is_store_logo(str(img)):
+                return img
 
-    fallback_thumb = matched_rec.get("thumbnail") or matched_rec.get("img_src") or matched_rec.get("thumbnail_src") or ""
-    if fallback_thumb:
-        thumb_str = str(fallback_thumb).lower()
-        if not any(pattern in thumb_str for pattern in forbidden_patterns) and not any(dec in thumb_str for dec in ["vector", "banner", "logo"]):
-            return fallback_thumb
+    fallback_thumb = (
+        matched_rec.get("thumbnail")
+        or matched_rec.get("img_src")
+        or matched_rec.get("thumbnail_src")
+        or ""
+    )
+    if fallback_thumb and not _is_store_logo(str(fallback_thumb)):
+        return fallback_thumb
 
-    # Search entire search results corpus for a matching thumbnail image if matched_rec has none
+    # Search entire corpus for a matching thumbnail
     if all_records and product_name:
-        # Extract all significant words, excluding super-generic ones
         generic_words = {
             "with", "from", "inch", "full", "backlit", "panel", "brand", "official", "store",
             "laptop", "phone", "shoe", "stand", "buy", "online", "india", "price", "best",
             "new", "set", "pack", "combo", "value", "deal", "offer", "free", "delivery",
             "and", "for", "the", "pro", "max", "plus", "lite", "mini", "ultra"
         }
-        prod_words = [w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name)
-                      if w.lower() not in generic_words]
+        prod_words = [
+            w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name)
+            if w.lower() not in generic_words
+        ]
 
         if prod_words:
-            # The first significant word is almost always the brand/unique ID — it MUST match
             brand_word = prod_words[0]
-            # Need strict match: brand present + at least 2 more specific words match
             required_matches = max(2, min(3, len(prod_words)))
 
             for r in all_records:
-                thumb = r.get("thumbnail") or r.get("img_src") or r.get("thumbnail_src") or ""
-                if not thumb:
+                thumb = (
+                    r.get("thumbnail")
+                    or r.get("img_src")
+                    or r.get("thumbnail_src")
+                    or ""
+                )
+                if not thumb or _is_store_logo(str(thumb)):
                     continue
-                thumb_str = str(thumb).lower()
-                if any(pattern in thumb_str for pattern in forbidden_patterns) or any(dec in thumb_str for dec in ["vector", "banner", "logo"]):
-                    continue
-                # Skip unsplash — that's a category fallback, not a real product image
-                if "unsplash.com" in thumb_str:
+                if "unsplash.com" in str(thumb).lower():
                     continue
 
                 title_lower = r.get("title", "").lower()
-                # Brand/unique word MUST be present in the title
                 if brand_word not in title_lower:
                     continue
                 match_count = sum(1 for w in prod_words if w in title_lower)
                 if match_count >= required_matches:
                     return thumb
 
-    # Dynamically select a beautiful category-specific fallback image
+    # ── Category-specific Unsplash fallback ────────────────────────────
     prod_name_lower = product_name.lower()
     if any(k in prod_name_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "clog", "puma", "adidas", "nike", "reebok", "under armour", "asics", "skechers", "crocs"]):
         return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["laptop stand", "laptop riser", "laptop mount", "notebook stand", "desk stand", "adjustable stand", "ergonomic stand"]):
+        return "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["cooler", "cooling fan", "cpu fan", "phone cooler", "mobile cooler", "cooling pad", "laptop cooler"]):
+        return "https://images.unsplash.com/photo-1587202372634-32705e3bf49c?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["keyboard", "mechanical keyboard", "gaming keyboard"]):
+        return "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["mouse", "gaming mouse", "wireless mouse"]):
+        return "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&q=80"
     elif any(k in prod_name_lower for k in ["laptop", "notebook", "macbook", "computer", "pc", "asus", "hp", "dell", "lenovo", "acer", "msi", "strix", "thinkpad", "ideapad", "predator", "inspiron", "latitude", "zenbook", "vivobook", "ryzen", "intel core", "g16", "g15", "rog"]):
         return "https://images.unsplash.com/photo-1496181130204-755241544e35?w=400&q=80"
     elif any(k in prod_name_lower for k in ["phone", "iphone", "mobile", "samsung", "pixel", "oneplus", "smartphone", "galaxy", "redmi", "realme", "xiaomi", "vivo", "oppo", "motorola", "moto", "infinix", "tecno", "x300", "x30"]):
@@ -292,6 +346,10 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
         return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"
     elif any(k in prod_name_lower for k in ["headphone", "earbud", "pods", "audio", "soundbar", "earphones", "headset", "tws", "airpods"]):
         return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["bag", "backpack", "case", "cover", "sleeve", "pouch"]):
+        return "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["cable", "charger", "adapter", "hub", "usb", "type-c", "power bank"]):
+        return "https://images.unsplash.com/photo-1608503396060-36c8d9e0d7d5?w=400&q=80"
         
     return "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400&q=80"
 
@@ -334,16 +392,25 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         context_list.append(f"[{i}] Store: {r.get('engine', 'Web')} | Title: {r.get('title', '')} | Details: {snippet}")
     context = "\n".join(context_list)
 
-    prompt = f"""You are a multi-agent parser extracting e-commerce arrays.
+    prompt = f"""You are a multi-agent parser extracting e-commerce product listings.
     Query: "{query}"
 
     Analyze the dataset records. Deduce if this query targets 'clothing' or 'electronics' or 'general'.
     Extract EVERY single valid individual product matching the intent with its metadata attributes from the records.
     You must extract as many individual products, listings, prices, configurations, and store offers as possible.
-    CRITICAL: Do not return an empty array if e-commerce product titles and prices are present. You must be exhaustive and extract up to 30 items. For each record mentioning a product name and its price, create an entry in the 'prices' array.
-    CRITICAL: Every extracted product in the list must be a unique, distinct product model or specific listing. Do not repeat the same product name and price block to fill the array. Be diverse and extract different models from the different records.
-    Aim to extract a large list of 20 to 30 products from the records, including variations in colors, storage capacities, models, specifications, and different e-commerce stores.
-    If the exact model in the query is not available but a closely related or newer model is shown in the records, you may extract it as long as you use its exact name and model designation as specified in the record.
+
+    PRICE EXTRACTION RULES (follow strictly):
+    - extracted_price: The ACTUAL current selling price the customer pays (e.g. ₹743, not ₹2,250 which is crossed out)
+    - original_price: The original MRP / crossed-out price ONLY if explicitly shown as struck-through or labelled MRP (e.g. ₹2,250). Set null if not visible.
+    - NEVER use EMI monthly amounts, bank cashback amounts, down-payments, or delivery fees as the price.
+    - NEVER invent or calculate prices. Only use prices explicitly stated in the records.
+    - CRITICAL: ONLY extract the MAIN product requested. Do NOT extract accessories, cases, covers, straps, or screen protectors unless the query explicitly asks for them.
+    - If a record shows two prices (e.g. "₹743  ₹2,250"), extracted_price=743, original_price=2250.
+
+    CRITICAL: Do not return an empty array if e-commerce product titles and prices are present. Extract up to 30 items.
+    CRITICAL: Every extracted product must be a unique, distinct product model or specific listing.
+    Aim to extract 20-30 diverse products including different models, storage variants, colors, and stores.
+    If the exact model is unavailable, extract closely related models using their exact names from the records.
 
     Records:
     {context}
@@ -378,22 +445,33 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
         agent_logs = [f"Successfully matched category context: {detected_category}"]
         results = []
+    
+        valid_raw_prices = [clean_price(r.get("extracted_price") or r.get("Price") or r.get("price")) for r in rows]
+        valid_raw_prices = sorted([p for p in valid_raw_prices if p > 0])
+        median_price = valid_raw_prices[len(valid_raw_prices)//2] if valid_raw_prices else 0
         
         for row in rows:
             price = clean_price(row.get("extracted_price") or row.get("Price") or row.get("price"))
             marketplace = str(row.get("marketplace") or row.get("Store") or row.get("store") or "").strip()
 
-            # Filter out trivially low prices that are likely EMI rates or delivery charges rather than actual product prices
             if price < 150:
                 agent_logs.append(f"[PriceAgent] Row skipped (price too low/suspicious): {row}")
+                continue
+
+            if median_price > 5000 and price < (median_price * 0.30):
+                agent_logs.append(f"[PriceAgent] Row skipped (extreme low outlier, likely EMI or accessory): {row}")
                 continue
 
             if price == 0 or marketplace.lower() in {"online", "web", "india", ""}:
                 agent_logs.append(f"[PriceAgent] Row skipped (price=0 or marketplace invalid): {row}")
                 continue
-            
-            if price not in real_prices and price // 100 in real_prices:
-                price = price // 100
+
+            if real_prices and price not in real_prices:
+                closest = min(real_prices, key=lambda rp: abs(rp - price))
+                tolerance = max(price * 0.20, 200)
+                if abs(closest - price) <= tolerance:
+                    agent_logs.append(f"[PriceAgent] Price corrected from {price} → {closest} (closest corpus match within tolerance)")
+                    price = closest
 
             matched_rec = find_source_record(filtered_records, marketplace, price)
             target_url = matched_rec.get("url", "")
@@ -426,17 +504,27 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             if "unsplash.com" in image_url or "photo-" in image_url or not is_product_page:
                 is_verified = False
 
+            # Extract original_price (MRP) only if LLM provided a genuine one and it's
+            # greater than the sale price (sanity guard against swapped values).
+            raw_original = row.get("original_price")
+            original_price = None
+            if raw_original:
+                op = clean_price(raw_original)
+                if op > price:  # MRP must always be higher than sale price
+                    original_price = op
+
             results.append({
                 "product_name": prod_name,
                 "marketplace": marketplace,
                 "extracted_price": price,
+                "original_price": original_price,
                 "status": status,
                 "url": target_url,
                 "is_verified": is_verified,
                 "image_url": image_url,
                 "color": row.get("color"),
                 "size": row.get("size"),
-                "discount_percentage": row.get("discount_percentage", 0)
+                "discount": row.get("discount"),
             })
 
         best_by_url = {}
