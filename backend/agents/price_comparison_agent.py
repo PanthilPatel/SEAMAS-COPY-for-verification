@@ -324,10 +324,32 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
                 if match_count >= required_matches:
                     return thumb
 
-    # ── Category-specific Unsplash fallback ────────────────────────────
+    # ── Category-specific Unsplash fallback pools ────────────────────────────
     prod_name_lower = product_name.lower()
+    idx = abs(hash(product_name + str(matched_rec.get('url', ''))))
+
+    phone_pool = [
+        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
+        "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80",
+        "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&q=80",
+        "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=400&q=80",
+        "https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=400&q=80",
+        "https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80"
+    ]
+    laptop_pool = [
+        "https://images.unsplash.com/photo-1496181130204-755241544e35?w=400&q=80",
+        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80",
+        "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400&q=80",
+        "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?w=400&q=80"
+    ]
+    shoe_pool = [
+        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80",
+        "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&q=80",
+        "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80"
+    ]
+
     if any(k in prod_name_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "clog", "puma", "adidas", "nike", "reebok", "under armour", "asics", "skechers", "crocs"]):
-        return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80"
+        return shoe_pool[idx % len(shoe_pool)]
     elif any(k in prod_name_lower for k in ["laptop stand", "laptop riser", "laptop mount", "notebook stand", "desk stand", "adjustable stand", "ergonomic stand"]):
         return "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80"
     elif any(k in prod_name_lower for k in ["cooler", "cooling fan", "cpu fan", "phone cooler", "mobile cooler", "cooling pad", "laptop cooler"]):
@@ -337,9 +359,9 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
     elif any(k in prod_name_lower for k in ["mouse", "gaming mouse", "wireless mouse"]):
         return "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&q=80"
     elif any(k in prod_name_lower for k in ["laptop", "notebook", "macbook", "computer", "pc", "asus", "hp", "dell", "lenovo", "acer", "msi", "strix", "thinkpad", "ideapad", "predator", "inspiron", "latitude", "zenbook", "vivobook", "ryzen", "intel core", "g16", "g15", "rog"]):
-        return "https://images.unsplash.com/photo-1496181130204-755241544e35?w=400&q=80"
+        return laptop_pool[idx % len(laptop_pool)]
     elif any(k in prod_name_lower for k in ["phone", "iphone", "mobile", "samsung", "pixel", "oneplus", "smartphone", "galaxy", "redmi", "realme", "xiaomi", "vivo", "oppo", "motorola", "moto", "infinix", "tecno", "x300", "x30"]):
-        return "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80"
+        return phone_pool[idx % len(phone_pool)]
     elif any(k in prod_name_lower for k in ["monitor", "tv", "display", "screen", "led", "ips", "panel", "backlit"]):
         return "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&q=80"
     elif "watch" in prod_name_lower:
@@ -363,20 +385,15 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         print("[PriceAgent] No search_results received — nothing to extract from.")
         return {"price_data": [], "category": "general", "logs": ["No search results found."]}
 
-    junk_keywords = ["capsule", "mutual fund", "small-cap", "mid-cap", "flexi-cap", "glassdoor", "interview", "securities"]
-    # Only filter on junk keywords that are NOT mentioned in the search query to prevent false-positives
-    active_junk_keywords = [j for j in junk_keywords if j not in query.lower()]
-    
-    filtered_records = []
+    cleaned_records = []
     for r in search_results:
-        url = r.get("url", "").lower()
-        title_content = (r.get("title", "") + " " + (r.get("content") or "")).lower()
-        if any(junk in title_content for junk in active_junk_keywords) or "youtube.com" in url or "youtu.be" in url:
+        url = (r.get("url") or "").lower()
+        if any(ignored in url for ignored in ["wikipedia.org", "youtube.com", "facebook.com", "instagram.com"]):
             continue
-        filtered_records.append(r)
+        cleaned_records.append(r)
 
+    filtered_records = cleaned_records if cleaned_records else search_results
     if not filtered_records:
-        print(f"[PriceAgent] All {len(search_results)} records filtered out as junk/YouTube — 0 remained for extraction.")
         return {"price_data": [], "category": "general", "logs": ["All structural noise filtered out."]}
 
     # Prioritize specific product pages first for the LLM context to ensure we get specific offers
@@ -466,7 +483,7 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 agent_logs.append(f"[PriceAgent] Row skipped (price=0 or marketplace invalid): {row}")
                 continue
 
-            if real_prices and price not in real_prices:
+            if real_prices and len(real_prices) > 1 and price not in real_prices:
                 closest = min(real_prices, key=lambda rp: abs(rp - price))
                 tolerance = max(price * 0.20, 200)
                 if abs(closest - price) <= tolerance:
