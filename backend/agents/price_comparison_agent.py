@@ -44,9 +44,14 @@ def prices_mentioned_in(text: str) -> set:
     
     # 1. Match symbol-preceded prices (very reliable, e.g. ₹59,900, Rs. 14,900)
     for match in re.finditer(r"(?:₹|rs\.?|\$|inr)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
-        following_text = text[match.end():match.end() + 15].lower()
-        if "per g" in following_text or "/g" in following_text or "/kg" in following_text or "per kg" in following_text:
+        following_text = text[match.end():match.end() + 20].lower()
+        preceding_text = text[max(0, match.start() - 25):match.start()].lower()
+        
+        if any(w in following_text for w in ["per g", "/g", "/kg", "per kg", "/month", "per month", "p.m.", "emi"]):
             continue
+        if any(w in preceding_text for w in ["save ", " off", "discount"]):
+            continue
+
         try:
             val = int(float(match.group(1).replace(",", "")))
             if val > 0:
@@ -58,7 +63,6 @@ def prices_mentioned_in(text: str) -> set:
         return prices
 
     # 2. Extract bare numbers only as a fallback, applying strict specs units filtering
-    # Only allow 4 to 6 digit numbers (between 1,000 and 999,999) to avoid specs
     for match in re.finditer(r"\b(\d{4,6})\b", text):
         val_str = match.group(1)
         val = int(val_str)
@@ -73,11 +77,6 @@ def prices_mentioned_in(text: str) -> set:
             "rpm", "fps", "x", "p", "k", "%", "percent"
         ]
         
-        match_end = match.end()
-        following = text[match_end:match_end + 10].strip().lower()
-        if any(following.startswith(fs) for fs in forbidden_suffixes):
-            continue
-            
         if any(word in context_around for word in ["year", "model", "since", "released in", "dated"]):
             if val in [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]:
                 continue
@@ -478,7 +477,7 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 agent_logs.append(f"[PriceAgent] Row skipped (price too low/suspicious): {row}")
                 continue
 
-            if median_price > 5000 and price < (median_price * 0.30):
+            if median_price > 2000 and price < (median_price * 0.40):
                 agent_logs.append(f"[PriceAgent] Row skipped (extreme low outlier, likely EMI or accessory): {row}")
                 continue
 
@@ -509,7 +508,10 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 "terms of", "privacy policy", "about us", "contact us", "refund", 
                 "shipping", "delivery charges", "customer care", "help center", 
                 "sign in", "login", "register", "cart", "wishlist", "checkout", "search",
-                "store page", "asus store", "official store"
+                "store page", "asus store", "official store",
+                "ear pad", "ear cushion", "replacement cushion", "replacement pad",
+                "headphone case", "carrying case", "protective case", "silicone cover",
+                "headband cover", "audio cable", "aux cable"
             ]
             prod_name_lower = prod_name.lower()
             if any(bw in prod_name_lower for bw in bad_name_keywords):
