@@ -598,7 +598,15 @@ export default function UserDashboard() {
             const validPrices = extractedPrices.map(p => p.extracted_price).filter(p => p != null && p > 0);
             const absoluteMax = validPrices.length > 0 ? Math.max(...validPrices) : 250000;
             setMaxBudgetCeiling(absoluteMax);
-            setPriceRange(absoluteMax);
+
+            const detectedCeiling = data.budget_status?.ceiling;
+            if (detectedCeiling && Number(detectedCeiling) > 0) {
+                setPriceRange(Number(detectedCeiling));
+                setInBudgetOnly(true);
+            } else {
+                setPriceRange(absoluteMax);
+                setInBudgetOnly(false);
+            }
 
             const logDerived = deriveAgentStatesFromLogs(data.logs || []);
             setAgentStatusMap(prev => {

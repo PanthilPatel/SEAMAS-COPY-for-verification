@@ -379,6 +379,9 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
     query = state.get("query", "")
     budget = state.get("budget_status", {}).get("ceiling")
+    if not budget:
+        from agents.budget_advisor_agent import _extract_budget
+        budget = _extract_budget(query)
 
     print("\n--- OLLAMA INTENT-CLASSIFYING PRICE COMPARISON INITIATED ---")
     if not search_results:
