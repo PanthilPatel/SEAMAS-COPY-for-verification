@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Sparkles, Mic, Command, ArrowUpRight } from 'lucide-react';
 
 const SUGGESTIONS = [
-    { label: 'Best noise-cancelling headphones under $400' },
-    { label: 'Compare M-series laptops for developers' },
-    { label: 'Most durable weatherproof backpacks' },
-    { label: 'Deals ending in the next 24 hours' }
+    { label: 'Cozy retro mechanical keyboards with RGB light & pastel keycaps' },
+    { label: 'Best noise-cancelling wireless earbuds under ₹15,000' },
+    { label: 'iPhone 17 Pro Max' },
+    { label: 'Minimalist ambient LED desk lamps & setup aesthetics' }
 ];
 
 export default function ChatInterface({ onQuerySubmit, loading }) {
@@ -86,10 +86,10 @@ export default function ChatInterface({ onQuerySubmit, loading }) {
                             onFocus={() => setFocused(true)}
                             onBlur={() => setFocused(false)}
                             disabled={loading}
-                            placeholder="e.g. Best noise-cancelling headphones under $400 for long flights…"
+                            placeholder="e.g. Cozy retro mechanical keyboards or noise-cancelling earbuds under ₹15,000…"
                             className="flex-1 bg-transparent font-display text-lg font-light tracking-tight text-white placeholder:text-neutral-500 focus:outline-none sm:text-xl"
                         />
-                        
+
                         {/* Voice button */}
                         <button
                             type="button"
@@ -98,7 +98,7 @@ export default function ChatInterface({ onQuerySubmit, loading }) {
                         >
                             <Mic className="h-4 w-4" strokeWidth={1.6} />
                         </button>
-                        
+
                         {/* Kbd badge */}
                         <kbd className="seamas-kbd hidden sm:inline-flex">
                             <Command className="mr-1 h-2.5 w-2.5" strokeWidth={2.5} />/

@@ -25,8 +25,18 @@ export default function AuthPage() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        let name = formData.name ? formData.name.trim() : '';
+        if (!name && formData.email) {
+            const prefix = formData.email.split('@')[0];
+            name = prefix
+                .split(/[._-]/)
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+        }
+        if (!name) name = 'Elena Marquez';
+
         localStorage.setItem('seamas_user_session', JSON.stringify({
-            name: isLogin ? 'User' : formData.name || 'User',
+            name,
             email: formData.email,
             isLoggedIn: true
         }));

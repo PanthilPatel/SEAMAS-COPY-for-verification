@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Heart, Star, ArrowUpRight, BadgeCheck, Store, Sparkles, Filter, LayoutGrid } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Heart, Star, ArrowUpRight, BadgeCheck, Store, Sparkles, Filter, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const toneMap = {
     amber: 'text-amber-300 border-amber-400/25 bg-amber-400/[0.06]',
@@ -29,7 +29,7 @@ function ProductCard({ product, onCardClick, priority = false }) {
     return (
         <article
             onClick={() => onCardClick && onCardClick(product)}
-            className={`seamas-glass card-reveal product-card-glow group relative flex flex-col overflow-hidden rounded-3xl transition-colors hover:border-white/[0.14] cursor-pointer ${isLarge ? 'md:row-span-2' : ''
+            className={`seamas-glass card-reveal card-interactive product-card-glow group relative flex flex-col overflow-hidden rounded-3xl cursor-pointer ${isLarge ? 'md:row-span-2' : ''
                 }`}
         >
             <div className={`relative overflow-hidden shrink-0 ${isLarge ? 'aspect-[4/5]' : 'aspect-[4/3]'}`}
@@ -44,20 +44,20 @@ function ProductCard({ product, onCardClick, priority = false }) {
                         src={image}
                         alt={title}
                         loading={priority ? 'eager' : 'lazy'}
-                        className="h-full w-full object-contain p-4 transition-transform duration-700 group-hover:scale-105"
+                        className="h-full w-full object-contain p-4 transition-all duration-700 group-hover:scale-108 group-hover:rotate-1"
                         onError={() => setImgError(true)}
                     />
                 ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10">
-                        <div className="w-14 h-14 rounded-2xl border border-white/[0.06] bg-white/[0.03] flex items-center justify-center">
-                            <Sparkles className="h-6 w-6 text-neutral-600" strokeWidth={1.5} />
+                        <div className="w-14 h-14 rounded-2xl border border-white/[0.06] bg-white/[0.03] flex items-center justify-center group-hover:border-cyan-500/30 transition-colors">
+                            <Sparkles className="h-6 w-6 text-neutral-600 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
                         </div>
                         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600">No Image</span>
                     </div>
                 )}
 
-                <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-2.5 py-1 backdrop-blur-md">
-                    <Store className="h-3 w-3 text-neutral-200" strokeWidth={1.75} />
+                <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 backdrop-blur-md transition-transform group-hover:scale-105">
+                    <Store className="h-3 w-3 text-cyan-300" strokeWidth={1.75} />
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-100">
                         {marketplace}
                     </span>
@@ -68,11 +68,11 @@ function ProductCard({ product, onCardClick, priority = false }) {
                         e.stopPropagation();
                         setWished(!wished);
                     }}
-                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-colors btn-magnetic ${wished ? 'bg-rose-500/20 text-rose-300' : 'bg-black/40 text-neutral-200 hover:bg-black/60'
+                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-all btn-magnetic ${wished ? 'bg-rose-500/20 text-rose-300 scale-110' : 'bg-black/40 text-neutral-200 hover:bg-black/60 hover:scale-105'
                         }`}
                     aria-label="Add to wishlist"
                 >
-                    <Heart className={`h-4 w-4 ${wished ? 'fill-rose-400 text-rose-400' : ''}`} strokeWidth={1.75} />
+                    <Heart className={`h-4 w-4 transition-transform duration-300 ${wished ? 'fill-rose-400 text-rose-400 scale-110' : 'group-hover:scale-110'}`} strokeWidth={1.75} />
                 </button>
 
                 {isOverBudget ? (
@@ -82,7 +82,7 @@ function ProductCard({ product, onCardClick, priority = false }) {
                         </span>
                     </div>
                 ) : discount > 0 ? (
-                    <div className="absolute bottom-4 left-4 z-10 inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/[0.12] px-2.5 py-1 backdrop-blur-md">
+                    <div className="absolute bottom-4 left-4 z-10 inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/[0.12] px-2.5 py-1 backdrop-blur-md badge-glow">
                         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-200">
                             −{discount}% verified
                         </span>
@@ -96,7 +96,7 @@ function ProductCard({ product, onCardClick, priority = false }) {
                         {(product.tags || ['Verified Store', 'Live Stock']).map((t) => (
                             <span
                                 key={t}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${toneMap[tone] ?? toneMap.cyan
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-transform hover:scale-105 ${toneMap[tone] ?? toneMap.cyan
                                     }`}
                             >
                                 <BadgeCheck className="h-2.5 w-2.5" strokeWidth={2} />
@@ -105,7 +105,7 @@ function ProductCard({ product, onCardClick, priority = false }) {
                         ))}
                     </div>
 
-                    <h3 className="font-display text-[17px] font-medium leading-snug tracking-tight text-white line-clamp-2">
+                    <h3 className="font-display text-[17px] font-medium leading-snug tracking-tight text-white line-clamp-2 group-hover:text-cyan-200 transition-colors">
                         {title}
                     </h3>
                     <p className="mt-1 text-[13px] leading-relaxed text-neutral-500 line-clamp-2">{subtitle}</p>
@@ -133,7 +133,7 @@ function ProductCard({ product, onCardClick, priority = false }) {
                 <div className="flex items-end justify-between">
                     <div>
                         <div className="flex items-baseline gap-2">
-                            <span className="font-display text-2xl font-semibold tracking-tight text-white">
+                            <span className="font-display text-2xl font-semibold tracking-tight text-white price-pop">
                                 ₹{price.toLocaleString('en-IN')}
                             </span>
                             {original && (
@@ -152,18 +152,18 @@ function ProductCard({ product, onCardClick, priority = false }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-colors hover:border-cyan-400/30 hover:bg-cyan-400/[0.06] hover:text-white btn-magnetic"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
                         >
                             View
-                            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+                            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
                         </a>
                     ) : (
                         <button
                             type="button"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-colors hover:border-cyan-400/30 hover:bg-cyan-400/[0.06] hover:text-white btn-magnetic"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
                         >
                             View
-                            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+                            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
                         </button>
                     )}
                 </div>
@@ -173,10 +173,31 @@ function ProductCard({ product, onCardClick, priority = false }) {
 }
 
 export default function ProductGrid({ items, query, ready, onCardClick }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 9;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [items, query]);
+
     if (!ready || !items || items.length === 0) return null;
 
+    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            const gridEl = document.getElementById('seamas-product-grid');
+            if (gridEl) {
+                gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    };
+
     return (
-        <section className="relative z-10 mx-auto w-full max-w-6xl text-left">
+        <section id="seamas-product-grid" className="relative z-10 mx-auto w-full max-w-6xl text-left">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
@@ -187,7 +208,7 @@ export default function ProductGrid({ items, query, ready, onCardClick }) {
                         {query ? (
                             <>
                                 Recommendations for{' '}
-                                <span className="text-gradient">
+                                <span className="text-gradient-animated">
                                     "{query.length > 60 ? query.slice(0, 60) + '…' : query}"
                                 </span>
                             </>
@@ -210,7 +231,7 @@ export default function ProductGrid({ items, query, ready, onCardClick }) {
             </div>
 
             <div className="grid auto-rows-[1fr] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((item, idx) => (
+                {paginatedItems.map((item, idx) => (
                     <ProductCard
                         key={idx}
                         product={item}
@@ -219,6 +240,56 @@ export default function ProductGrid({ items, query, ready, onCardClick }) {
                     />
                 ))}
             </div>
+
+            {totalPages > 1 && (
+                <div className="mt-10 flex flex-col items-center justify-between gap-4 sm:flex-row border-t border-white/[0.06] pt-6">
+                    <div className="font-mono text-xs text-neutral-400">
+                        Showing <span className="text-white font-semibold">{startIndex + 1}</span>–
+                        <span className="text-white font-semibold">{Math.min(startIndex + ITEMS_PER_PAGE, items.length)}</span> of{' '}
+                        <span className="text-cyan-300 font-semibold">{items.length}</span> candidates
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="inline-flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-neutral-300 transition-all hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed btn-magnetic"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                        </button>
+
+                        <div className="flex flex-wrap items-center justify-center gap-1 px-2">
+                            {Array.from({ length: totalPages }).map((_, idx) => {
+                                const pageNum = idx + 1;
+                                const isActive = pageNum === currentPage;
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => handlePageChange(pageNum)}
+                                        className={`h-9 w-9 rounded-xl font-mono text-xs font-semibold transition-all ${
+                                            isActive
+                                                ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.5)] scale-110 filter-pill-active'
+                                                : 'border border-white/[0.06] bg-white/[0.02] text-neutral-400 hover:border-white/[0.14] hover:text-white hover:scale-105'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="inline-flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-neutral-300 transition-all hover:border-white/[0.16] hover:bg-white/[0.06] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed btn-magnetic"
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

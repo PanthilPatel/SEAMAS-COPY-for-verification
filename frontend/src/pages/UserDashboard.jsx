@@ -332,7 +332,17 @@ const NAV = [
     },
 ];
 
-function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount }) {
+function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount, userSession }) {
+    const userName = userSession?.name || 'Elena Marquez';
+    const userInitials = useMemo(() => {
+        if (!userName) return 'EM';
+        const parts = userName.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return userName.slice(0, 2).toUpperCase();
+    }, [userName]);
+
     return (
         <aside
             className="relative z-20 hidden shrink-0 flex-col border-r border-white/[0.06] bg-white/[0.015] md:flex transition-all duration-300 select-none text-left"
@@ -429,28 +439,40 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 </div>
             )}
 
-            <div className="border-t border-white/[0.05] p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-neutral-700 to-neutral-900 text-[11px] font-medium text-white ring-1 ring-white/10 select-none">
-                        EM
-                    </div>
-                    {!collapsed && (
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">Elena Marquez</div>
-                            <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500">
-                                <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
-                                Pro · 2,140 credits
+            <div className={`border-t border-white/[0.05] p-3 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                {collapsed ? (
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="rounded-md p-1.5 text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200"
+                        aria-label="Expand sidebar"
+                        title="Expand sidebar"
+                    >
+                        <ChevronsLeft className="h-4 w-4 rotate-180" strokeWidth={1.75} />
+                    </button>
+                ) : (
+                    <>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 text-[11px] font-semibold text-white ring-1 ring-white/20 select-none shadow-sm">
+                                {userInitials}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">{userName}</div>
+                                <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500">
+                                    <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
+                                    Pro · 2,140 credits
+                                </div>
                             </div>
                         </div>
-                    )}
-                </div>
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="rounded-md p-1.5 text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200"
-                    aria-label="Toggle sidebar"
-                >
-                    <ChevronsLeft className={`h-4 w-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} strokeWidth={1.75} />
-                </button>
+                        <button
+                            onClick={() => setCollapsed(!collapsed)}
+                            className="rounded-md p-1.5 text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200 shrink-0"
+                            aria-label="Collapse sidebar"
+                            title="Collapse sidebar"
+                        >
+                            <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
+                        </button>
+                    </>
+                )}
             </div>
         </aside>
     );
@@ -458,6 +480,15 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 
 export default function UserDashboard() {
     const navigate = useNavigate();
+
+    const [userSession] = useState(() => {
+        try {
+            const stored = localStorage.getItem('seamas_user_session');
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    });
 
     const handleLogout = () => {
         localStorage.removeItem('seamas_user_session');
@@ -467,10 +498,10 @@ export default function UserDashboard() {
     const [activeTab, setActiveTab] = useState('discover');
     const [showCommandPalette, setShowCommandPalette] = useState(false);
     const [recentQueries, setRecentQueries] = useState([
-        'Best noise-cancelling headphones under $400',
-        'Compare M-series laptops for developers',
-        'Most durable weatherproof backpacks',
-        'Deals ending in the next 24 hours'
+        'Cozy retro mechanical keyboards with RGB light & pastel keycaps',
+        'Best noise-cancelling wireless earbuds under ₹15,000',
+        'Iphone 17 Pro Max',
+        'Minimalist ambient LED desk lamps & setup aesthetics'
     ]);
     const [wishlistItems, setWishlistItems] = useState([]);
 
@@ -514,45 +545,26 @@ export default function UserDashboard() {
     useEffect(() => {
         if (!loading) return;
 
-        setAgentStatusMap({});
-
-        const pipeline = [
-            { stage: 1, ids: ['search'], durationMs: 8000 },
-            { stage: 2, ids: ['budget', 'price', 'reviews'], durationMs: 8000 },
-            { stage: 3, ids: ['recommendation'], durationMs: 8000 },
-            { stage: 4, ids: ['finalizer'], durationMs: 99999 }, // held until response
-        ];
-
-        const timers = [];
-        let elapsed = 0;
-
-        pipeline.forEach((stage, stageIdx) => {
-            const activateAt = elapsed;
-            timers.push(setTimeout(() => {
-                setAgentStatusMap(prev => {
-                    const next = { ...prev };
-                    stage.ids.forEach(id => { next[id] = AGENT_STATES.RUNNING; });
-                    return next;
-                });
-            }, activateAt));
-
-            if (stageIdx > 0) {
-                const prevIds = pipeline[stageIdx - 1].ids;
-                timers.push(setTimeout(() => {
-                    setAgentStatusMap(prev => {
-                        const next = { ...prev };
-                        prevIds.forEach(id => {
-                            if (next[id] === AGENT_STATES.RUNNING) next[id] = AGENT_STATES.COMPLETED;
-                        });
-                        return next;
-                    });
-                }, activateAt));
-            }
-
-            elapsed += stage.durationMs;
+        setAgentStatusMap({
+            search: AGENT_STATES.RUNNING,
+            price: AGENT_STATES.IDLE,
+            reviews: AGENT_STATES.IDLE,
+            budget: AGENT_STATES.IDLE,
+            recommendation: AGENT_STATES.IDLE,
+            finalizer: AGENT_STATES.IDLE,
         });
 
-        return () => timers.forEach(t => clearTimeout(t));
+        const t1 = setTimeout(() => {
+            setAgentStatusMap(prev => ({
+                ...prev,
+                search: AGENT_STATES.COMPLETED,
+                price: prev.price === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
+                reviews: prev.reviews === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
+                budget: prev.budget === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
+            }));
+        }, 6000);
+
+        return () => clearTimeout(t1);
     }, [loading]);
 
     const LOG_AGENT_MAP = [
@@ -588,7 +600,27 @@ export default function UserDashboard() {
         setCurrentQuery(query);
 
         try {
-            const data = await apiService.sendChatQuery(query);
+            const data = await apiService.sendChatQueryStream(query, (evt) => {
+                if (evt.type === 'node_start') {
+                    setAgentStatusMap(prev => ({
+                        ...prev,
+                        [evt.agent_id]: AGENT_STATES.RUNNING
+                    }));
+                } else if (evt.type === 'node_complete') {
+                    setAgentStatusMap(prev => {
+                        const next = { ...prev, [evt.agent_id]: AGENT_STATES.COMPLETED };
+                        if (evt.agent_id === 'search') {
+                            if (next.price === AGENT_STATES.IDLE) next.price = AGENT_STATES.RUNNING;
+                            if (next.reviews === AGENT_STATES.IDLE) next.reviews = AGENT_STATES.RUNNING;
+                            if (next.budget === AGENT_STATES.IDLE) next.budget = AGENT_STATES.RUNNING;
+                        }
+                        return next;
+                    });
+                }
+            });
+
+            if (!data) return;
+
             const extractedPrices = data.price_data || [];
             setPriceData(extractedPrices);
             setSentimentReport(data.analysis_report || null);
@@ -608,15 +640,10 @@ export default function UserDashboard() {
                 setInBudgetOnly(false);
             }
 
-            const logDerived = deriveAgentStatesFromLogs(data.logs || []);
             setAgentStatusMap(prev => {
                 const next = { ...prev };
                 AGENT_LIST.forEach(({ id }) => {
-                    if (logDerived[id] === AGENT_STATES.ERROR) {
-                        next[id] = AGENT_STATES.ERROR;
-                    } else {
-                        next[id] = AGENT_STATES.COMPLETED;
-                    }
+                    next[id] = AGENT_STATES.COMPLETED;
                 });
                 return next;
             });
@@ -636,15 +663,29 @@ export default function UserDashboard() {
 
     const availableMarketplaces = useMemo(() => {
         const stores = new Set();
-        priceData.forEach(item => { if (item.extracted_price > 0 && item.marketplace) stores.add(item.marketplace); });
-        return [...stores];
+        priceData.forEach(item => {
+            if (item.extracted_price > 0 && item.marketplace) {
+                item.marketplace.split(',').forEach(s => {
+                    const clean = s.trim().replace(/\.(in|com|co\.in)$/i, '');
+                    if (clean) stores.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+                });
+            }
+        });
+        return [...stores].sort();
     }, [priceData]);
 
     const filteredItems = useMemo(() => {
         return priceData.filter(item => {
             if (!item.extracted_price || item.extracted_price <= 0) return false;
             if (item.extracted_price > priceRange) return false;
-            if (selectedMarketplaces.length > 0 && !selectedMarketplaces.includes(item.marketplace)) return false;
+            if (selectedMarketplaces.length > 0) {
+                const itemStores = (item.marketplace || '').split(',').map(s => s.trim().toLowerCase());
+                const match = selectedMarketplaces.some(sel => {
+                    const selLower = sel.toLowerCase();
+                    return itemStores.some(is => is.includes(selLower) || selLower.includes(is));
+                });
+                if (!match) return false;
+            }
             if (verifiedOnly && !item.is_verified) return false;
             if (inBudgetOnly && item.status !== 'Target Match') return false;
             return true;
@@ -691,6 +732,7 @@ export default function UserDashboard() {
                 onNewSearch={() => setShowCommandPalette(true)}
                 wishlistCount={wishlistItems.length}
                 threadCount={recentQueries.length}
+                userSession={userSession}
             />
 
             <div className="flex-grow flex flex-col min-w-0 z-10 relative">

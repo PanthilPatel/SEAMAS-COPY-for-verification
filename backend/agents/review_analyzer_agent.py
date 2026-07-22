@@ -13,11 +13,11 @@ async def review_analyzer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if not search_results:
         return {"analysis_report": {}, "logs": ["No search records available for review processing."]}
 
-    # ⚡ OPTIMIZATION 1: Trim the text corpus limit down to 3500 chars (plenty for high-quality sentiment extraction)
+    # ⚡ OPTIMIZATION 1: Trim the text corpus limit down to 2000 chars to maximize parallel speed
     corpus = "\n".join(
-        f"- {r.get('title', '')}: {r.get('content', '')[:300]}"
+        f"- {r.get('title', '')}: {r.get('content', '')[:100]}"
         for r in search_results if r.get('content')
-    )[:3500]
+    )[:2000]
 
     prompt = f"""You are a consumer sentiment synthesis agent. Analyze the customer testimonials and web mentions for: "{query}".
 Summarize the aggregate market opinion into a JSON object matching this structural specification exactly:

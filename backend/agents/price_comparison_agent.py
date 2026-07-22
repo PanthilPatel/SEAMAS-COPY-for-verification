@@ -27,99 +27,188 @@ class PriceComparisonResponse(BaseModel):
 def clean_price(value: Any) -> int:
     if isinstance(value, (int, float)):
         return int(value)
-    text = str(value).strip().replace(",", "").replace("₹", "").replace("Rs.", "").replace("$", "")
+    if not value:
+        return 0
+    text = str(value).strip().lower()
+
+    if any(w in text for w in ["/month", "per month", "p.m.", "emi", "cashback", "off"]):
+        if any(w in text for w in ["/month", "per month", "p.m.", "emi"]):
+            prices = prices_mentioned_in(text)
+            if prices:
+                return min(prices)
+            return 0
+
     try:
-        if text.lower().endswith("k"):
-            return int(float(text[:-1]) * 1_000)
-        if text.lower().endswith("l"):
-            return int(float(text[:-1]) * 100_000)
-        if re.match(r"^[\d.]+$", text):
-            return int(float(text))
-    except ValueError:
+        if "k" in text and re.search(r"(\d+(?:\.\d+)?)\s*k\b", text):
+            m = re.search(r"(\d+(?:\.\d+)?)\s*k\b", text)
+            return int(float(m.group(1)) * 1_000)
+        if "l" in text and re.search(r"(\d+(?:\.\d+)?)\s*(?:l|lakh|lac)\b", text):
+            m = re.search(r"(\d+(?:\.\d+)?)\s*(?:l|lakh|lac)\b", text)
+            return int(float(m.group(1)) * 100_000)
+
+        prices = prices_mentioned_in(text)
+        if prices:
+            return min(prices)
+
+        clean_plain = text.replace(",", "").replace("₹", "").replace("$", "").strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?", clean_plain):
+            val = float(clean_plain)
+            if val > 0:
+                return int(val)
+    except Exception:
         pass
     return 0
 
 def prices_mentioned_in(text: str) -> set:
     prices = set()
     
-    # 1. Match symbol-preceded prices (very reliable, e.g. ₹59,900, Rs. 14,900)
-    for match in re.finditer(r"(?:₹|rs\.?|\$|inr)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
-        following_text = text[match.end():match.end() + 20].lower()
+    for match in re.finditer(r"(?:₹|rs\.?|\$|inr|usd)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
+        symbol = match.group(0).lower()
+        following_text = text[match.end():match.end() + 25].lower()
         preceding_text = text[max(0, match.start() - 25):match.start()].lower()
+        prec_short = text[max(0, match.start() - 12):match.start()].lower()
         
-        if any(w in following_text for w in ["per g", "/g", "/kg", "per kg", "/month", "per month", "p.m.", "emi"]):
+        if any(w in following_text for w in ["per g", "/g", "/kg", "per kg", "/month", "per month", "p.m.", "emi", "month"]):
             continue
-        if any(w in preceding_text for w in ["save ", " off", "discount"]):
+        if any(w in prec_short for w in ["mrp", "was ", "list price", "original"]):
+            if not any(w in prec_short for w in ["offer", "sale", "deal", "now", "buy"]):
+                continue
+        if any(w in preceding_text for w in ["save ", "% off", "discount"]):
+            continue
+        if any(w in following_text for w in ["% off", "cashback"]):
             continue
 
         try:
-            val = int(float(match.group(1).replace(",", "")))
+            raw_val = float(match.group(1).replace(",", ""))
+            if "$" in symbol or "usd" in symbol:
+                val = int(raw_val * 86.0)
+            else:
+                val = int(raw_val)
+                
             if val > 0:
                 prices.add(val)
         except ValueError:
             continue
             
-    if prices:
-        return prices
-
-    # 2. Extract bare numbers only as a fallback, applying strict specs units filtering
-    for match in re.finditer(r"\b(\d{4,6})\b", text):
-        val_str = match.group(1)
-        val = int(val_str)
-        
-        start_idx = max(0, match.start() - 15)
-        end_idx = min(len(text), match.end() + 15)
-        context_around = text[start_idx:end_idx].lower()
-        
-        forbidden_suffixes = [
-            "gb", "tb", "mb", "kb", "ghz", "hz", "mah", "inch", "gen", "th", "rd", "st", "nd",
-            "series", "px", "pixel", "resolution", "core", "thread", "watt", "volt", "amp",
-            "rpm", "fps", "x", "p", "k", "%", "percent"
-        ]
-        
-        if any(word in context_around for word in ["year", "model", "since", "released in", "dated"]):
-            if val in [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]:
-                continue
-                
-        prices.add(val)
-        
     return prices
 
-def find_source_record(search_results: List[Dict[str, Any]], marketplace: str, price: int) -> Dict[str, Any]:
+def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
+    if url:
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower().replace("www.", "")
+            
+            store_map = {
+                "amazon.": "Amazon",
+                "flipkart.": "Flipkart",
+                "myntra.": "Myntra",
+                "croma.": "Croma",
+                "reliancedigital.": "Reliance Digital",
+                "tatacliq.": "Tata CLIQ",
+                "jiomart.": "JioMart",
+                "meesho.": "Meesho",
+                "nykaa.": "Nykaa",
+                "snapdeal.": "Snapdeal",
+                "blinkit.": "Blinkit",
+                "zepto.": "Zepto",
+                "instamart": "Instamart",
+                "indiamart.": "IndiaMART",
+                "industrybuying.": "Industrybuying",
+                "ishopindian.": "iShopIndian",
+                "quicklly.": "Quicklly",
+                "chocoliz.": "Chocoliz",
+                "apple.": "Apple",
+                "samsung.": "Samsung",
+                "sony.": "Sony",
+                "vijaysales.": "Vijay Sales",
+                "paytmmall.": "Paytm Mall",
+                "pricee.": "Pricee"
+            }
+            for key, clean in store_map.items():
+                if key in domain:
+                    return clean
+                    
+            domain_parts = domain.split(".")
+            main_name = domain_parts[-2] if len(domain_parts) >= 2 and domain_parts[-2] not in {"co", "com", "org", "gov", "net"} else domain_parts[0]
+            if main_name and len(main_name) > 2:
+                return main_name.capitalize()
+        except Exception:
+            pass
+
+    if not raw_marketplace:
+        return "Web"
+        
+    first_store = re.split(r"[,/|]", raw_marketplace)[0].strip()
+    first_lower = first_store.lower()
+
+    raw_map = {
+        "amazon": "Amazon",
+        "flipkart": "Flipkart",
+        "myntra": "Myntra",
+        "croma": "Croma",
+        "reliance": "Reliance Digital",
+        "tatacliq": "Tata CLIQ",
+        "jiomart": "JioMart",
+        "meesho": "Meesho",
+        "nykaa": "Nykaa",
+        "snapdeal": "Snapdeal",
+        "blinkit": "Blinkit",
+        "zepto": "Zepto",
+        "indiamart": "IndiaMART",
+        "industrybuying": "Industrybuying",
+        "ishopindian": "iShopIndian",
+        "quicklly": "Quicklly",
+        "chocoliz": "Chocoliz",
+        "pricee": "Pricee"
+    }
+    for key, clean in raw_map.items():
+        if key in first_lower:
+            return clean
+
+    clean_name = re.sub(r"\.(com|in|co\.in|org|net|store|shop|io)$", "", first_store, flags=re.IGNORECASE).strip()
+    return clean_name.capitalize() if clean_name else "Web"
+
+def find_source_record(search_results: List[Dict[str, Any]], marketplace: str, price: int, product_name: str = "") -> Dict[str, Any]:
+    if not search_results:
+        return {}
+        
     m_clean = re.sub(r"\s+", "", marketplace.lower())
     m_clean = re.sub(r"(india|official|store|online|shop|corporation|inc|co|ltd)$", "", m_clean)
     
+    stop_words = {"with", "from", "inch", "full", "brand", "official", "store", "buy", "online", "india", "price", "best", "and", "for", "the", "pro", "max", "plus"}
+    p_tokens = set(w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name) if w.lower() not in stop_words)
+
+    best_score = -1.0
+    best_record = None
+
     for r in search_results:
         engine = (r.get("engine") or "").lower()
         engine_clean = re.sub(r"\s+", "", engine)
         url = (r.get("url") or "").lower()
         url_clean = re.sub(r"\s+", "", url)
-        
-        match_engine = (m_clean in engine_clean) or (engine_clean in m_clean)
-        match_url = (m_clean in url_clean) or (url_clean in m_clean) or any(w in url_clean for w in m_clean.split() if len(w) > 3)
-        
-        if not match_engine and not match_url:
-            continue
-            
-        content = r.get("content") or ""
         title = r.get("title") or ""
+        content = r.get("content") or ""
         combined = (title + " " + content).replace(",", "")
-        if str(price) in combined:
-            return r
-            
-    for r in search_results:
-        engine = (r.get("engine") or "").lower()
-        engine_clean = re.sub(r"\s+", "", engine)
-        url = (r.get("url") or "").lower()
-        url_clean = re.sub(r"\s+", "", url)
-        
-        match_engine = (m_clean in engine_clean) or (engine_clean in m_clean)
-        match_url = (m_clean in url_clean) or (url_clean in m_clean) or any(w in url_clean for w in m_clean.split() if len(w) > 3)
-        
-        if match_engine or match_url:
-            return r
-            
-    return {}
+
+        match_engine = bool(m_clean) and ((m_clean in engine_clean) or (engine_clean in m_clean))
+        match_url = bool(m_clean) and ((m_clean in url_clean) or (url_clean in m_clean) or any(w in url_clean for w in m_clean.split() if len(w) > 3))
+        m_score = 1.0 if (match_engine or match_url) else 0.0
+
+        c_tokens = set(w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", title) if w.lower() not in stop_words)
+        overlap = len(p_tokens.intersection(c_tokens)) if p_tokens else 0
+        t_score = overlap / max(1, len(p_tokens)) if p_tokens else 0.0
+
+        has_price = str(price) in combined if price > 0 else False
+        p_score = 1.0 if has_price else 0.0
+
+        total_score = (t_score * 0.7) + (m_score * 0.2) + (p_score * 0.1)
+
+        if total_score > best_score:
+            best_score = total_score
+            best_record = r
+
+    return best_record or search_results[0]
 
 def is_specific_product_page(url: str) -> bool:
     if not url:
@@ -150,41 +239,6 @@ def is_specific_product_page(url: str) -> bool:
     if any(kw in path for kw in category_keywords) or any(kw in parsed.query for kw in ["k=", "q=", "search"]):
         return False
 
-    # Marketplace-specific checks to filter out catalog/listing/search URLs
-    if "amazon." in domain:
-        if not any(pat in path for pat in ["/dp/", "/gp/product/", "/gp/"]):
-            return False
-    elif "flipkart.com" in domain:
-        if "/p/" not in path:
-            return False
-    elif "myntra.com" in domain:
-        if "/buy" not in path:
-            return False
-    elif "meesho.com" in domain:
-        if "/p/" not in path:
-            return False
-    elif "nykaa.com" in domain:
-        if not any(pat in path for pat in ["/p/", "/product/"]):
-            return False
-    elif "shopsy.in" in domain:
-        if "/p/" not in path:
-            return False
-    elif "jiomart.com" in domain:
-        if not any(pat in path for pat in ["/p/", "/products/"]):
-            return False
-    elif "snapdeal.com" in domain:
-        if "/product/" not in path:
-            return False
-    elif "tatacliq.com" in domain:
-        if not any(pat in path for pat in ["/p-", "/product/"]):
-            return False
-    elif "croma.com" in domain:
-        if "/p/" not in path:
-            return False
-    elif "reliancedigital.in" in domain:
-        if "/p/" not in path:
-            return False
-
     if is_known_store:
         clean_path = path.strip("/")
         if clean_path and "/" in clean_path:
@@ -198,85 +252,76 @@ def is_specific_product_page(url: str) -> bool:
             if last_segment not in generic_categories:
                 return True
 
-    known_patterns = [
-        r"/dp/[a-z0-9]{10}",        
-        r"/p/itm[a-z0-9]+",           
-        r"/product/[a-z0-9-]",        
-        r"/products/[a-z0-9-]",       
-        r"/buy-[a-z0-9-]",
-        r"/buy$"
-    ]
-    if any(re.search(pattern, path, re.IGNORECASE) for pattern in known_patterns):
-        return True
-
-    last_segment = path.rstrip("/").split("/")[-1]
-    if len(last_segment) > 20 or re.search(r"\d{4,}", last_segment) or last_segment.count("-") >= 3:
-        if not any(word in path for word in ["review", "blog", "news", "article", "picks", "guide", "best-", "-best", "versus", "-vs-", "comparison"]):
-            return True
-    return False
+    return True
 
 def _is_store_logo(url: str) -> bool:
-    """
-    Returns True if the given image URL is almost certainly a store/brand logo
-    rather than a real product image. Uses both URL path keywords AND known CDN
-    patterns that serve store identity assets.
-    """
-    u = url.lower()
+    if not url:
+        return True
+    u = str(url).lower()
 
-    # 1. Explicit keyword patterns in the URL path
+    # Product CDN whitelist (ALWAYS KEEP REAL PRODUCT IMAGES!)
+    product_cdn_whitelist = [
+        "media-amazon.com/images/", "ssl-images-amazon.com/images/",
+        "flixcart.com/image/", "myntassets.com", "croma.com/medias/",
+        "reliancedigital.in/medias/", "meesho.com", "tatacliq.com",
+        "tavily", "searxng", "unsplash.com", "images.unsplash.com"
+    ]
+    if any(cdn in u for cdn in product_cdn_whitelist):
+        if any(logo in u for logo in ["amazon-logo", "flipkart-logo", "myntra-logo", "croma-logo", "favicon", "site-logo"]):
+            return True
+        return False
+
     forbidden_keywords = [
         "logo", "badge", "rating", "icon", "favicon", "avatar", "sprite",
         "og-image", "og_image", "opengraph", "open-graph",
         "header", "footer", "nav", "menu", "theme", "bg-", "background",
-        "sidebar", "widget", "banner", "billboard", "slider", "carousel",
-        "hero-", "promotional", "campaign", "ad-image", "advertisement",
-        "square-logo", "brand-identity", "store-front", "retailer",
-        "vector", "illustration", "graphic", "clipart",
-        # Store-specific logo filename patterns
-        "amazon-logo", "flipkart-logo", "myntra-logo", "ajio-logo",
-        "ubuy-logo", "zimson-logo", "croma-logo",
-        # Common store brand image patterns in CDN paths
-        "/amazon/", "/ubuy/", "/flipkart/", "/meesho/", "/myntra/",
+        "sidebar", "widget", "banner", "billboard", "square-logo"
     ]
     if any(kw in u for kw in forbidden_keywords):
         return True
 
-    # 2. (Removed overly aggressive gstatic CDN check — gstatic hosts real products too)
-
-    # 3. Detect store brand images by checking if a major marketplace name appears
-    # as a significant part of the URL hostname (not the path where products live)
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        hostname = parsed.netloc.lower()
-        store_domains = [
-            "ubuy.com", "ubuy.co.in", "amazon.com", "amazon.in",
-            "flipkart.com", "myntra.com", "meesho.com", "croma.com",
-            "ajio.com", "snapdeal.com", "jiomart.com",
-        ]
-        # If the IMAGE itself is hosted on a store domain AND the path has no
-        # product-ID-like segments, it's likely a store branding asset
-        for store in store_domains:
-            if store in hostname:
-                path = parsed.path.lower()
-                product_signals = ["/dp/", "/p/", "/product", "/buy", "/item", "/images/i/"]
-                if not any(sig in path for sig in product_signals):
-                    return True
-    except Exception:
-        pass
-
     return False
 
-
 def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "", all_records: List[Dict[str, Any]] = None) -> str:
-    """Selects the best real product image from search result metadata.
-    Falls back to a category-specific Unsplash placeholder if no clean image found."""
+    if matched_rec:
+        tavily_images = matched_rec.get("images", [])
+        if isinstance(tavily_images, list):
+            for img in tavily_images:
+                if img and not _is_store_logo(str(img)):
+                    return str(img)
 
-    tavily_images = matched_rec.get("images", [])
-    if isinstance(tavily_images, list):
-        for img in tavily_images:
-            if img and not _is_store_logo(str(img)):
-                return img
+        fallback_thumb = (
+            matched_rec.get("thumbnail")
+            or matched_rec.get("img_src")
+            or matched_rec.get("thumbnail_src")
+            or matched_rec.get("og_image")
+            or ""
+        )
+        if fallback_thumb and not _is_store_logo(str(fallback_thumb)):
+            return str(fallback_thumb)
+
+    if all_records and product_name:
+        prod_words = [
+            w.lower() for w in re.findall(r"\b[a-zA-Z0-9]{3,}\b", product_name)
+            if w.lower() not in {"with", "from", "inch", "full", "brand", "official", "store", "buy", "online", "india", "price", "best", "pro", "max", "plus"}
+        ]
+        if prod_words:
+            for r in all_records:
+                thumb = (
+                    r.get("thumbnail")
+                    or r.get("img_src")
+                    or r.get("thumbnail_src")
+                    or r.get("og_image")
+                    or ""
+                )
+                if not thumb or _is_store_logo(str(thumb)):
+                    continue
+                if "unsplash.com" in str(thumb).lower():
+                    continue
+
+                title_lower = r.get("title", "").lower()
+                if any(w in title_lower for w in prod_words[:2]):
+                    return str(thumb)
 
     fallback_thumb = (
         matched_rec.get("thumbnail")
@@ -347,12 +392,18 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
         "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80"
     ]
 
-    if any(k in prod_name_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "clog", "puma", "adidas", "nike", "reebok", "under armour", "asics", "skechers", "crocs"]):
+    if any(k in prod_name_lower for k in ["powerbank", "power bank", "mah", "charger", "battery pack", "power bank 45w", "powerbank 45w"]):
+        return "https://images.unsplash.com/photo-1608503396060-36c8d9e0d7d5?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "clog", "puma", "adidas", "nike", "reebok", "under armour", "asics", "skechers", "crocs"]):
         return shoe_pool[idx % len(shoe_pool)]
     elif any(k in prod_name_lower for k in ["laptop stand", "laptop riser", "laptop mount", "notebook stand", "desk stand", "adjustable stand", "ergonomic stand"]):
         return "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80"
     elif any(k in prod_name_lower for k in ["cooler", "cooling fan", "cpu fan", "phone cooler", "mobile cooler", "cooling pad", "laptop cooler"]):
         return "https://images.unsplash.com/photo-1587202372634-32705e3bf49c?w=400&q=80"
+    elif any(k in prod_name_lower for k in ["headphone", "earbud", "pods", "audio", "soundbar", "earphones", "headset", "tws", "airpods"]):
+        return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80"
+    elif "watch" in prod_name_lower:
+        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"
     elif any(k in prod_name_lower for k in ["keyboard", "mechanical keyboard", "gaming keyboard"]):
         return "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&q=80"
     elif any(k in prod_name_lower for k in ["mouse", "gaming mouse", "wireless mouse"]):
@@ -363,8 +414,6 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
         return phone_pool[idx % len(phone_pool)]
     elif any(k in prod_name_lower for k in ["monitor", "tv", "display", "screen", "led", "ips", "panel", "backlit"]):
         return "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&q=80"
-    elif "watch" in prod_name_lower:
-        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"
     elif any(k in prod_name_lower for k in ["headphone", "earbud", "pods", "audio", "soundbar", "earphones", "headset", "tws", "airpods"]):
         return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80"
     elif any(k in prod_name_lower for k in ["bag", "backpack", "case", "cover", "sleeve", "pouch"]):
@@ -398,109 +447,175 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if not filtered_records:
         return {"price_data": [], "category": "general", "logs": ["All structural noise filtered out."]}
 
-    # Prioritize specific product pages first for the LLM context to ensure we get specific offers
     product_pages = [r for r in filtered_records if is_specific_product_page(r.get("url", ""))]
     other_pages = [r for r in filtered_records if r not in product_pages]
     prioritized_records = product_pages + other_pages
 
-    # Build optimized context using first 60 records
-    context_list = []
-    for i, r in enumerate(prioritized_records[:60], start=1):
-        snippet = (r.get("content") or r.get("snippet") or "")[:150]
-        # Extremely compact format to maximize context usage and prevent token budget exhaustion
-        context_list.append(f"[{i}] Store: {r.get('engine', 'Web')} | Title: {r.get('title', '')} | Details: {snippet}")
-    context = "\n".join(context_list)
-
-    prompt = f"""You are a multi-agent parser extracting e-commerce product listings.
-    Query: "{query}"
-
-    Analyze the dataset records. Deduce if this query targets 'clothing' or 'electronics' or 'general'.
-    Extract EVERY single valid individual product matching the intent with its metadata attributes from the records.
-    You must extract as many individual products, listings, prices, configurations, and store offers as possible.
-
-    PRICE EXTRACTION RULES (follow strictly):
-    - extracted_price: The ACTUAL current selling price the customer pays (e.g. ₹743, not ₹2,250 which is crossed out)
-    - original_price: The original MRP / crossed-out price ONLY if explicitly shown as struck-through or labelled MRP (e.g. ₹2,250). Set null if not visible.
-    - NEVER use EMI monthly amounts, bank cashback amounts, down-payments, or delivery fees as the price.
-    - NEVER invent or calculate prices. Only use prices explicitly stated in the records.
-    - CRITICAL: ONLY extract the MAIN product requested. Do NOT extract accessories, cases, covers, straps, or screen protectors unless the query explicitly asks for them.
-    - If a record shows two prices (e.g. "₹743  ₹2,250"), extracted_price=743, original_price=2250.
-
-    CRITICAL: Do not return an empty array if e-commerce product titles and prices are present. Extract up to 30 items.
-    CRITICAL: Every extracted product must be a unique, distinct product model or specific listing.
-    Aim to extract 20-30 diverse products including different models, storage variants, colors, and stores.
-    If the exact model is unavailable, extract closely related models using their exact names from the records.
-
-    Records:
-    {context}
-    """
-
     try:
-        response = await AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434")).chat(
-            model="qwen2.5:latest",
-            messages=[{"role": "user", "content": prompt}],
-            format=PriceComparisonResponse.model_json_schema(),
-            options={"temperature": 0.5, "num_ctx": 8192},
-        )
+        # ── Batch Processing Configuration ───────────────────────────────────────
+        # No fixed limits ([:75] or [:50]) are applied. ALL records enter batching.
+        BATCH_SIZE = int(os.getenv("PRICE_AGENT_BATCH_SIZE", "50"))
+        batches = [
+            prioritized_records[i : i + BATCH_SIZE]
+            for i in range(0, len(prioritized_records), BATCH_SIZE)
+        ]
 
-        raw_content = response["message"]["content"].strip()
-        cleaned_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
-        
-        if cleaned_content.startswith("```"):
-            cleaned_content = re.sub(r"^```(?:json)?\n?|```$", "", cleaned_content, flags=re.MULTILINE).strip()
+        total_collected = len(search_results)
+        total_batch_input = len(prioritized_records)
+        num_batches = len(batches)
 
-        json_match = re.search(r"\{.*\}", cleaned_content, re.DOTALL)
-        final_json_str = json_match.group(0) if json_match else cleaned_content
+        print(f"\n[PriceAgent] === PRICE COMPARISON BATCHING INITIATED ===")
+        print(f"[PriceAgent] Total search records collected: {total_collected}")
+        print(f"[PriceAgent] Total records entering batch processing: {total_batch_input}")
+        print(f"[PriceAgent] Number of batches created: {num_batches} (Batch Size: {BATCH_SIZE})")
 
-        parsed_payload = json.loads(final_json_str)
-        rows = parsed_payload.get("prices") or parsed_payload.get("Metadata") or parsed_payload.get("metadata") or []
-        detected_category = parsed_payload.get("detected_category") or parsed_payload.get("Category") or parsed_payload.get("category") or "general"
-        
-        print(f"[PriceAgent] LLM raw response: {raw_content.encode('ascii', 'replace').decode('ascii')}")
-        print(f"[PriceAgent] Parsed {len(rows)} rows: {str(rows).encode('ascii', 'replace').decode('ascii')}")
-        
-        full_text_corpus = context + "\n" + "\n".join(r.get("title", "") for r in filtered_records)
-        real_prices = prices_mentioned_in(full_text_corpus)
+        all_raw_extracted_rows: List[Dict[str, Any]] = []
+        detected_category_counts: Dict[str, int] = {}
+        batch_logs: List[str] = [
+            f"Total search records collected: {total_collected}",
+            f"Total records entering batch processing: {total_batch_input}",
+            f"Number of batches created: {num_batches}",
+        ]
 
-        agent_logs = [f"Successfully matched category context: {detected_category}"]
+        client = AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
+
+        for batch_idx, batch_records in enumerate(batches, start=1):
+            print(f"\n[PriceAgent] ---> Processing Batch {batch_idx}/{num_batches} ({len(batch_records)} records)...")
+            context_list = []
+            for i, r in enumerate(batch_records, start=1):
+                snippet = (r.get("content") or r.get("snippet") or "")[:350]
+                context_list.append(f"[{i}] Store: {r.get('engine', 'Web')} | Title: {r.get('title', '')} | Details: {snippet}")
+            context = "\n".join(context_list)
+
+            prompt = f"""You are a multi-agent parser extracting e-commerce product listings.
+Query: "{query}"
+
+Analyze the dataset records. Deduce if this query targets 'clothing' or 'electronics' or 'general'.
+Extract EVERY single valid individual product matching the intent with its metadata attributes from the records.
+You must extract as many individual products, listings, prices, configurations, and store offers as possible.
+
+PRICE EXTRACTION RULES (follow strictly):
+- extracted_price: Must be the FINAL current payable purchase price today as a plain integer in INR (Indian Rupees). This is the exact amount the customer actually pays today at checkout.
+- IGNORE EMI per-month values (e.g., "Rs. 1,200/month", "₹899 p.m."), bank cashback offers, exchange bonuses, and crossed-out original MRPs.
+- If a price range exists in the text (e.g., "Rs. 18,900 - Rs. 24,900"), extract the lowest active buying price.
+- original_price: The original MRP or crossed-out price ONLY if explicitly shown.
+- NEVER invent, hallucinate, or calculate prices. If a price is NOT explicitly written in the snippet, you MUST set `extracted_price` to null.
+- CRITICAL: ONLY extract the MAIN product requested. Do NOT extract accessories, cases, covers, straps.
+
+MASSIVE DATA REQUIREMENT:
+- You MUST extract EVERY SINGLE product variation, listing, or link you find in the context.
+- DO NOT deduplicate! If 5 different stores sell the exact same product, extract it 5 separate times!
+- If the exact price is MISSING in the snippet, YOU MUST STILL EXTRACT THE PRODUCT! Just set `extracted_price` to null.
+- Do NOT stop at 8 or 9 items. Extract every store, color variant, and configuration found in the context.
+
+Records:
+{context}
+"""
+            try:
+                response = await client.chat(
+                    model="qwen2.5:latest",
+                    messages=[{"role": "user", "content": prompt}],
+                    format=PriceComparisonResponse.model_json_schema(),
+                    options={"temperature": 0.5, "num_ctx": 8192, "num_predict": 4096},
+                )
+
+                raw_content = response["message"]["content"].strip()
+                cleaned_content = re.sub(r"<think>.*?</think>", "", raw_content, flags=re.DOTALL).strip()
+                if cleaned_content.startswith("```"):
+                    cleaned_content = re.sub(r"^```(?:json)?\n?|```$", "", cleaned_content, flags=re.MULTILINE).strip()
+
+                json_match = re.search(r"\{.*\}", cleaned_content, re.DOTALL)
+                final_json_str = json_match.group(0) if json_match else cleaned_content
+
+                try:
+                    parsed_payload = json.loads(final_json_str)
+                except json.JSONDecodeError:
+                    print(f"[PriceAgent] Batch {batch_idx}: JSON parse failed, attempting regex recovery.")
+                    parsed_payload = {"prices": [], "detected_category": "general"}
+                    object_blocks = re.findall(r'\{[^{}]*"product_name"[^{}]*\}', final_json_str)
+                    for block in object_blocks:
+                        try:
+                            parsed_payload["prices"].append(json.loads(block))
+                        except json.JSONDecodeError:
+                            pass
+
+                batch_rows = parsed_payload.get("prices") or parsed_payload.get("Metadata") or parsed_payload.get("metadata") or []
+                b_cat = parsed_payload.get("detected_category") or parsed_payload.get("Category") or parsed_payload.get("category") or "general"
+                detected_category_counts[b_cat] = detected_category_counts.get(b_cat, 0) + 1
+
+                all_raw_extracted_rows.extend(batch_rows)
+                msg = f"Batch {batch_idx}/{num_batches}: Processed {len(batch_records)} records -> Extracted {len(batch_rows)} raw product items."
+                print(f"[PriceAgent] {msg}")
+                batch_logs.append(msg)
+
+            except Exception as b_err:
+                err_msg = f"Batch {batch_idx}/{num_batches} failed: {b_err}. Continuing with remaining batches..."
+                print(f"[PriceAgent] {err_msg}")
+                batch_logs.append(err_msg)
+
+        # Determine predominant category
+        detected_category = max(detected_category_counts, key=detected_category_counts.get) if detected_category_counts else "general"
+
+        print(f"\n[PriceAgent] Total extracted products before product-level deduplication: {len(all_raw_extracted_rows)}")
+        batch_logs.append(f"Total extracted products before product-level deduplication: {len(all_raw_extracted_rows)}")
+
+        # ── Post-Batch Validation & Product-Level Deduplication ───────────────────
         results = []
-    
-        valid_raw_prices = [clean_price(r.get("extracted_price") or r.get("Price") or r.get("price")) for r in rows]
-        valid_raw_prices = sorted([p for p in valid_raw_prices if p > 0])
-        median_price = valid_raw_prices[len(valid_raw_prices)//2] if valid_raw_prices else 0
-        
-        for row in rows:
+        min_price_floor = 99 if detected_category == "electronics" else 49
+
+        for row in all_raw_extracted_rows:
             price = clean_price(row.get("extracted_price") or row.get("Price") or row.get("price"))
             marketplace = str(row.get("marketplace") or row.get("Store") or row.get("store") or "").strip()
 
-            if price < 150:
-                agent_logs.append(f"[PriceAgent] Row skipped (price too low/suspicious): {row}")
-                continue
-
-            if median_price > 2000 and price < (median_price * 0.40):
-                agent_logs.append(f"[PriceAgent] Row skipped (extreme low outlier, likely EMI or accessory): {row}")
+            if price < min_price_floor:
                 continue
 
             if price == 0 or marketplace.lower() in {"online", "web", "india", ""}:
-                agent_logs.append(f"[PriceAgent] Row skipped (price=0 or marketplace invalid): {row}")
                 continue
 
-            if real_prices and len(real_prices) > 1 and price not in real_prices:
-                closest = min(real_prices, key=lambda rp: abs(rp - price))
-                tolerance = max(price * 0.20, 200)
-                if abs(closest - price) <= tolerance:
-                    agent_logs.append(f"[PriceAgent] Price corrected from {price} → {closest} (closest corpus match within tolerance)")
+            prod_name = str(row.get("product_name") or row.get("Title") or row.get("title") or "").strip()
+            prod_name_lower = prod_name.lower()
+
+            matched_rec = find_source_record(filtered_records, marketplace, price, prod_name)
+            target_url = (matched_rec.get("url") or "").lower()
+            clean_store = clean_marketplace_name(marketplace, target_url)
+            is_product_page = is_specific_product_page(target_url)
+
+            # Source snippet price verification double-lock
+            source_snippet = (matched_rec.get("content") or "") + " " + (matched_rec.get("title") or "")
+            snippet_prices = prices_mentioned_in(source_snippet)
+            if snippet_prices and (price == 0 or price not in snippet_prices):
+                closest = min(snippet_prices, key=lambda x: abs(x - price) if price > 0 else x)
+                if price == 0 or abs(closest - price) < (price * 0.5) or price < min_price_floor:
                     price = closest
 
-            matched_rec = find_source_record(filtered_records, marketplace, price)
-            target_url = matched_rec.get("url", "")
-            is_product_page = is_specific_product_page(target_url)
-            
-            agent_logs.append(f"[PriceAgent] Row evaluate: {marketplace} - Price: {price} - URL: {target_url} - IsProductPage: {is_product_page}")
-            
+            if price < min_price_floor:
+                continue
 
-            prod_name = str(row.get("product_name") or row.get("Title") or row.get("title") or "").strip()
-            if prod_name.lower() in ["fossil watches", "fossil watches for women", "fossil watches for men", "watches"]:
+            if any(tld in target_url for tld in [".cz/", ".sk/", ".pl/", ".de/", ".eu/", ".nl/", ".fr/", ".it/", ".es/", ".br/", ".pt/", ".mx/", ".ar/", ".cl/"]):
+                continue
+
+            if clean_store.lower() in {"usados", "usado", "mercadolivre", "olx.br", "olx.pt"}:
+                continue
+
+            # Flagship phone/laptop anomaly guard (prevents $1,098 USD being misparsed as ₹1,098 INR)
+            flagship_keywords = ["iphone 17 pro", "iphone 16 pro", "iphone 15 pro", "galaxy s24 ultra", "galaxy s25 ultra", "macbook pro", "ipad pro"]
+            if any(fk in prod_name_lower for fk in flagship_keywords):
+                if not any(acc in prod_name_lower for acc in ["case", "cover", "skin", "protector", "glass", "film", "strap", "stand", "pouch", "bag"]):
+                    if price < 25000:
+                        continue
+
+            known_brands = [
+                "noise", "samsung", "apple", "iphone", "macbook", "sony", "jbl", "boat", "bose", 
+                "realme", "oneplus", "xiaomi", "redmi", "puma", "adidas", "nike", "asus", 
+                "lenovo", "dell", "hp", "acer", "msi", "crocs", "fossil", "titan", "casio"
+            ]
+            q_lower = query.lower()
+            target_brands = [b for b in known_brands if b in q_lower]
+            if target_brands and not any(tb in prod_name_lower for tb in target_brands):
+                continue
+
+            if prod_name_lower in ["fossil watches", "fossil watches for women", "fossil watches for men", "watches"]:
                 continue
 
             bad_name_keywords = [
@@ -513,7 +628,6 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 "headphone case", "carrying case", "protective case", "silicone cover",
                 "headband cover", "audio cable", "aux cable"
             ]
-            prod_name_lower = prod_name.lower()
             if any(bw in prod_name_lower for bw in bad_name_keywords):
                 continue
             if len(prod_name) < 6 or prod_name_lower in ["shop", "buy", "online", "product", "item", "cables", "cable", "usb"]:
@@ -526,18 +640,16 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             if "unsplash.com" in image_url or "photo-" in image_url or not is_product_page:
                 is_verified = False
 
-            # Extract original_price (MRP) only if LLM provided a genuine one and it's
-            # greater than the sale price (sanity guard against swapped values).
             raw_original = row.get("original_price")
             original_price = None
             if raw_original:
                 op = clean_price(raw_original)
-                if op > price:  # MRP must always be higher than sale price
+                if op > price:
                     original_price = op
 
             results.append({
                 "product_name": prod_name,
-                "marketplace": marketplace,
+                "marketplace": clean_store,
                 "extracted_price": price,
                 "original_price": original_price,
                 "status": status,
@@ -549,17 +661,32 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
                 "discount": row.get("discount"),
             })
 
-        best_by_url = {}
+        # Product-level deduplication: preserve distinct listings across marketplaces
+        best_by_key = {}
         for r in results:
-            key = (r["url"] or "", r["product_name"].lower())
-            if key not in best_by_url or r["extracted_price"] < best_by_url[key]["extracted_price"]:
-                best_by_url[key] = r
-        results = list(best_by_url.values())
+            m_key = (r["marketplace"] or "").lower().strip()
+            u_key = (r["url"] or "").lower().strip()
+            p_key = (r["product_name"] or "").lower().strip()
+            px_key = r["extracted_price"]
+
+            if u_key:
+                key = (m_key, u_key, p_key)
+            else:
+                key = (m_key, p_key, px_key)
+
+            if key not in best_by_key or r["extracted_price"] < best_by_key[key]["extracted_price"]:
+                best_by_key[key] = r
+        results = list(best_by_key.values())
+
+        results.sort(key=lambda x: x.get("extracted_price") or float('inf'))
+
+        print(f"[PriceAgent] Final price_data count after product-level validation & deduplication: {len(results)}")
+        batch_logs.append(f"Final price_data count: {len(results)}")
 
         return {
             "price_data": results, 
             "category": detected_category, 
-            "logs": agent_logs
+            "logs": batch_logs
         }
 
     except Exception as e:
