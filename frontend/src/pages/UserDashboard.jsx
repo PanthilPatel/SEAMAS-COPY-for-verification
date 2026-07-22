@@ -751,7 +751,7 @@ export default function UserDashboard() {
                             className="flex items-center w-full bg-[#07070e]/50 hover:bg-[#07070e]/80 border border-white/5 rounded-lg px-3.5 py-1.5 text-xs text-white/30 transition-all duration-300"
                         >
                             <span>🔍 Search anything...</span>
-                            <span className="ml-auto font-mono text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">⌘ K</span>
+                            <span className="ml-auto font-mono text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">Ctrl+K</span>
                         </button>
                     </div>
 
