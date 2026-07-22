@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, Star, ArrowUpRight, BadgeCheck, Store, Sparkles, Filter, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, Star, ArrowUpRight, BadgeCheck, Store, Sparkles, Filter, LayoutGrid, ChevronLeft, ChevronRight, TrendingDown } from 'lucide-react';
+import PriceWatchdogModal from './PriceWatchdogModal';
 
 const toneMap = {
     amber: 'text-amber-300 border-amber-400/25 bg-amber-400/[0.06]',
@@ -7,7 +8,7 @@ const toneMap = {
     indigo: 'text-indigo-300 border-indigo-400/25 bg-indigo-400/[0.06]',
 };
 
-function ProductCard({ product, onCardClick, priority = false }) {
+function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }) {
     const [wished, setWished] = useState(false);
     const [imgError, setImgError] = useState(false);
 
@@ -146,34 +147,49 @@ function ProductCard({ product, onCardClick, priority = false }) {
                             Best price · today
                         </div>
                     </div>
-                    {product.url ? (
-                        <a
-                            href={product.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
-                        >
-                            View
-                            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
-                        </a>
-                    ) : (
+                    <div className="flex items-center gap-1.5">
                         <button
                             type="button"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onWatchdogClick && onWatchdogClick(product);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] text-cyan-300 transition-all hover:bg-cyan-500/20 hover:border-cyan-400/40 btn-magnetic"
+                            title="Track Price & Set Alert"
                         >
-                            View
-                            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
+                            <TrendingDown className="h-3 w-3" />
+                            Track
                         </button>
-                    )}
+                        {product.url ? (
+                            <a
+                                href={product.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
+                            >
+                                View
+                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
+                            </a>
+                        ) : (
+                            <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
+                            >
+                                View
+                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </article>
     );
 }
 
-export default function ProductGrid({ items, query, ready, onCardClick }) {
+export default function ProductGrid({ items = [], query = '', ready = true, onCardClick }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [watchdogProduct, setWatchdogProduct] = useState(null);
     const ITEMS_PER_PAGE = 9;
 
     useEffect(() => {
@@ -237,9 +253,14 @@ export default function ProductGrid({ items, query, ready, onCardClick }) {
                         product={item}
                         priority={idx < 3}
                         onCardClick={onCardClick}
+                        onWatchdogClick={(p) => setWatchdogProduct(p)}
                     />
                 ))}
             </div>
+
+            {watchdogProduct && (
+                <PriceWatchdogModal product={watchdogProduct} onClose={() => setWatchdogProduct(null)} />
+            )}
 
             {totalPages > 1 && (
                 <div className="mt-10 flex flex-col items-center justify-between gap-4 sm:flex-row border-t border-white/[0.06] pt-6">

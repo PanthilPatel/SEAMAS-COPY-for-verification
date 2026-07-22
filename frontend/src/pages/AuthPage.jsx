@@ -1,178 +1,239 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Sparkles, Zap } from 'lucide-react';
+
+const PREVIEW_QUERIES = [
+    "Best noise-cancelling headphones under ₹20,000",
+    "iPhone 15 Pro Max lowest price",
+    "Ergonomic gaming chair with lumbar support",
+    "4K OLED TV best deals this week",
+    "Mechanical keyboard with RGB under ₹5,000",
+];
 
 export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: ''
-    });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [activeQuery] = useState(PREVIEW_QUERIES[0]);
     const navigate = useNavigate();
 
-    const toggleMode = () => {
-        setIsLogin(!isLogin);
-        setFormData({ name: '', email: '', password: '' });
-    };
-
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
-    };
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        let name = formData.name ? formData.name.trim() : '';
+        let name = formData.name?.trim();
         if (!name && formData.email) {
             const prefix = formData.email.split('@')[0];
-            name = prefix
-                .split(/[._-]/)
-                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                .join(' ');
+            name = prefix.split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
         }
-        if (!name) name = 'Elena Marquez';
+        localStorage.setItem('seamas_user_session', JSON.stringify({ name: name || 'Guest User', email: formData.email, isLoggedIn: true }));
+        navigate('/dashboard');
+    };
 
-        localStorage.setItem('seamas_user_session', JSON.stringify({
-            name,
-            email: formData.email,
-            isLoggedIn: true
-        }));
-
-        // Redirect to dashboard
+    const handleDemoLogin = () => {
+        localStorage.setItem('seamas_user_session', JSON.stringify({ name: 'Elena Marquez', email: 'elena@seamas.ai', isLoggedIn: true }));
         navigate('/dashboard');
     };
 
     return (
-        <div className="relative min-h-screen text-white flex flex-col items-center justify-center p-6 overflow-hidden bg-[#030305]">
-            <div className="seamas-ambient" aria-hidden="true" />
-            <div className="seamas-grid" aria-hidden="true" />
-            <div className="seamas-noise" />
+        <div className="min-h-screen bg-[#06020F] text-white overflow-x-hidden relative">
+            
+            {/* ── Background blobs ── */}
+            <div className="fixed top-[-200px] left-[-100px] w-[600px] h-[600px] rounded-full bg-violet-700/25 blur-[130px] pointer-events-none" />
+            <div className="fixed bottom-[-150px] right-[-100px] w-[500px] h-[500px] rounded-full bg-indigo-600/20 blur-[110px] pointer-events-none" />
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] rounded-full bg-fuchsia-700/10 blur-[100px] pointer-events-none" />
 
-            <div className="w-full max-w-md relative z-10 flex flex-col items-center">
-                <div className="flex flex-col items-center mb-10 animate-fade-in">
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(34,211,238,0.15)] relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        <Sparkles className="w-8 h-8 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
+            {/* ── Navbar ── */}
+            <nav className="relative z-20 flex items-center justify-between px-6 sm:px-10 py-5 max-w-7xl mx-auto">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
                     </div>
-                    <h1 className="text-4xl font-display font-bold tracking-tight text-white mb-2">SEAMAS</h1>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-neutral-500">Smart E-Commerce Orchestration</p>
+                    <span className="text-base font-bold tracking-tight">SEAMAS</span>
                 </div>
+                <button
+                    onClick={handleDemoLogin}
+                    className="flex items-center gap-1.5 text-sm font-medium text-violet-300 hover:text-white transition-colors"
+                >
+                    Try a demo <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+            </nav>
 
-                <div className="w-full rounded2xl seamas-glass p-8 sm:p-10 animate-scale-in relative flex flex-col">
+            {/* ── Main Layout ── */}
+            <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 pt-6 pb-16 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center min-h-[calc(100vh-80px)]">
 
-                    <div className="mb-8 text-center space-y-1.5">
-                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-cyan-400">
-                            {isLogin ? 'Authentication' : 'Registration'}
-                        </span>
-                        <h2 className="text-2xl font-display font-semibold text-white tracking-tight">
-                            {isLogin ? 'Initialize Session' : 'Create Access Node'}
-                        </h2>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-
-                        <div className={`overflow-hidden transition-all duration-500 ${isLogin ? 'max-h-0 opacity-0' : 'max-h-32 opacity-100'}`}>
-                            <div className="space-y-2">
-                                <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 ml-1">
-                                    Agent Alias
-                                </label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <User className="h-4 w-4 text-neutral-500 group-focus-within:text-cyan-400 transition-colors" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        placeholder="Enter full name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        className="block w-full pl-10 pr-4 py-3 bg-white/[0.01] border border-white/[0.04] rounded-xl text-neutral-200 placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 hover:border-white/10 transition-all font-body text-sm"
-                                        required={!isLogin}
-                                    />
-                                </div>
-                            </div>
+                {/* ── LEFT: Hero Copy ── */}
+                <div className="space-y-8 text-left">
+                    <div className="space-y-5">
+                        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3.5 py-1.5 text-xs font-medium text-violet-300">
+                            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                            6 AI Agents Online
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 ml-1">
-                                Secure Email
-                            </label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Mail className="h-4 w-4 text-neutral-500 group-focus-within:text-cyan-400 transition-colors" />
-                                </div>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    placeholder="user@example.com"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="block w-full pl-10 pr-4 py-3 bg-white/[0.01] border border-white/[0.04] rounded-xl text-neutral-200 placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 hover:border-white/10 transition-all font-body text-sm"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 ml-1 flex justify-between">
-                                <span>Access Key</span>
-                                {isLogin && (
-                                    <a href="#" className="text-cyan-500/70 hover:text-cyan-400 transition-colors">Recover</a>
-                                )}
-                            </label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Lock className="h-4 w-4 text-neutral-500 group-focus-within:text-cyan-400 transition-colors" />
-                                </div>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    placeholder="••••••••••••"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="block w-full pl-10 pr-4 py-3 bg-white/[0.01] border border-white/[0.04] rounded-xl text-neutral-200 placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 hover:border-white/10 transition-all font-body text-sm"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mt-4">
-                            <button
-                                type="submit"
-                                className="w-full group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl py-3.5 text-sm font-semibold text-white shadow-lg transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] btn-magnetic border border-transparent"
-                            >
-                                <span className="aurora-cta absolute inset-0" aria-hidden="true" />
-                                <span className="relative flex items-center gap-2">
-                                    {isLogin ? 'Establish Connection' : 'Deploy Identity'}
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
+                        <h1 className="text-5xl sm:text-6xl font-extrabold leading-[1.07] tracking-tight">
+                            Find the{' '}
+                            <span className="relative inline-block">
+                                <span className="relative z-10 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
+                                    best deal
                                 </span>
-                            </button>
-                        </div>
-                    </form>
+                                <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 rounded-full blur-sm" />
+                            </span>
+                            {' '}without lifting a finger.
+                        </h1>
 
-                    <div className="mt-8 text-center border-t border-white/5 pt-6">
-                        <span className="text-xs font-body text-neutral-500 mr-2">
-                            {isLogin ? "No active node?" : "Identity confirmed?"}
-                        </span>
-                        <button
-                            onClick={toggleMode}
-                            type="button"
-                            className="font-mono text-[10px] uppercase tracking-[0.1em] text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-                        >
-                            {isLogin ? 'Initialize New' : 'Authenticate Here'}
-                        </button>
+                        <p className="text-lg text-white/50 leading-relaxed max-w-lg font-sans">
+                            Just tell SEAMAS what you want. Our AI agents hunt across Amazon, Flipkart, and 16 more stores — comparing prices, sentiment, and delivery — in seconds.
+                        </p>
+                    </div>
+
+                    {/* ── Animated Search Preview ── */}
+                    <div className="space-y-3">
+                        <p className="text-xs font-medium text-white/30 uppercase tracking-widest">People are searching</p>
+                        <div className="space-y-2">
+                            {PREVIEW_QUERIES.slice(0, 4).map((q, i) => (
+                                <div
+                                    key={q}
+                                    className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white/60 hover:bg-white/[0.07] hover:text-white/80 transition-all cursor-default"
+                                    style={{ animationDelay: `${i * 0.1}s` }}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                                    {q}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Social Proof ── */}
+                    <div className="flex items-center gap-6 pt-2">
+                        <div className="flex -space-x-2.5">
+                            {['#7C3AED','#4F46E5','#9333EA','#6D28D9'].map((c, i) => (
+                                <div key={i} className="w-8 h-8 rounded-full border-2 border-[#06020F] flex items-center justify-center text-xs font-bold text-white" style={{ background: c }}>
+                                    {String.fromCharCode(65 + i)}
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-sm text-white/40">
+                            <span className="text-white font-semibold">2,800+</span> shoppers saved money this week
+                        </p>
                     </div>
                 </div>
 
-                <div className="w-full mt-12 mb-6">
-                    <p className="text-center font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-600 flex items-center justify-center gap-2">
-                        <span>&copy; 2026 SEAMAS</span>
-                        <span className="w-1 h-1 rounded-full bg-neutral-700"></span>
-                        <span>Multi-Agent Core</span>
-                    </p>
+                {/* ── RIGHT: Auth Card ── */}
+                <div className="flex justify-center lg:justify-end w-full">
+                    <div className="w-full max-w-md">
+                        {/* Glowing card border */}
+                        <div className="relative rounded-2xl p-px bg-gradient-to-br from-violet-500/40 via-fuchsia-500/20 to-indigo-500/40 shadow-[0_0_80px_rgba(124,58,237,0.2)]">
+                            <div className="rounded-2xl bg-[#0D0A1E]/95 backdrop-blur-xl px-8 py-9 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-400/50 to-transparent" />
+
+                                {/* Tab Toggle */}
+                                <div className="flex bg-white/5 rounded-xl p-1 mb-8">
+                                    {[['sign-in', 'Sign In', true], ['register', 'Register', false]].map(([id, label, isLoginMode]) => (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            onClick={() => { setIsLogin(isLoginMode); setFormData({ name: '', email: '', password: '' }); }}
+                                            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                                isLogin === isLoginMode
+                                                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20'
+                                                    : 'text-white/40 hover:text-white/70'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="mb-7">
+                                    <h2 className="text-2xl font-bold text-white">{isLogin ? 'Welcome back 👋' : 'Join SEAMAS 🚀'}</h2>
+                                    <p className="text-sm text-white/40 mt-1">{isLogin ? 'Sign in to your smart shopping workspace.' : 'Start finding the best deals in seconds.'}</p>
+                                </div>
+
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    {!isLogin && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-white/50 block">Full Name</label>
+                                            <div className="relative">
+                                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    placeholder="Your full name"
+                                                    value={formData.name}
+                                                    onChange={handleChange}
+                                                    required={!isLogin}
+                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/20 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400/20 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-white/50 block">Email</label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                placeholder="you@example.com"
+                                                value={formData.email}
+                                                onChange={handleChange}
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/20 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400/20 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-medium text-white/50 block">Password</label>
+                                            {isLogin && <a href="#" className="text-xs text-violet-400 hover:text-violet-300 transition-colors">Forgot?</a>}
+                                        </div>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                                            <input
+                                                type="password"
+                                                name="password"
+                                                placeholder="••••••••••"
+                                                value={formData.password}
+                                                onChange={handleChange}
+                                                required
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/20 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400/20 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        className="w-full mt-2 py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2 group"
+                                    >
+                                        {isLogin ? 'Sign In' : 'Create Account'}
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </button>
+                                </form>
+
+                                <div className="flex items-center gap-3 my-6">
+                                    <div className="flex-1 h-px bg-white/10" />
+                                    <span className="text-xs text-white/30">or</span>
+                                    <div className="flex-1 h-px bg-white/10" />
+                                </div>
+
+                                <button
+                                    onClick={handleDemoLogin}
+                                    className="w-full py-3 rounded-xl text-sm font-semibold text-violet-300 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-400/40 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Zap className="w-4 h-4" />
+                                    Try Demo — No Account Needed
+                                </button>
+
+                                <p className="text-center text-xs text-white/20 mt-6">
+                                    By continuing, you agree to our{' '}
+                                    <a href="#" className="underline underline-offset-2 hover:text-white/40">Terms</a>
+                                    {' '}and{' '}
+                                    <a href="#" className="underline underline-offset-2 hover:text-white/40">Privacy Policy</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

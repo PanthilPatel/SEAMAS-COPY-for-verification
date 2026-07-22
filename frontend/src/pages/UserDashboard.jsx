@@ -5,6 +5,9 @@ import SentimentBanner from '../components/SentimentBanner';
 import FilterSidebar from '../components/FilterSidebar';
 import ProductGrid from '../components/ProductGrid';
 import { apiService } from '../services/api';
+import MarketTicker from '../components/MarketTicker';
+import AiVerdictBanner from '../components/AiVerdictBanner';
+import AssistantChatDrawer from '../components/AssistantChatDrawer';
 import {
     Sparkles,
     Compass,
@@ -30,7 +33,8 @@ import {
     Zap,
     ExternalLink,
     RotateCcw,
-    LogOut
+    LogOut,
+    MessageSquare
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
@@ -497,6 +501,8 @@ export default function UserDashboard() {
 
     const [activeTab, setActiveTab] = useState('discover');
     const [showCommandPalette, setShowCommandPalette] = useState(false);
+    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+    const [steeringMode, setSteeringMode] = useState('balanced');
     const [recentQueries, setRecentQueries] = useState([
         'Cozy retro mechanical keyboards with RGB light & pastel keycaps',
         'Best noise-cancelling wireless earbuds under ₹15,000',
@@ -736,6 +742,7 @@ export default function UserDashboard() {
             />
 
             <div className="flex-grow flex flex-col min-w-0 z-10 relative">
+                <MarketTicker />
 
                 <header className="h-16 flex items-center justify-between px-8 z-10 shrink-0 bg-transparent">
                     <div className="relative w-80 text-left">
@@ -862,6 +869,7 @@ export default function UserDashboard() {
 
                                     <div className="lg:col-span-3 space-y-6">
                                         <SentimentBanner report={sentimentReport} />
+                                        <AiVerdictBanner items={recommendations.length > 0 ? recommendations : priceData} query={currentQuery} />
                                         <ProductGrid items={sortedItems} query={currentQuery} ready={true} onCardClick={handleCardClick} />
                                     </div>
                                 </div>
@@ -1080,6 +1088,22 @@ export default function UserDashboard() {
 
                 </main>
             </div>
+
+            {/* Floating AI Assistant Trigger Button */}
+            <button
+                onClick={() => setIsAssistantOpen(true)}
+                className="fixed bottom-6 right-6 z-30 flex items-center gap-2 rounded-full border border-cyan-400/40 bg-gradient-to-r from-cyan-600 to-indigo-600 px-4 py-3 text-xs font-semibold text-white shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] btn-magnetic select-none"
+            >
+                <Sparkles className="w-4 h-4 animate-spin-slow text-cyan-200" />
+                <span>Ask SEAMAS AI</span>
+            </button>
+
+            <AssistantChatDrawer
+                isOpen={isAssistantOpen}
+                onClose={() => setIsAssistantOpen(false)}
+                currentQuery={currentQuery}
+                items={recommendations.length > 0 ? recommendations : priceData}
+            />
 
         </div>
     );
