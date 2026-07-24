@@ -4,7 +4,7 @@ import { Search, Sparkles, Mic, Command, ArrowUpRight } from 'lucide-react';
 const SUGGESTIONS = [
     { label: 'Cozy retro mechanical keyboards with RGB light & pastel keycaps' },
     { label: 'Best noise-cancelling wireless earbuds under ₹15,000' },
-    { label: 'iPhone 17 Pro Max' },
+    { label: 'iPhone 17 Pro Max ' },
     { label: 'Minimalist ambient LED desk lamps & setup aesthetics' }
 ];
 

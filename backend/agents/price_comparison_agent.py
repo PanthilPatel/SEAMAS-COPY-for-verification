@@ -298,7 +298,9 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
             or ""
         )
         if fallback_thumb and not _is_store_logo(str(fallback_thumb)):
-            return str(fallback_thumb)
+            thumb_str = str(fallback_thumb)
+            if not thumb_str.startswith("/") and "localhost" not in thumb_str and "127.0.0.1" not in thumb_str:
+                return thumb_str
 
     if all_records and product_name:
         prod_words = [
@@ -330,7 +332,9 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
         or ""
     )
     if fallback_thumb and not _is_store_logo(str(fallback_thumb)):
-        return fallback_thumb
+        thumb_str = str(fallback_thumb)
+        if not thumb_str.startswith("/") and "localhost" not in thumb_str and "127.0.0.1" not in thumb_str:
+            return thumb_str
 
     # Search entire corpus for a matching thumbnail
     if all_records and product_name:
@@ -358,7 +362,7 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
                 )
                 if not thumb or _is_store_logo(str(thumb)):
                     continue
-                if "unsplash.com" in str(thumb).lower():
+                if "unsplash.com" in str(thumb).lower() or str(thumb).startswith("/") or "localhost" in str(thumb) or "127.0.0.1" in str(thumb):
                     continue
 
                 title_lower = r.get("title", "").lower()
@@ -570,7 +574,7 @@ Records:
             if price < min_price_floor:
                 continue
 
-            if price == 0 or marketplace.lower() in {"online", "web", "india", ""}:
+            if price == 0 or marketplace.lower() in {"", "india"}:
                 continue
 
             prod_name = str(row.get("product_name") or row.get("Title") or row.get("title") or "").strip()
