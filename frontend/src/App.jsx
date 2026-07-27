@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import UserDashboard from './pages/UserDashboard';
 import AuthPage from './pages/AuthPage';
+import ProfilePage from './pages/ProfilePage';
 
 const PrivateRoute = ({ children }) => {
     const session = localStorage.getItem('seamas_user_session');
@@ -40,6 +41,14 @@ export default function App() {
                             element={
                                 <PrivateRoute>
                                     <UserDashboard />
+                                </PrivateRoute>
+                            }
+                        />
+                        <Route
+                            path="/profile"
+                            element={
+                                <PrivateRoute>
+                                    <ProfilePage />
                                 </PrivateRoute>
                             }
                         />

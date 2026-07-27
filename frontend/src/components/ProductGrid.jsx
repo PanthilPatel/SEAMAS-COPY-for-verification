@@ -196,7 +196,23 @@ export default function ProductGrid({ items = [], query = '', ready = true, onCa
         setCurrentPage(1);
     }, [items, query]);
 
-    if (!ready || !items || items.length === 0) return null;
+    if (!ready) return null;
+
+    if (!items || items.length === 0) {
+        return (
+            <section className="relative z-10 mx-auto w-full max-w-6xl text-center py-16 px-4 rounded-3xl seamas-glass border border-white/5 bg-white/[0.02] mt-6">
+                <div className="flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-4">
+                    <div className="w-16 h-16 rounded-2xl border border-white/[0.06] bg-white/[0.03] flex items-center justify-center text-neutral-400">
+                        <LayoutGrid className="h-7 w-7 text-neutral-500 animate-pulse" strokeWidth={1.5} />
+                    </div>
+                    <h3 className="font-display text-lg font-medium tracking-tight text-white">No Marketplace Offers Found</h3>
+                    <p className="text-xs text-neutral-400 leading-relaxed">
+                        We couldn't find any matching listings for <span className="text-cyan-300">"{query}"</span> on verified Indian marketplaces. The product may be out of stock, unreleased, or unavailable.
+                    </p>
+                </div>
+            </section>
+        );
+    }
 
     const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

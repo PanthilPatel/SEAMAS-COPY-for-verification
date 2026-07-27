@@ -17,7 +17,8 @@ export const apiService = {
      */
     async sendChatQuery(query) {
         try {
-            const response = await apiClient.post('/api/chat', { query });
+            const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
+            const response = await apiClient.post('/api/chat', { query, user_id: session.id });
             return response.data;
         } catch (error) {
             console.error('API service transaction failed:', error);
@@ -38,14 +39,16 @@ export const apiService = {
      */
     async sendChatQueryStream(query, onEvent) {
         try {
+            const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
             const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query, user_id: session.id })
             });
 
             if (!response.ok) {
-                throw new Error(`Server returned status ${response.status}`);
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || `Server returned status ${response.status}`);
             }
 
             const reader = response.body.getReader();
@@ -86,6 +89,23 @@ export const apiService = {
         } catch (error) {
             console.warn('Streaming failed, falling back to standard chat endpoint:', error);
             return await this.sendChatQuery(query);
+        }
+    },
+
+    /**
+     * Checks the health and status of the API, Database, and Agents
+     */
+    async checkSystemStatus() {
+        try {
+            const response = await apiClient.get('/api/status', { timeout: 3000 });
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch system status:', error);
+            return {
+                api: 'down',
+                database: 'down',
+                agents: 'down'
+            };
         }
     }
 };

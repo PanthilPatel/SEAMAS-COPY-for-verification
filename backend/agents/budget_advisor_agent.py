@@ -21,8 +21,8 @@ def _extract_budget(query: str) -> Optional[int]:
         return int(value)
 
     keyword_pattern = re.compile(
-        r"(?:under|below|within|less than|budget(?:\s+of)?|"
-        r"max(?:imum)?\s*(?:budget|price|spend|cost)|around|approx(?:imately)?)"
+        r"\b(?:under|below|within|less than|budget(?:\s+of)?|"
+        r"max(?:imum)?\s*(?:budget|price|spend|cost)|around|approx(?:imately)?)\b"
         r"\D{0,10}?"
         r"(\d[\d,]*\.?\d*)\s*(k|l|lakh|lac)?",
         re.IGNORECASE,
@@ -32,7 +32,7 @@ def _extract_budget(query: str) -> Optional[int]:
         return _to_int(match.group(1), (match.group(2) or "").lower())
 
     currency_pattern = re.compile(
-        r"(?:₹|rs\.?|inr)\s*(\d[\d,]*\.?\d*)\s*(k|l|lakh|lac)?",
+        r"(?:₹|\brs\.?|\binr)\s*(\d[\d,]*\.?\d*)\s*(k|l|lakh|lac)?",
         re.IGNORECASE,
     )
     match = currency_pattern.search(q)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, ShoppingBag, Star } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 /* ── Lifestyle product deal cards shown on the hero side ── */
 const DEAL_CARDS = [
@@ -53,23 +54,71 @@ const DEAL_CARDS = [
 export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        let name = formData.name?.trim();
-        if (!name && formData.email) {
-            const prefix = formData.email.split('@')[0];
-            name = prefix.split(/[._-]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+        setError(null);
+        setLoading(true);
+
+        try {
+            if (isLogin) {
+                // Sign In using Supabase auth
+                const { data, error: authError } = await supabase.auth.signInWithPassword({
+                    email: formData.email,
+                    password: formData.password
+                });
+                if (authError) throw authError;
+
+                const profileName = data.user.user_metadata?.full_name || data.user.email.split('@')[0];
+                localStorage.setItem('seamas_user_session', JSON.stringify({
+                    id: data.user.id,
+                    name: profileName,
+                    email: data.user.email,
+                    isLoggedIn: true
+                }));
+                navigate('/dashboard');
+            } else {
+                // Register using Supabase auth
+                const { data, error: authError } = await supabase.auth.signUp({
+                    email: formData.email,
+                    password: formData.password,
+                    options: {
+                        data: {
+                            full_name: formData.name || formData.email.split('@')[0]
+                        }
+                    }
+                });
+                if (authError) throw authError;
+
+                if (data?.user) {
+                    const profileName = data.user.user_metadata?.full_name || data.user.email.split('@')[0];
+                    localStorage.setItem('seamas_user_session', JSON.stringify({
+                        id: data.user.id,
+                        name: profileName,
+                        email: data.user.email,
+                        isLoggedIn: true
+                    }));
+                    navigate('/dashboard');
+                } else {
+                    setError("Sign up complete! Please check your email to confirm registration.");
+                }
+            }
+        } catch (err) {
+            console.error('Authentication error:', err);
+            setError(err.message || "Authentication failed. Please verify your credentials.");
+        } finally {
+            setLoading(false);
         }
-        localStorage.setItem('seamas_user_session', JSON.stringify({ name: name || 'Guest User', email: formData.email, isLoggedIn: true }));
-        navigate('/dashboard');
     };
 
     const handleDemoLogin = () => {
-        localStorage.setItem('seamas_user_session', JSON.stringify({ name: 'Elena Marquez', email: 'elena@seamas.ai', isLoggedIn: true }));
+        localStorage.setItem('seamas_user_session', JSON.stringify({ name: 'Guest User', email: 'guest@seamas.ai', isLoggedIn: false, isGuest: true }));
         navigate('/dashboard');
     };
 
@@ -220,6 +269,18 @@ export default function AuthPage() {
                     </div>
 
                     {/* Heading */}
+                    {location.state?.infoMessage && (
+                        <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-3 text-xs text-amber-300 font-mono tracking-wide animate-fade-in">
+                            <span className="text-sm">⚠️</span>
+                            <span>{location.state.infoMessage}</span>
+                        </div>
+                    )}
+                    {error && (
+                        <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center gap-3 text-xs text-rose-300 font-mono tracking-wide animate-fade-in">
+                            <span className="text-sm">❌</span>
+                            <span>{error}</span>
+                        </div>
+                    )}
                     <div className="mb-7">
                         <h2 className="text-3xl font-black tracking-tight text-white">
                             {isLogin ? 'Sign in' : 'Join SEAMAS'}
@@ -295,11 +356,12 @@ export default function AuthPage() {
                         </div>
 
                         <button type="submit"
-                            className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 group transition-all hover:opacity-90 active:scale-[0.98]"
+                            disabled={loading}
+                            className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 group transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                             style={{ background: 'linear-gradient(135deg, #7C3AED, #0EA5E9)', boxShadow: '0 8px 32px rgba(124,58,237,0.35)' }}
                         >
-                            {isLogin ? 'Sign In' : 'Create Account'}
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                         </button>
                     </form>
 

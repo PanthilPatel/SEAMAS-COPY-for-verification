@@ -26,7 +26,10 @@ export default function MarketTicker() {
                 <span>Live Feed</span>
             </div>
 
-            <div className="flex-1 overflow-hidden relative">
+            <div 
+                className="flex-1 overflow-hidden relative"
+                style={{ WebkitMaskImage: 'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)' }}
+            >
                 <div 
                     className={`flex items-center gap-8 whitespace-nowrap ${paused ? '' : 'animate-marquee'}`}
                     style={{ display: 'inline-flex' }}

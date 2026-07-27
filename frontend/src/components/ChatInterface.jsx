@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Sparkles, Mic, Command, ArrowUpRight } from 'lucide-react';
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
     { label: 'Cozy retro mechanical keyboards with RGB light & pastel keycaps' },
     { label: 'Best noise-cancelling wireless earbuds under ₹15,000' },
-    { label: 'iPhone 17 Pro Max ' },
-    { label: 'Minimalist ambient LED desk lamps & setup aesthetics' }
+    { label: 'iPhone 17 Pro Max' },
+    { label: 'Minimalist ambient LED desk lamps & setup aesthetics' },
+    { label: 'Ergonomic office chairs for back support under ₹20k' },
+    { label: 'Best gaming monitors 1440p 144Hz' },
+    { label: 'Sony PlayStation 5 vs Xbox Series X deals' },
 ];
 
-export default function ChatInterface({ onQuerySubmit, loading }) {
+export default function ChatInterface({ onQuerySubmit, loading, isGuest = false }) {
     const [input, setInput] = useState('');
     const [focused, setFocused] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [currentSuggestions, setCurrentSuggestions] = useState(ALL_SUGGESTIONS.slice(0, 3));
     const inputRef = useRef(null);
 
     // Keyboard shortcut to focus search input: Ctrl/Cmd + /
@@ -24,6 +29,49 @@ export default function ChatInterface({ onQuerySubmit, loading }) {
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, []);
+
+    // Rotate suggestions every 6 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentSuggestions(prev => {
+                const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, 3);
+            });
+        }, 6000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleMicClick = () => {
+        if (isGuest) {
+            onQuerySubmit("");
+            return;
+        }
+        
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Speech recognition is not supported in this browser.');
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onstart = () => setIsListening(true);
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join('');
+            setInput(transcript);
+        };
+        recognition.onerror = (event) => {
+            console.error(event.error);
+            setIsListening(false);
+        };
+        recognition.onend = () => setIsListening(false);
+
+        recognition.start();
+    };
 
     const handleSubmit = (e, q) => {
         if (e) e.preventDefault();
@@ -82,21 +130,34 @@ export default function ChatInterface({ onQuerySubmit, loading }) {
                             ref={inputRef}
                             type="text"
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onFocus={() => setFocused(true)}
+                            onChange={(e) => {
+                                if (isGuest) {
+                                    onQuerySubmit("");
+                                } else {
+                                    setInput(e.target.value);
+                                }
+                            }}
+                            onFocus={() => {
+                                if (isGuest) {
+                                    onQuerySubmit("");
+                                } else {
+                                    setFocused(true);
+                                }
+                            }}
                             onBlur={() => setFocused(false)}
                             disabled={loading}
-                            placeholder="e.g. Cozy retro mechanical keyboards or noise-cancelling earbuds under ₹15,000…"
+                            placeholder={isGuest ? "🔒 Please sign in to compare prices and search..." : "e.g. Cozy retro mechanical keyboards or noise-cancelling earbuds under ₹15,000…"}
                             className="flex-1 bg-transparent font-display text-lg font-light tracking-tight text-white placeholder:text-neutral-500 focus:outline-none sm:text-xl"
                         />
 
                         {/* Voice button */}
                         <button
                             type="button"
-                            className="hidden shrink-0 rounded-lg p-2 text-neutral-500 transition-colors hover:bg-white/[0.05] hover:text-neutral-200 sm:inline-flex"
+                            onClick={handleMicClick}
+                            className={`hidden shrink-0 rounded-full p-2.5 transition-all duration-300 sm:inline-flex ${isListening ? 'bg-cyan-500/20 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] animate-pulse' : 'text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200'}`}
                             aria-label="Voice input"
                         >
-                            <Mic className="h-4 w-4" strokeWidth={1.6} />
+                            <Mic className="h-4 w-4" strokeWidth={isListening ? 2 : 1.6} />
                         </button>
 
                         {/* Kbd badge */}
@@ -124,12 +185,12 @@ export default function ChatInterface({ onQuerySubmit, loading }) {
                             <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500">
                                 Try
                             </span>
-                            {SUGGESTIONS.map((s) => (
+                            {currentSuggestions.map((s) => (
                                 <button
                                     key={s.label}
                                     type="button"
                                     onClick={() => handleChipClick(s.label)}
-                                    className="group inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[12px] text-neutral-300 transition-colors hover:border-cyan-400/30 hover:bg-cyan-400/[0.04] hover:text-white"
+                                    className="group inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[12px] text-neutral-300 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_15px_rgba(34,211,238,0.15)] hover:border-cyan-400/40 hover:bg-cyan-400/[0.06] hover:text-white animate-fade-in"
                                 >
                                     <Sparkles className="h-3 w-3 text-neutral-500 transition-colors group-hover:text-cyan-300" strokeWidth={1.75} />
                                     {s.label}

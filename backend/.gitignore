@@ -9,3 +9,6 @@ __pycache__/
 # Local IDE settings
 .vscode/
 
+# Database files
+*.db
+credits.db

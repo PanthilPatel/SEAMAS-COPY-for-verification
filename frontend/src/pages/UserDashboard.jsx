@@ -8,7 +8,7 @@ import { apiService } from '../services/api';
 import MarketTicker from '../components/MarketTicker';
 import { supabase } from '../lib/supabase';
 import AuthModal from '../components/AuthModal';
-
+import SubscriptionModal from '../components/SubscriptionModal';
 import AssistantChatDrawer from '../components/AssistantChatDrawer';
 import {
     Sparkles,
@@ -338,8 +338,9 @@ const NAV = [
     },
 ];
 
-function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount, userSession }) {
-    const userName = userSession?.name || 'Elena Marquez';
+function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount, userSession, setSubscriptionModalOpen }) {
+    const userName = userSession?.name || 'Guest User';
+    const navigate = useNavigate();
     const userInitials = useMemo(() => {
         if (!userName) return 'EM';
         const parts = userName.trim().split(/\s+/);
@@ -348,6 +349,41 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
         }
         return userName.slice(0, 2).toUpperCase();
     }, [userName]);
+
+    const isPro = userSession?.tier === 'Pro';
+    const maxCredits = isPro ? 5000 : 50;
+    const currentCredits = userSession?.isGuest ? 0 : (userSession?.credits ?? maxCredits);
+    const creditPercent = Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100));
+
+    const [status, setStatus] = useState({
+        api: 'unknown',
+        database: 'unknown',
+        agents: 'unknown',
+        apiVal: '99.9%',
+        agentsVal: '99.9%',
+        dataVal: '99.9%'
+    });
+
+    useEffect(() => {
+        const fetchStatus = async () => {
+            try {
+                const data = await apiService.checkSystemStatus();
+                setStatus({
+                    api: data.api,
+                    database: data.database,
+                    agents: data.agents,
+                    apiVal: data.api === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%',
+                    agentsVal: data.agents === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%',
+                    dataVal: data.database === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%'
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <aside
@@ -429,16 +465,40 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 <div className="mx-3 mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${
+                                status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                                    ? 'bg-emerald-400'
+                                    : status.api === 'down'
+                                    ? 'bg-red-400'
+                                    : 'bg-amber-400'
+                            }`} />
+                            <span className={`relative inline-flex h-2 w-2 rounded-full ${
+                                status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                                    ? 'bg-emerald-400'
+                                    : status.api === 'down'
+                                    ? 'bg-red-400'
+                                    : 'bg-amber-400'
+                            }`} />
                         </span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">All systems nominal</span>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                            {status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                                ? 'All systems nominal'
+                                : status.api === 'down'
+                                ? 'System offline'
+                                : 'Degraded performance'}
+                        </span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-                        {['API', 'AGENTS', 'DATA'].map((k) => (
-                            <div key={k} className="rounded-md bg-white/[0.03] py-1">
-                                <div className="font-mono text-[9px] text-neutral-500">{k}</div>
-                                <div className="font-mono text-[10px] text-emerald-300/90">99.9%</div>
+                        {[
+                            { key: 'API', label: 'API', val: status.apiVal, ok: status.api === 'operational' },
+                            { key: 'AGENTS', label: 'AGENTS', val: status.agentsVal, ok: status.agents === 'operational' },
+                            { key: 'DATA', label: 'DATA', val: status.dataVal, ok: status.database === 'operational' }
+                        ].map((item) => (
+                            <div key={item.key} className="rounded-md bg-white/[0.03] py-1">
+                                <div className="font-mono text-[9px] text-neutral-500">{item.label}</div>
+                                <div className={`font-mono text-[10px] ${item.ok ? 'text-emerald-300/90' : 'text-red-400/90'}`}>
+                                    {item.val}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -457,17 +517,41 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                     </button>
                 ) : (
                     <>
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 text-[11px] font-semibold text-white ring-1 ring-white/20 select-none shadow-sm">
-                                {userInitials}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">{userName}</div>
-                                <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500">
-                                    <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
-                                    Pro · 2,140 credits
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0 flex items-center justify-center">
+                                <svg className="absolute -inset-1 w-10 h-10 -rotate-90 transform pointer-events-none" viewBox="0 0 36 36">
+                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-white/10" strokeWidth="1.5" />
+                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-cyan-400" strokeWidth="1.5" 
+                                        strokeDasharray={100.53} 
+                                        strokeDashoffset={100.53 - (creditPercent / 100) * 100.53} 
+                                        strokeLinecap="round" 
+                                        style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+                                    />
+                                </svg>
+                                <div className="relative grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 text-[11px] font-semibold text-white select-none shadow-sm ring-2 ring-[#0a0a0f]">
+                                    {userInitials}
                                 </div>
                             </div>
+                            <button 
+                                onClick={() => navigate('/profile')}
+                                className="min-w-0 flex-1 text-left hover:bg-white/[0.03] rounded-lg p-1 -ml-1 transition-colors"
+                            >
+                                <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">{userName}</div>
+                                <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500 mt-0.5">
+                                    <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
+                                    {userSession?.isGuest 
+                                        ? 'Free · 0 credits' 
+                                        : <span className={currentCredits === 0 ? 'text-rose-400 font-bold' : ''}>{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits`}</span>}
+                                </div>
+                                {!isPro && !userSession?.isGuest && (
+                                    <button 
+                                        onClick={() => setSubscriptionModalOpen(true)}
+                                        className="mt-1.5 text-[10px] font-bold bg-gradient-to-r from-violet-600 to-sky-600 px-2 py-0.5 rounded-full text-white hover:opacity-90 transition-opacity"
+                                    >
+                                        Upgrade
+                                    </button>
+                                )}
+                            </button>
                         </div>
                         <button
                             onClick={() => setCollapsed(!collapsed)}
@@ -489,37 +573,144 @@ export default function UserDashboard() {
 
     const [userSession, setUserSession] = useState(null);
     const [authModalOpen, setAuthModalOpen] = useState(false);
+    const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const local = localStorage.getItem('seamas_user_session');
+        let initialGuest = false;
+        let localCredits = 50;
+        let localTier = 'Free';
+        if (local) {
+            const parsed = JSON.parse(local);
+            localCredits = parsed.credits ?? 50;
+            localTier = parsed.tier ?? 'Free';
+            if (parsed.isGuest) {
+                initialGuest = true;
+                setUserSession({
+                    id: 'guest',
+                    email: parsed.email,
+                    name: parsed.name,
+                    isGuest: true,
+                    tier: 'Free',
+                    credits: 0
+                });
+                setAuthModalOpen(false);
+            }
+        }
+
+        // Handle Razorpay Payment Link Callback
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            const isDummy = urlParams.get('dummy') === 'true';
+            const rzpPaymentId = urlParams.get('razorpay_payment_id') || 'pay_dummy_456';
+            const rzpPaymentLinkId = urlParams.get('razorpay_payment_link_id') || 'dummy_link_123';
+            const rzpPaymentLinkRefId = urlParams.get('razorpay_payment_link_reference_id') || '';
+            const rzpPaymentLinkStatus = urlParams.get('razorpay_payment_link_status') || 'paid';
+            const rzpSignature = urlParams.get('razorpay_signature') || 'dummy_sig';
+            
+            if (local) {
+                const parsed = JSON.parse(local);
+                fetch('http://localhost:8000/api/verify-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_payment_link_id: isDummy ? 'dummy_link_123' : rzpPaymentLinkId,
+                        razorpay_payment_id: rzpPaymentId,
+                        razorpay_signature: rzpSignature,
+                        user_id: parsed.id,
+                        razorpay_payment_link_reference_id: rzpPaymentLinkRefId,
+                        razorpay_payment_link_status: rzpPaymentLinkStatus,
+                        razorpay_order_id: isDummy ? 'order_dummy_123' : null
+                    })
+                }).then(async (res) => {
+                    if (res.ok) {
+                        alert('Payment Successful! You are now a Pro user.');
+                        window.history.replaceState({}, document.title, "/dashboard");
+                        window.location.reload();
+                    } else {
+                        const err = await res.json();
+                        alert('Payment verification failed: ' + (err.detail || 'Unknown error'));
+                    }
+                }).catch(() => {
+                    alert('Payment verification failed due to network issue.');
+                });
+            }
+        }
+
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (session) {
+                let actualTier = localTier;
+                let actualCredits = localCredits;
+                try {
+                    const res = await fetch(`http://localhost:8000/api/credits/${session.user.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        actualTier = data.tier === 'pro' ? 'Pro' : 'Free';
+                        actualCredits = data.credits;
+                        if (local) {
+                            const parsed = JSON.parse(local);
+                            parsed.tier = actualTier;
+                            parsed.credits = actualCredits;
+                            localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch credits", e);
+                }
+                
                 setUserSession({
                     id: session.user.id,
                     email: session.user.email,
-                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                    tier: actualTier,
+                    credits: actualCredits
                 });
-            } else {
+            } else if (!initialGuest) {
                 setAuthModalOpen(true);
             }
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session) {
+                let actualTier = 'Free';
+                let actualCredits = 50;
+                try {
+                    const res = await fetch(`http://localhost:8000/api/credits/${session.user.id}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        actualTier = data.tier === 'pro' ? 'Pro' : 'Free';
+                        actualCredits = data.credits;
+                    }
+                } catch (e) { console.error(e); }
+                
                 setUserSession({
                     id: session.user.id,
                     email: session.user.email,
-                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                    tier: actualTier,
+                    credits: actualCredits
                 });
-                
                 // Fetch search history
                 supabase.from('search_history').select('query').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10)
                     .then(({ data }) => {
                         if (data) setRecentQueries(data.map(r => r.query));
                     });
                 setAuthModalOpen(false);
+
+                // Auto execute pending search query if any
+                const pending = sessionStorage.getItem('pending_search_query');
+                if (pending) {
+                    sessionStorage.removeItem('pending_search_query');
+                    handleQuerySubmit(pending);
+                }
             } else {
-                setUserSession(null);
-                setAuthModalOpen(true);
+                const checkLocal = localStorage.getItem('seamas_user_session');
+                if (checkLocal && JSON.parse(checkLocal).isGuest) {
+                    // Do nothing, keep guest session
+                } else {
+                    setUserSession(null);
+                    setAuthModalOpen(true);
+                }
             }
         });
 
@@ -528,6 +719,7 @@ export default function UserDashboard() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+        localStorage.removeItem('seamas_user_session');
         navigate('/');
     };
 
@@ -623,9 +815,36 @@ export default function UserDashboard() {
     };
 
     const handleQuerySubmit = async (query) => {
+        // Intercept Guest users and redirect to AuthPage
+        const local = localStorage.getItem('seamas_user_session');
+        if (local) {
+            const parsed = JSON.parse(local);
+            if (parsed.isGuest) {
+                sessionStorage.setItem('pending_search_query', query);
+                localStorage.removeItem('seamas_user_session');
+                navigate('/', { state: { infoMessage: "For using this you have to first login into your account." } });
+                return;
+            }
+        }
+
+        // Deduct 10 credits on query execution
+        if (userSession && userSession.id !== 'guest') {
+            const nextCredits = Math.max(0, (userSession.credits ?? 5000) - 10);
+            setUserSession(prev => ({
+                ...prev,
+                credits: nextCredits
+            }));
+            const localData = localStorage.getItem('seamas_user_session');
+            if (localData) {
+                const parsed = JSON.parse(localData);
+                parsed.credits = nextCredits;
+                localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
+            }
+        }
+
         if (query && !recentQueries.includes(query)) {
             setRecentQueries(prev => [query, ...prev].slice(0, 10));
-            if (userSession) {
+            if (userSession && userSession.id !== 'guest') {
                 supabase.from('search_history').insert({
                     user_id: userSession.id,
                     query: query
@@ -763,6 +982,7 @@ export default function UserDashboard() {
                 recentQueries={recentQueries}
             />
             <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+            <SubscriptionModal isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)} userSession={userSession} />
 
             <Sidebar
                 collapsed={collapsed}
@@ -773,6 +993,7 @@ export default function UserDashboard() {
                 wishlistCount={wishlistItems.length}
                 threadCount={recentQueries.length}
                 userSession={userSession}
+                setSubscriptionModalOpen={setSubscriptionModalOpen}
             />
 
             <div className="flex-grow flex flex-col min-w-0 z-10 relative">
@@ -802,7 +1023,7 @@ export default function UserDashboard() {
 
                     {activeTab === 'discover' && (
                         <>
-                            <ChatInterface onQuerySubmit={handleQuerySubmit} loading={loading} />
+                            <ChatInterface onQuerySubmit={handleQuerySubmit} loading={loading} isGuest={userSession?.isGuest} />
                             {(loading || currentQuery) && (
                                 <section className="relative z-10 mx-auto w-full max-w-6xl">
                                     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
