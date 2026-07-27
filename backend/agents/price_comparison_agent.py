@@ -4,6 +4,9 @@ import os
 from typing import Dict, Any, List, Optional
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
+import httpx
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 class PriceItem(BaseModel):
     product_name: str = Field(description="Full product name including brand, model, and style specification.")
@@ -62,9 +65,11 @@ def clean_price(value: Any) -> int:
 def prices_mentioned_in(text: str) -> set:
     prices = set()
     
+    # 1. Match standard currency expressions (e.g. ₹65,999, Rs. 79,900)
     for match in re.finditer(r"(?:₹|rs\.?|\$|inr|usd)\s*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE):
         symbol = match.group(0).lower()
         following_text = text[match.end():match.end() + 25].lower()
+        following_text_short = text[match.end():match.end() + 8].lower()
         preceding_text = text[max(0, match.start() - 25):match.start()].lower()
         prec_short = text[max(0, match.start() - 12):match.start()].lower()
         
@@ -75,7 +80,7 @@ def prices_mentioned_in(text: str) -> set:
                 continue
         if any(w in preceding_text for w in ["save ", "% off", "discount"]):
             continue
-        if any(w in following_text for w in ["% off", "cashback"]):
+        if any(w in following_text_short for w in ["% off", "off", "cashback", "discount"]):
             continue
 
         try:
@@ -90,7 +95,164 @@ def prices_mentioned_in(text: str) -> set:
         except ValueError:
             continue
             
+    # 2. Match currency-free numbers that are formatted with commas or are high-probability price integers
+    # e.g., "65,999", "79900" (avoid matching small numbers, years like 2024/2025, or resolutions like 1080/2160/3840)
+    for match in re.finditer(r"\b([\d,]+)(?:\.\d+)?\b", text):
+        raw_str = match.group(1)
+        if "," in raw_str or (len(raw_str) >= 4 and len(raw_str) <= 6):
+            try:
+                val = int(float(raw_str.replace(",", "")))
+                # Ignore common specs and years
+                if val in {1080, 2024, 2025, 2026, 2160, 3840, 4096, 8192, 1920}:
+                    continue
+                if 100 <= val <= 1000000:
+                    # check surrounding text for storage/RAM spec matches (like 128 gb, 256 gb, 512 gb, 8gb, 12gb, 16gb)
+                    context_around = text[max(0, match.start() - 15):match.end() + 15].lower()
+                    if any(spec in context_around for spec in ["gb", "ram", "rom", "hz", "mah", "fps"]):
+                        # Unless it's explicitly written as a price, skip
+                        if not any(kw in context_around for kw in ["rs", "price", "at", "for"]):
+                            continue
+                    prices.add(val)
+            except ValueError:
+                continue
+
     return prices
+
+async def scrape_live_price(url: str) -> Dict[str, Any]:
+    res_data = {"price": None, "image": None}
+    if not url:
+        return res_data
+    
+    # Do not try to scrape non-product page patterns
+    if not is_specific_product_page(url):
+        return res_data
+        
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+    }
+    
+    try:
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=8.0) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                return res_data
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # Scrape Image: 1. og:image
+            og_image = soup.find("meta", property="og:image") or soup.find("meta", name="og:image")
+            if og_image:
+                img_url = og_image.get("content")
+                if img_url and img_url.startswith("http"):
+                    res_data["image"] = img_url
+            
+            # Scrape Image: 2. twitter:image fallback
+            if not res_data["image"]:
+                twitter_image = soup.find("meta", name="twitter:image") or soup.find("meta", property="twitter:image")
+                if twitter_image:
+                    img_url = twitter_image.get("content")
+                    if img_url and img_url.startswith("http"):
+                        res_data["image"] = img_url
+            
+            # 1. JSON-LD parsing
+            for script in soup.find_all("script", type="application/ld+json"):
+                if not script.string:
+                    continue
+                try:
+                    data = json.loads(script.string)
+                    def extract_from_json(obj):
+                        price_found = None
+                        image_found = None
+                        if isinstance(obj, dict):
+                            if "image" in obj:
+                                img = obj.get("image")
+                                if isinstance(img, str) and img.startswith("http"):
+                                    image_found = img
+                                elif isinstance(img, list) and img and isinstance(img[0], str) and img[0].startswith("http"):
+                                    image_found = img[0]
+                                elif isinstance(img, dict) and "url" in img and isinstance(img["url"], str) and img["url"].startswith("http"):
+                                    image_found = img["url"]
+
+                            if obj.get("@type") == "Offer" or "price" in obj:
+                                p = obj.get("price")
+                                if p and str(p).strip():
+                                    price_found = p
+                            for k, v in obj.items():
+                                sub_p, sub_img = extract_from_json(v)
+                                if sub_p and not price_found:
+                                    price_found = sub_p
+                                if sub_img and not image_found:
+                                    image_found = sub_img
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                sub_p, sub_img = extract_from_json(item)
+                                if sub_p and not price_found:
+                                    price_found = sub_p
+                                if sub_img and not image_found:
+                                    image_found = sub_img
+                        return price_found, image_found
+                        
+                    raw_price, raw_image = extract_from_json(data)
+                    if raw_price and not res_data["price"]:
+                        val = int(float(str(raw_price).replace(",", "").replace("₹", "").replace("$", "").strip()))
+                        if val > 0:
+                            res_data["price"] = val
+                    if raw_image and not res_data["image"]:
+                        res_data["image"] = raw_image
+                except Exception:
+                    pass
+            
+            # 2. Store-specific parsing
+            domain = urlparse(url).netloc.lower()
+            
+            if "amazon." in domain:
+                price_whole = soup.select_one(".a-price-whole")
+                if price_whole:
+                    clean_txt = re.sub(r"[^\d]", "", price_whole.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
+                        
+            elif "flipkart." in domain:
+                price_el = soup.select_one(".Nx95tz, ._30jeq3")
+                if price_el:
+                    clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
+                        
+            elif "croma." in domain:
+                price_el = soup.select_one(".pdp-price, .amount, #pdp-price")
+                if price_el:
+                    clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
+            
+            # 3. Meta tag fallbacks
+            meta_selectors = [
+                {"property": "product:price:amount"},
+                {"property": "og:price:amount"},
+                {"name": "twitter:data1"},
+                {"itemprop": "price"}
+            ]
+            for selector in meta_selectors:
+                meta = soup.find("meta", **selector) or soup.find(attrs=selector)
+                if meta:
+                    content = meta.get("content") or meta.get("value")
+                    if content:
+                        clean_txt = re.sub(r"[^\d.]", "", content)
+                        if clean_txt:
+                            try:
+                                val = int(float(clean_txt))
+                                if val > 0 and not res_data["price"]:
+                                    res_data["price"] = val
+                            except ValueError:
+                                pass
+                                
+    except Exception as e:
+        print(f"[LiveScraper] Error fetching price/image from {url}: {e}")
+        
+    return res_data
 
 def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
     if url:
@@ -583,7 +745,7 @@ Records:
             prod_name_lower = prod_name.lower()
 
             matched_rec = find_source_record(filtered_records, marketplace, price, prod_name)
-            target_url = (matched_rec.get("url") or "").lower()
+            target_url = (matched_rec.get("url") or "").strip()
             clean_store = clean_marketplace_name(marketplace, target_url)
             is_product_page = is_specific_product_page(target_url)
 
@@ -683,6 +845,29 @@ Records:
             if key not in best_by_key or r["extracted_price"] < best_by_key[key]["extracted_price"]:
                 best_by_key[key] = r
         results = list(best_by_key.values())
+
+        # Stage: Live Web Scraping for accurate prices
+        import asyncio
+        scrape_tasks = []
+        for r in results:
+            url = r.get("url")
+            scrape_tasks.append(scrape_live_price(url))
+        
+        scraped_data_list = await asyncio.gather(*scrape_tasks)
+        
+        for r, live_data in zip(results, scraped_data_list):
+            live_price = live_data.get("price")
+            live_image = live_data.get("image")
+            
+            if live_price and live_price >= min_price_floor:
+                print(f"[PriceAgent] Live price match success! Updated {r['product_name']} from {r['marketplace']}: {r['extracted_price']} -> {live_price}")
+                r["extracted_price"] = live_price
+                r["status"] = "Target Match" if not budget or live_price <= budget else "Out of Budget"
+                r["is_verified"] = True
+                
+            if live_image:
+                print(f"[PriceAgent] Live image match success! Updated {r['product_name']} image: {r['image_url']} -> {live_image}")
+                r["image_url"] = live_image
 
         results.sort(key=lambda x: x.get("extracted_price") or float('inf'))
 
