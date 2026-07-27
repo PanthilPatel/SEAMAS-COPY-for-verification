@@ -275,7 +275,9 @@ def _is_store_logo(url: str) -> bool:
         "logo", "badge", "rating", "icon", "favicon", "avatar", "sprite",
         "og-image", "og_image", "opengraph", "open-graph",
         "header", "footer", "nav", "menu", "theme", "bg-", "background",
-        "sidebar", "widget", "banner", "billboard", "square-logo"
+        "sidebar", "widget", "banner", "billboard", "square-logo",
+        "ytimg", "youtube", "hqdefault", "mqdefault", "sddefault", "maxresdefault",
+        "author", "profile", "portrait", "user", "gravatar"
     ]
     if any(kw in u for kw in forbidden_keywords):
         return True

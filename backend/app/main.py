@@ -12,6 +12,8 @@ sys.path.append(os.path.dirname(backend_root))
 from schemas.request_models import ChatRequest
 from graph.graph import seamas_graph
 from agents.orchestrator import run_orchestrator_pipeline
+from utils.supabase_client import supabase
+import json
 
 app = FastAPI(title="SEAMAS Multi-Agent Backend", version="1.0.0")
 
@@ -47,6 +49,17 @@ NODE_TO_FRONTEND_ID = {
 @app.post("/api/chat")
 async def chat_endpoint(payload: ChatRequest):
     try:
+        # Check cache disabled to ensure fresh search results on identical queries
+        # if supabase:
+        #     try:
+        #         res = supabase.table("cached_results").select("result_payload").eq("query", payload.query.lower().strip()).execute()
+        #         if res.data and len(res.data) > 0:
+        #             cached = res.data[0]["result_payload"]
+        #             cached.setdefault("logs", []).append(f"Cache Hit: Loaded instantly from Supabase.")
+        #             return cached
+        #     except Exception as ce:
+        #         print(f"[Supabase Cache Error] {ce}")
+
         initial_state = {
             "query": payload.query,
             "search_results": [],
@@ -64,6 +77,16 @@ async def chat_endpoint(payload: ChatRequest):
         else:
             response_state = await seamas_graph.ainvoke(initial_state)
             
+        # Write to cache
+        if supabase:
+            try:
+                supabase.table("cached_results").upsert({
+                    "query": payload.query.lower().strip(),
+                    "result_payload": response_state
+                }).execute()
+            except Exception as ce:
+                print(f"[Supabase Cache Write Error] {ce}")
+                
         return response_state
         
     except Exception as e:
@@ -72,6 +95,24 @@ async def chat_endpoint(payload: ChatRequest):
 @app.post("/api/chat/stream")
 async def chat_stream_endpoint(payload: ChatRequest):
     async def event_generator():
+        query_key = payload.query.lower().strip()
+        # Check cache first disabled to ensure fresh search results on identical queries
+        # if supabase:
+        #     try:
+        #         res = supabase.table("cached_results").select("result_payload").eq("query", query_key).execute()
+        #         if res.data and len(res.data) > 0:
+        #             cached = res.data[0]["result_payload"]
+        #             cached.setdefault("logs", []).append(f"Cache Hit: Loaded instantly from Supabase.")
+        #             # Simulate all agent nodes immediately completing
+        #             for agent_id in ["search", "price", "reviews", "budget", "recommendation", "finalizer"]:
+        #                 yield f"data: {json.dumps({'type': 'node_start', 'agent_id': agent_id})}\n\n"
+        #                 yield f"data: {json.dumps({'type': 'node_complete', 'agent_id': agent_id})}\n\n"
+        #             
+        #             yield f"data: {json.dumps({'type': 'result', 'payload': cached})}\n\n"
+        #             return
+        #     except Exception as ce:
+        #         print(f"[Supabase Cache Stream Error] {ce}")
+
         initial_state = {
             "query": payload.query,
             "search_results": [],
@@ -103,6 +144,18 @@ async def chat_stream_endpoint(payload: ChatRequest):
                         yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'recommendation'})}\n\n"
                     elif agent_id == "recommendation":
                         yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'finalizer'})}\n\n"
+
+            # Cache the result for future identical searches
+            if supabase:
+                try:
+                    # Supabase cannot serialize sets directly, but our state shouldn't have sets.
+                    # json.loads(json.dumps()) ensures it's JSON serializable.
+                    supabase.table("cached_results").upsert({
+                        "query": query_key,
+                        "result_payload": json.loads(json.dumps(final_state, default=str))
+                    }).execute()
+                except Exception as ce:
+                    print(f"[Supabase Cache Write Error] {ce}")
 
             yield f"data: {json.dumps({'type': 'result', 'payload': final_state})}\n\n"
         except Exception as err:

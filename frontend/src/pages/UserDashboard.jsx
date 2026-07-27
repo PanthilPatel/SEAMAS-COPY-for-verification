@@ -6,6 +6,8 @@ import FilterSidebar from '../components/FilterSidebar';
 import ProductGrid from '../components/ProductGrid';
 import { apiService } from '../services/api';
 import MarketTicker from '../components/MarketTicker';
+import { supabase } from '../lib/supabase';
+import AuthModal from '../components/AuthModal';
 
 import AssistantChatDrawer from '../components/AssistantChatDrawer';
 import {
@@ -485,17 +487,47 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 export default function UserDashboard() {
     const navigate = useNavigate();
 
-    const [userSession] = useState(() => {
-        try {
-            const stored = localStorage.getItem('seamas_user_session');
-            return stored ? JSON.parse(stored) : null;
-        } catch {
-            return null;
-        }
-    });
+    const [userSession, setUserSession] = useState(null);
+    const [authModalOpen, setAuthModalOpen] = useState(false);
 
-    const handleLogout = () => {
-        localStorage.removeItem('seamas_user_session');
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                setUserSession({
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+                });
+            } else {
+                setAuthModalOpen(true);
+            }
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                setUserSession({
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+                });
+                
+                // Fetch search history
+                supabase.from('search_history').select('query').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10)
+                    .then(({ data }) => {
+                        if (data) setRecentQueries(data.map(r => r.query));
+                    });
+                setAuthModalOpen(false);
+            } else {
+                setUserSession(null);
+                setAuthModalOpen(true);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         navigate('/');
     };
 
@@ -503,12 +535,7 @@ export default function UserDashboard() {
     const [showCommandPalette, setShowCommandPalette] = useState(false);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const [steeringMode, setSteeringMode] = useState('balanced');
-    const [recentQueries, setRecentQueries] = useState([
-        'Cozy retro mechanical keyboards with RGB light & pastel keycaps',
-        'Best noise-cancelling wireless earbuds under ₹15,000',
-        'Iphone 17 Pro Max',
-        'Minimalist ambient LED desk lamps & setup aesthetics'
-    ]);
+    const [recentQueries, setRecentQueries] = useState([]);
     const [wishlistItems, setWishlistItems] = useState([]);
 
     const [apiUrl, setApiUrl] = useState('http://localhost:8000');
@@ -597,7 +624,13 @@ export default function UserDashboard() {
 
     const handleQuerySubmit = async (query) => {
         if (query && !recentQueries.includes(query)) {
-            setRecentQueries(prev => [query, ...prev]);
+            setRecentQueries(prev => [query, ...prev].slice(0, 10));
+            if (userSession) {
+                supabase.from('search_history').insert({
+                    user_id: userSession.id,
+                    query: query
+                }).then();
+            }
         }
 
         setActiveTab('discover');
@@ -729,6 +762,7 @@ export default function UserDashboard() {
                 onSubmit={handleQuerySubmit}
                 recentQueries={recentQueries}
             />
+            <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
 
             <Sidebar
                 collapsed={collapsed}

@@ -86,7 +86,7 @@ async def web_search_tool(
             records = []
             seen_urls = set()
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 print(f"[SearchTool] Querying SearXNG page {page}: {searxng_url} (query: '{effective_query}')")
                 response = await client.get(
                     f"{searxng_url}/search",
