@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, ShoppingBag, Star } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, ShoppingBag, Star, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 /* ── Lifestyle product deal cards shown on the hero side ── */
@@ -56,6 +56,7 @@ export default function AuthPage() {
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -346,12 +347,20 @@ export default function AuthPage() {
                             </div>
                             <div className="relative">
                                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(255,255,255,0.25)' }} />
-                                <input type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white outline-none transition-all"
+                                <input type={showPassword ? "text" : "password"} name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} required
+                                    className="w-full pl-10 pr-10 py-3 rounded-xl text-sm text-white outline-none transition-all"
                                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
                                     onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.6)'}
                                     onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.09)'}
                                 />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 focus:outline-none"
+                                >
+                                    {showPassword ? 
+                                        <EyeOff className="w-4 h-4 hover:text-white transition-colors" style={{ color: 'rgba(255,255,255,0.45)' }} /> : 
+                                        <Eye className="w-4 h-4 hover:text-white transition-colors" style={{ color: 'rgba(255,255,255,0.45)' }} />
+                                    }
+                                </button>
                             </div>
                         </div>
 

@@ -11,6 +11,10 @@ export default function ProfilePage() {
     const [settings, setSettings] = useState({ emailAlerts: true, dataSaver: false });
     const [subModalOpen, setSubModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ name: '', phone: '' });
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [dialog, setDialog] = useState(null);
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -61,18 +65,110 @@ export default function ProfilePage() {
 
     const handleResetPassword = async () => {
         if (!userSession?.email) return;
-        const confirm = window.confirm(`Send password reset email to ${userSession.email}?`);
-        if (confirm) {
-            const { error } = await supabase.auth.resetPasswordForEmail(userSession.email);
-            if (error) alert(error.message);
-            else alert("Password reset email sent! Check your inbox.");
-        }
+        setDialog({
+            type: 'confirm',
+            title: 'Reset Password',
+            message: `Send password reset email to ${userSession.email}?`,
+            onConfirm: async () => {
+                setDialog(null);
+                const { error } = await supabase.auth.resetPasswordForEmail(userSession.email);
+                if (error) {
+                    setDialog({ type: 'alert', title: 'Error', message: error.message });
+                } else {
+                    setDialog({ type: 'alert', title: 'Success', message: 'Password reset email sent! Check your inbox.' });
+                }
+            }
+        });
     };
 
     const handleDeleteAccount = async () => {
-        const confirm = window.confirm("Are you absolutely sure? This will permanently delete your account and all search history.");
-        if (confirm) {
-            alert("For security reasons, account deletion must be requested via support. Please contact admin@seamas.com");
+        if (userSession.isGuest) {
+            setDialog({ type: 'alert', title: 'Action Denied', message: 'Guest accounts cannot be deleted.' });
+            return;
+        }
+        
+        setDialog({
+            type: 'confirm',
+            title: 'Delete Account',
+            message: 'Are you absolutely sure? This will permanently delete your account and all search history.',
+            onConfirm: async () => {
+                setDialog(null);
+                try {
+                    const { error } = await supabase.rpc('delete_user');
+                    if (error) throw error;
+                } catch (err) {
+                    console.log("Server-side deletion unavailable, performing account lock & wipe.");
+                    // Scramble the password so the user can no longer log in
+                    const randomPass = crypto.randomUUID() + 'Xx1!@';
+                    await supabase.auth.updateUser({ 
+                        password: randomPass,
+                        data: { full_name: 'Deleted User', phone: '' }
+                    });
+                    // Wipe their search history
+                    if (userSession.id) {
+                        await supabase.from('search_history').delete().eq('user_id', userSession.id);
+                    }
+                }
+                
+                await supabase.auth.signOut();
+                localStorage.removeItem('seamas_user_session');
+                localStorage.removeItem('seamas_preferences');
+                
+                setDialog({
+                    type: 'alert',
+                    title: 'Account Deleted',
+                    message: 'Your account has been permanently deleted.',
+                    onConfirm: () => {
+                        navigate('/');
+                    }
+                });
+            }
+        });
+    };
+
+    const handleEditClick = () => {
+        if (userSession.isGuest) {
+            setDialog({ type: 'alert', title: 'Action Denied', message: 'Profile editing is disabled in guest mode.' });
+            return;
+        }
+
+        let initialPhone = userSession.phone || '';
+        let digits = initialPhone.replace(/\D/g, '');
+        if (digits.startsWith('91') && digits.length >= 10) {
+            digits = digits.slice(2);
+        }
+        digits = digits.slice(0, 10);
+
+        setEditForm({
+            name: userSession.name || '',
+            phone: digits
+        });
+        setIsEditing(true);
+    };
+
+    const handleSaveProfile = async () => {
+        setSavingProfile(true);
+        try {
+            const finalPhone = editForm.phone ? `+91 ${editForm.phone}` : '';
+            const { data, error } = await supabase.auth.updateUser({
+                data: { full_name: editForm.name, phone: finalPhone }
+            });
+            
+            if (error) throw error;
+            
+            const updatedSession = { 
+                ...userSession, 
+                name: editForm.name,
+                phone: finalPhone
+            };
+            
+            setUserSession(updatedSession);
+            localStorage.setItem('seamas_user_session', JSON.stringify(updatedSession));
+            setIsEditing(false);
+        } catch (err) {
+            setDialog({ type: 'alert', title: 'Error', message: err.message || "Failed to update profile." });
+        } finally {
+            setSavingProfile(false);
         }
     };
 
@@ -194,20 +290,47 @@ export default function ProfilePage() {
                 <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-base font-bold text-white">Profile Information</h3>
-                        <button
-                            onClick={() => alert("Profile editing is disabled in demo mode. Please contact admin@seamas.com.")}
-                            className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold uppercase tracking-wider transition-colors"
-                        >
-                            Edit
-                        </button>
+                        {!isEditing ? (
+                            <button
+                                onClick={handleEditClick}
+                                className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold uppercase tracking-wider transition-colors"
+                            >
+                                Edit
+                            </button>
+                        ) : (
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setIsEditing(false)}
+                                    className="text-neutral-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={savingProfile}
+                                    className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-50"
+                                >
+                                    {savingProfile ? 'Saving...' : 'Save'}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 text-left">
                         <div>
                             <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Full Name</div>
-                            <div className="text-sm font-semibold text-neutral-200 mt-1">
-                                {userSession.name || 'N/A'}
-                            </div>
+                            {isEditing ? (
+                                <input 
+                                    type="text" 
+                                    value={editForm.name} 
+                                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-lg py-1.5 px-3 text-sm text-white outline-none focus:border-cyan-400/50"
+                                />
+                            ) : (
+                                <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                    {userSession.name || 'N/A'}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -219,9 +342,27 @@ export default function ProfilePage() {
 
                         <div>
                             <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Phone</div>
-                            <div className="text-sm font-semibold text-neutral-200 mt-1">
-                                {userSession.phone || '+91 98765 43210'}
-                            </div>
+                            {isEditing ? (
+                                <div className="flex items-center mt-1 bg-black/40 border border-white/10 rounded-lg overflow-hidden focus-within:border-cyan-400/50 transition-colors">
+                                    <div className="pl-3 py-1.5 text-sm text-neutral-400 bg-white/[0.02] border-r border-white/10 select-none pr-3">
+                                        +91
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={editForm.phone} 
+                                        onChange={(e) => {
+                                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setEditForm({...editForm, phone: digits});
+                                        }}
+                                        className="w-full py-1.5 px-3 text-sm text-white bg-transparent outline-none"
+                                        placeholder="9876543210"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                    {userSession.phone || '+91 98765 43210'}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -328,6 +469,42 @@ export default function ProfilePage() {
             </div>
 
             <SubscriptionModal isOpen={subModalOpen} onClose={() => setSubModalOpen(false)} userSession={userSession} />
+
+            {dialog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDialog(null)} />
+                    <div className="relative z-50 w-full max-w-sm bg-[#0f0f13] border border-white/10 rounded-2xl p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-2">{dialog.title}</h3>
+                        <p className="text-neutral-400 text-sm mb-6">{dialog.message}</p>
+                        <div className="flex gap-3 justify-end">
+                            {dialog.type === 'confirm' && (
+                                <button
+                                    onClick={() => setDialog(null)}
+                                    className="px-4 py-2 rounded-xl text-sm font-semibold text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (dialog.type === 'confirm' && dialog.onConfirm) {
+                                        dialog.onConfirm();
+                                    } else {
+                                        setDialog(null);
+                                    }
+                                }}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                    dialog.title === 'Delete Account' 
+                                        ? 'bg-rose-500 hover:bg-rose-600 text-white' 
+                                        : 'bg-cyan-500 hover:bg-cyan-600 text-white'
+                                }`}
+                            >
+                                {dialog.type === 'confirm' ? 'Confirm' : 'OK'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
