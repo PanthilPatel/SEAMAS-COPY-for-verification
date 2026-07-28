@@ -276,13 +276,13 @@ async def verify_payment(payload: PaymentVerification):
     try:
         if payload.razorpay_payment_link_id:
             params_dict = {
-                'razorpay_payment_link_id': payload.razorpay_payment_link_id,
+                'payment_link_id': payload.razorpay_payment_link_id,
                 'razorpay_payment_id': payload.razorpay_payment_id,
-                'razorpay_payment_link_reference_id': payload.razorpay_payment_link_reference_id or '',
-                'razorpay_payment_link_status': payload.razorpay_payment_link_status or 'paid',
+                'payment_link_reference_id': payload.razorpay_payment_link_reference_id or '',
+                'payment_link_status': payload.razorpay_payment_link_status or 'paid',
                 'razorpay_signature': payload.razorpay_signature
             }
-            rzp_client.utility.verify_payment_signature(params_dict)
+            rzp_client.utility.verify_payment_link_signature(params_dict)
         else:
             params_dict = {
                 'razorpay_order_id': payload.razorpay_order_id,
