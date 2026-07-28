@@ -387,18 +387,18 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 
     return (
         <aside
-            className="relative z-20 hidden shrink-0 flex-col border-r border-white/[0.06] bg-white/[0.015] md:flex transition-all duration-300 select-none text-left"
-            style={{ width: collapsed ? 72 : 264, backdropFilter: 'blur(20px)' }}
+            className="relative z-20 hidden shrink-0 flex-col border-r border-white/[0.06] bg-[#07070a]/90 md:flex transition-all duration-300 select-none text-left"
+            style={{ width: collapsed ? 72 : 264, backdropFilter: 'blur(24px)' }}
         >
             {/* Brand Title */}
             <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 shadow-[0_0_24px_-6px_hsl(187_92%_43%/0.7)] shrink-0">
-                    <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
+                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 via-sky-400 to-indigo-500 shadow-[0_0_24px_-6px_rgba(34,211,238,0.8)] shrink-0 transition-transform duration-300 hover:scale-102">
+                    <Sparkles className="h-4 w-4 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]" strokeWidth={2} />
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col leading-tight">
-                        <span className="font-display text-[15px] font-semibold tracking-tight text-white">SEAMAS</span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500">AI Workspace · v2.4</span>
+                        <span className="font-display text-[15px] font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-neutral-100 to-neutral-400">SEAMAS</span>
+                        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-neutral-500 font-semibold">AI Workspace · v2.4</span>
                     </div>
                 )}
             </div>
@@ -406,13 +406,13 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
             <div className="px-3">
                 <button
                     onClick={onNewSearch}
-                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-left text-sm text-neutral-300 transition-colors hover:border-white/[0.14] hover:bg-white/[0.04]"
+                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-2.5 text-left text-sm text-neutral-300 transition-all duration-300 hover:border-cyan-500/30 hover:bg-cyan-500/[0.03] hover:shadow-[0_0_12px_rgba(34,211,238,0.06)]"
                 >
-                    <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-cyan-300" strokeWidth={1.75} />
+                    <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-cyan-300" strokeWidth={2} />
                     {!collapsed && (
                         <>
-                            <span className="flex-1 text-xs">New search</span>
-                            <kbd className="seamas-kbd">⌘K</kbd>
+                            <span className="flex-1 text-[11px] font-medium tracking-wide">New search</span>
+                            <kbd className="seamas-kbd border-white/[0.08] text-[9px] bg-white/[0.04]">⌘K</kbd>
                         </>
                     )}
                 </button>
@@ -422,11 +422,11 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 {NAV.map((section) => (
                     <div key={section.group}>
                         {!collapsed && (
-                            <div className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-600">
+                            <div className="mb-2.5 px-3.5 font-mono text-[9px] font-bold uppercase tracking-[0.26em] text-neutral-500/75">
                                 {section.group}
                             </div>
                         )}
-                        <ul className="space-y-0.5">
+                        <ul className="space-y-1">
                             {section.items.map((item) => {
                                 const isActive = activeTab === item.id;
                                 const displayCount = item.id === 'wishlist' ? wishlistCount : item.id === 'history' ? threadCount : item.count;
@@ -434,19 +434,29 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     <li key={item.id}>
                                         <button
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-white/[0.05] text-white' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
-                                                }`}
+                                            className={`group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-300 ${
+                                                isActive 
+                                                    ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/5 text-cyan-200 border border-white/[0.03] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]' 
+                                                    : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white border border-transparent'
+                                            }`}
                                         >
                                             {isActive && (
-                                                <span className="absolute inset-y-1.5 left-0 w-[2px] rounded-full bg-gradient-to-b from-cyan-300 to-indigo-400" />
+                                                <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-full bg-gradient-to-b from-cyan-300 via-cyan-400 to-indigo-500 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                             )}
-                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? 'text-cyan-300' : 'text-neutral-500 group-hover:text-neutral-200'
-                                                }`} strokeWidth={1.6} />
+                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-all duration-300 ${
+                                                isActive 
+                                                    ? 'text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.5)] scale-105' 
+                                                    : 'text-neutral-500 group-hover:text-neutral-200 group-hover:scale-102'
+                                            }`} strokeWidth={isActive ? 2 : 1.6} />
                                             {!collapsed && (
                                                 <>
-                                                    <span className="flex-1 truncate text-left text-xs">{item.label}</span>
+                                                    <span className="flex-1 truncate text-left text-xs tracking-wide">{item.label}</span>
                                                     {displayCount != null && displayCount > 0 ? (
-                                                        <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
+                                                        <span className={`rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold transition-all ${
+                                                            isActive
+                                                                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/20'
+                                                                : 'bg-white/[0.06] text-neutral-400'
+                                                        }`}>
                                                             {displayCount}
                                                         </span>
                                                     ) : null}
