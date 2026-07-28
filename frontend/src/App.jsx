@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UserDashboard from './pages/UserDashboard';
 import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
@@ -20,6 +20,24 @@ const PublicRoute = ({ children }) => {
     return children;
 };
 
+const ProtectedLayout = () => {
+    const location = useLocation();
+    
+    // Redirect unknown authenticated routes to dashboard
+    if (location.pathname !== '/dashboard' && location.pathname !== '/profile') {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return (
+        <div className="w-full h-full">
+            <div style={{ display: location.pathname === '/profile' ? 'none' : 'block', width: '100%', height: '100%' }}>
+                <UserDashboard />
+            </div>
+            {location.pathname === '/profile' && <ProfilePage />}
+        </div>
+    );
+};
+
 export default function App() {
     return (
         <Router>
@@ -36,26 +54,17 @@ export default function App() {
                                 </PublicRoute>
                             }
                         />
-                        <Route
-                            path="/dashboard"
+                        <Route 
+                            path="/*" 
                             element={
                                 <PrivateRoute>
-                                    <UserDashboard />
+                                    <ProtectedLayout />
                                 </PrivateRoute>
-                            }
+                            } 
                         />
-                        <Route
-                            path="/profile"
-                            element={
-                                <PrivateRoute>
-                                    <ProfilePage />
-                                </PrivateRoute>
-                            }
-                        />
-                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </div>
             </div>
         </Router>
     );
-}   
+}

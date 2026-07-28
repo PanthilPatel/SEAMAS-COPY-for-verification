@@ -58,8 +58,8 @@ def upgrade_to_pro(user_id: str):
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO user_credits (user_id, tier, credits) 
-        VALUES (?, 'pro', 5000)
-        ON CONFLICT(user_id) DO UPDATE SET tier = 'pro', credits = 5000
+        VALUES (?, 'pro', 1000)
+        ON CONFLICT(user_id) DO UPDATE SET tier = 'pro', credits = 1000
     ''', (user_id,))
     conn.commit()
     conn.close()

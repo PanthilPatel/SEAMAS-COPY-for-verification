@@ -352,8 +352,8 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
     }, [userName]);
 
     const isPro = userSession?.tier === 'Pro';
-    const maxCredits = isPro ? 5000 : 50;
-    const currentCredits = userSession?.isGuest ? 0 : (userSession?.credits ?? maxCredits);
+    const maxCredits = isPro ? 1000 : 50;
+    const currentCredits = Math.min(maxCredits, userSession?.isGuest ? 0 : (userSession?.credits ?? maxCredits));
     const creditPercent = Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100));
 
     const [status, setStatus] = useState({
@@ -833,7 +833,7 @@ export default function UserDashboard() {
         // Deduct credits on query execution based on steering mode
         if (userSession && userSession.id !== 'guest') {
             const cost = steeringMode === 'speed' ? 5 : (steeringMode === 'accuracy' ? 20 : 10);
-            const nextCredits = Math.max(0, (userSession.credits ?? 5000) - cost);
+            const nextCredits = Math.max(0, (userSession.credits ?? 1000) - cost);
             setUserSession(prev => ({
                 ...prev,
                 credits: nextCredits

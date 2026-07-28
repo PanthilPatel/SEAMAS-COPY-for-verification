@@ -52,7 +52,7 @@ export default function SubscriptionModal({ isOpen, onClose, userSession }) {
                     </div>
 
                     <ul className="space-y-3">
-                        {['5,000 Search Credits instantly', 'Premium Multi-Agent Reasoning', 'Priority Live Scraping', 'No daily rate limits'].map((feature, i) => (
+                        {['1,000 Search Credits instantly', 'Premium Multi-Agent Reasoning', 'Priority Live Scraping', 'No daily rate limits'].map((feature, i) => (
                             <li key={i} className="flex items-center gap-3 text-sm text-neutral-200">
                                 <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
                                 {feature}

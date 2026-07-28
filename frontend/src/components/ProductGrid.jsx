@@ -166,18 +166,18 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-500/20 px-4 py-1.5 text-[12px] font-semibold text-cyan-300 transition-all hover:bg-cyan-500/30 hover:scale-105 btn-magnetic"
                             >
-                                View
-                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
+                                Visit
+                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2} />
                             </a>
                         ) : (
                             <button
                                 type="button"
-                                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-[12px] text-neutral-200 transition-all hover:border-cyan-400/40 hover:bg-gradient-to-r hover:from-cyan-500/20 hover:to-indigo-500/20 hover:text-white hover:scale-105 btn-magnetic"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-1.5 text-[12px] font-semibold text-neutral-400 transition-all cursor-not-allowed"
+                                disabled
                             >
-                                View
-                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={1.75} />
+                                No Link
                             </button>
                         )}
                     </div>

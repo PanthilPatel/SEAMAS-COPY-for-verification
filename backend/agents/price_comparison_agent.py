@@ -864,10 +864,20 @@ Records:
             live_image = live_data.get("image")
             
             if live_price and live_price >= min_price_floor:
-                print(f"[PriceAgent] Live price match success! Updated {r['product_name']} from {r['marketplace']}: {r['extracted_price']} -> {live_price}")
-                r["extracted_price"] = live_price
-                r["status"] = "Target Match" if not budget or live_price <= budget else "Out of Budget"
-                r["is_verified"] = True
+                # Apply flagship anomaly guard to live price
+                prod_name_lower = r.get("product_name", "").lower()
+                is_valid_live_price = True
+                flagship_keywords = ["iphone 17 pro", "iphone 16 pro", "iphone 15 pro", "galaxy s24 ultra", "galaxy s25 ultra", "macbook pro", "ipad pro"]
+                if any(fk in prod_name_lower for fk in flagship_keywords):
+                    if not any(acc in prod_name_lower for acc in ["case", "cover", "skin", "protector", "glass", "film", "strap", "stand", "pouch", "bag"]):
+                        if live_price < 25000:
+                            is_valid_live_price = False
+
+                if is_valid_live_price:
+                    print(f"[PriceAgent] Live price match success! Updated {r['product_name']} from {r['marketplace']}: {r['extracted_price']} -> {live_price}")
+                    r["extracted_price"] = live_price
+                    r["status"] = "Target Match" if not budget or live_price <= budget else "Out of Budget"
+                    r["is_verified"] = True
                 
             if live_image:
                 print(f"[PriceAgent] Live image match success! Updated {r['product_name']} image: {r['image_url']} -> {live_image}")
