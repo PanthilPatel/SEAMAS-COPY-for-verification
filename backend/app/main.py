@@ -249,7 +249,7 @@ async def create_order(request: Request):
             "customer": {
                 "name": user_name,
                 "email": user_email,
-                "contact": "+919999999999"
+                "contact": "+919876543210"
             },
             "notify": {
                 "sms": False,
