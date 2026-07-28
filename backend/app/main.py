@@ -240,6 +240,9 @@ async def create_order(request: Request):
         amount = 100 # 1 INR
         currency = "INR"
         
+        phone = body.get("phone", "").strip()
+        contact_number = f"+91{phone}" if len(phone) >= 10 else "+919876543210"
+        
         # Create a Razorpay Payment Link (Invoice UI)
         payment_link = rzp_client.payment_link.create({
             "amount": amount,
@@ -249,7 +252,7 @@ async def create_order(request: Request):
             "customer": {
                 "name": user_name,
                 "email": user_email,
-                "contact": "+919876543210"
+                "contact": contact_number
             },
             "notify": {
                 "sms": False,
@@ -296,4 +299,4 @@ async def verify_payment(payload: PaymentVerification):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
