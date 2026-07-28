@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UserDashboard from './pages/UserDashboard';
 import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
+import { supabase } from './lib/supabase';
 
 const PrivateRoute = ({ children }) => {
     const session = localStorage.getItem('seamas_user_session');
@@ -39,6 +40,48 @@ const ProtectedLayout = () => {
 };
 
 export default function App() {
+    const [isAuthLoading, setIsAuthLoading] = React.useState(true);
+
+    useEffect(() => {
+        // Initial session check
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                const profileName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+                localStorage.setItem('seamas_user_session', JSON.stringify({
+                    id: session.user.id,
+                    name: profileName,
+                    email: session.user.email,
+                    isLoggedIn: true
+                }));
+            }
+            setIsAuthLoading(false);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                const profileName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+                localStorage.setItem('seamas_user_session', JSON.stringify({
+                    id: session.user.id,
+                    name: profileName,
+                    email: session.user.email,
+                    isLoggedIn: true
+                }));
+            } else if (event === 'SIGNED_OUT') {
+                localStorage.removeItem('seamas_user_session');
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    if (isAuthLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#070d19]">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
     return (
         <Router>
             <div className="relative min-h-screen text-[#F8FAFC] antialiased">
