@@ -1,7 +1,6 @@
 import json
 import re
 import os
-import asyncio
 from typing import Dict, Any, List, Optional
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
@@ -119,18 +118,7 @@ def prices_mentioned_in(text: str) -> set:
 
     return prices
 
-async def scrape_live_price(url: str, retry_count: int = 0, max_retries: int = 2) -> Dict[str, Any]:
-    """
-    Scrapes live price and image from a product URL with retry logic.
-    
-    Args:
-        url: Product page URL
-        retry_count: Current retry attempt (internal use)
-        max_retries: Maximum number of retry attempts
-        
-    Returns:
-        Dict with 'price' and 'image' keys
-    """
+async def scrape_live_price(url: str) -> Dict[str, Any]:
     res_data = {"price": None, "image": None}
     if not url:
         return res_data
@@ -142,21 +130,13 @@ async def scrape_live_price(url: str, retry_count: int = 0, max_retries: int = 2
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
     }
     
     try:
-        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=12.0) as client:
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=8.0) as client:
             response = await client.get(url)
             if response.status_code != 200:
-                print(f"[LiveScraper] HTTP {response.status_code} for {url}")
-                # Retry on server errors
-                if response.status_code >= 500 and retry_count < max_retries:
-                    print(f"[LiveScraper] Retrying ({retry_count + 1}/{max_retries})...")
-                    await asyncio.sleep(1)
-                    return await scrape_live_price(url, retry_count + 1, max_retries)
                 return res_data
             
             soup = BeautifulSoup(response.text, "html.parser")
@@ -219,161 +199,56 @@ async def scrape_live_price(url: str, retry_count: int = 0, max_retries: int = 2
                         val = int(float(str(raw_price).replace(",", "").replace("₹", "").replace("$", "").strip()))
                         if val > 0:
                             res_data["price"] = val
-                            print(f"[LiveScraper] JSON-LD price found: ₹{val} from {url}")
                     if raw_image and not res_data["image"]:
                         res_data["image"] = raw_image
-                except Exception as je:
-                    print(f"[LiveScraper] JSON-LD parse error: {je}")
+                except Exception:
                     pass
             
-            # 2. Store-specific parsing with expanded selectors
+            # 2. Store-specific parsing
             domain = urlparse(url).netloc.lower()
             
             if "amazon." in domain:
-                # Try multiple Amazon price selectors
-                price_selectors = [
-                    ".a-price-whole",
-                    ".a-price .a-offscreen",
-                    "#priceblock_ourprice",
-                    "#priceblock_dealprice",
-                    ".a-price[data-a-size='xl'] .a-offscreen",
-                    "span.a-price-whole"
-                ]
-                for selector in price_selectors:
-                    price_el = soup.select_one(selector)
-                    if price_el:
-                        price_text = price_el.get_text() if selector != ".a-price .a-offscreen" else price_el.get_text()
-                        clean_txt = re.sub(r"[^\d]", "", price_text)
-                        if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Amazon price found: ₹{res_data['price']} from {url}")
-                            break
+                price_whole = soup.select_one(".a-price-whole")
+                if price_whole:
+                    clean_txt = re.sub(r"[^\d]", "", price_whole.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
                         
             elif "flipkart." in domain:
-                # Try multiple Flipkart price selectors
-                price_selectors = [
-                    ".Nx9bqj.CxhGGd",
-                    "._30jeq3._16Jk6d",
-                    ".Nx9bqj",
-                    "._30jeq3",
-                    "div._16Jk6d"
-                ]
-                for selector in price_selectors:
-                    price_el = soup.select_one(selector)
-                    if price_el:
-                        clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
-                        if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Flipkart price found: ₹{res_data['price']} from {url}")
-                            break
+                price_el = soup.select_one(".Nx95tz, ._30jeq3")
+                if price_el:
+                    clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
                         
             elif "croma." in domain:
-                price_selectors = [
-                    ".pdp-price",
-                    ".amount",
-                    "#pdp-price",
-                    ".product-price",
-                    ".new-price"
-                ]
-                for selector in price_selectors:
-                    price_el = soup.select_one(selector)
-                    if price_el:
-                        clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
+                price_el = soup.select_one(".pdp-price, .amount, #pdp-price")
+                if price_el:
+                    clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
+                    if clean_txt:
+                        res_data["price"] = int(clean_txt)
+            
+            # 3. Meta tag fallbacks
+            meta_selectors = [
+                {"property": "product:price:amount"},
+                {"property": "og:price:amount"},
+                {"name": "twitter:data1"},
+                {"itemprop": "price"}
+            ]
+            for selector in meta_selectors:
+                meta = soup.find("meta", attrs=selector)
+                if meta:
+                    content = meta.get("content") or meta.get("value")
+                    if content:
+                        clean_txt = re.sub(r"[^\d.]", "", content)
                         if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Croma price found: ₹{res_data['price']} from {url}")
-                            break
-            
-            elif "myntra." in domain:
-                price_selectors = [
-                    ".pdp-price strong",
-                    ".pdp-price",
-                    "span.pdp-price"
-                ]
-                for selector in price_selectors:
-                    price_el = soup.select_one(selector)
-                    if price_el:
-                        clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
-                        if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Myntra price found: ₹{res_data['price']} from {url}")
-                            break
-            
-            elif "reliancedigital." in domain:
-                price_selectors = [
-                    ".pdp__priceSection__price",
-                    ".pdp__offerPrice",
-                    "span[itemprop='price']"
-                ]
-                for selector in price_selectors:
-                    price_el = soup.select_one(selector)
-                    if price_el:
-                        clean_txt = re.sub(r"[^\d]", "", price_el.get_text())
-                        if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Reliance Digital price found: ₹{res_data['price']} from {url}")
-                            break
-            
-            # 3. Generic price patterns for any site
-            if not res_data["price"]:
-                # Look for common price patterns in the page
-                price_patterns = [
-                    r'["\']price["\']\s*:\s*["\']?(\d+(?:,\d{3})*(?:\.\d{2})?)',
-                    r'₹\s*(\d+(?:,\d{3})*)',
-                    r'Rs\.?\s*(\d+(?:,\d{3})*)',
-                    r'INR\s*(\d+(?:,\d{3})*)'
-                ]
-                page_text = soup.get_text()
-                for pattern in price_patterns:
-                    matches = re.findall(pattern, page_text, re.IGNORECASE)
-                    if matches:
-                        # Take the most common price (likely the actual product price)
-                        from collections import Counter
-                        price_counts = Counter(matches)
-                        most_common_price = price_counts.most_common(1)[0][0]
-                        clean_txt = re.sub(r"[^\d]", "", most_common_price)
-                        if clean_txt:
-                            res_data["price"] = int(clean_txt)
-                            print(f"[LiveScraper] Generic pattern price found: ₹{res_data['price']} from {url}")
-                            break
-            
-            # 4. Meta tag fallbacks
-            if not res_data["price"]:
-                meta_selectors = [
-                    {"property": "product:price:amount"},
-                    {"property": "og:price:amount"},
-                    {"name": "twitter:data1"},
-                    {"itemprop": "price"},
-                    {"property": "product:price"},
-                ]
-                for selector in meta_selectors:
-                    meta = soup.find("meta", attrs=selector)
-                    if meta:
-                        content = meta.get("content") or meta.get("value")
-                        if content:
-                            clean_txt = re.sub(r"[^\d.]", "", content)
-                            if clean_txt:
-                                try:
-                                    val = int(float(clean_txt))
-                                    if val > 0 and not res_data["price"]:
-                                        res_data["price"] = val
-                                        print(f"[LiveScraper] Meta tag price found: ₹{val} from {url}")
-                                        break
-                                except ValueError:
-                                    pass
-            
-            # Final validation
-            if res_data["price"]:
-                print(f"[LiveScraper] ✓ Successfully scraped price ₹{res_data['price']} from {url}")
-            else:
-                print(f"[LiveScraper] ✗ Could not extract price from {url}")
+                            try:
+                                val = int(float(clean_txt))
+                                if val > 0 and not res_data["price"]:
+                                    res_data["price"] = val
+                            except ValueError:
+                                pass
                                 
-    except httpx.TimeoutException:
-        print(f"[LiveScraper] Timeout error for {url}")
-        if retry_count < max_retries:
-            print(f"[LiveScraper] Retrying ({retry_count + 1}/{max_retries})...")
-            await asyncio.sleep(1)
-            return await scrape_live_price(url, retry_count + 1, max_retries)
     except Exception as e:
         print(f"[LiveScraper] Error fetching price/image from {url}: {e}")
         
@@ -905,13 +780,8 @@ Records:
             ]
             q_lower = query.lower()
             target_brands = [b for b in known_brands if b in q_lower]
-            if target_brands:
-                allowed_brand_words = list(target_brands)
-                if "apple" in allowed_brand_words:
-                    allowed_brand_words.extend(["watch", "airpods", "ipad", "mac", "iphone"])
-                
-                if not any(tb in prod_name_lower for tb in allowed_brand_words):
-                    continue
+            if target_brands and not any(tb in prod_name_lower for tb in target_brands):
+                continue
 
             if prod_name_lower in ["fossil watches", "fossil watches for women", "fossil watches for men", "watches"]:
                 continue
@@ -982,9 +852,6 @@ Records:
 
         # Stage: Live Web Scraping for accurate prices
         import asyncio
-        print(f"\n[PriceAgent] === LIVE PRICE SCRAPING INITIATED ===")
-        print(f"[PriceAgent] Scraping real-time prices from {len(results)} product URLs...")
-        
         scrape_tasks = []
         for r in results:
             url = r.get("url")
@@ -992,38 +859,19 @@ Records:
         
         scraped_data_list = await asyncio.gather(*scrape_tasks)
         
-        successful_scrapes = 0
-        failed_scrapes = 0
-        
         for r, live_data in zip(results, scraped_data_list):
             live_price = live_data.get("price")
             live_image = live_data.get("image")
             
             if live_price and live_price >= min_price_floor:
-                # Only update if the live price is significantly different or more reliable
-                old_price = r["extracted_price"]
-                price_diff = abs(live_price - old_price)
-                price_diff_percent = (price_diff / old_price * 100) if old_price > 0 else 0
-                
-                # Always prefer live scraped prices as they are more accurate
-                print(f"[PriceAgent] ✓ Live price updated for {r['product_name']} from {r['marketplace']}: ₹{old_price} -> ₹{live_price} (Δ {price_diff_percent:.1f}%)")
+                print(f"[PriceAgent] Live price match success! Updated {r['product_name']} from {r['marketplace']}: {r['extracted_price']} -> {live_price}")
                 r["extracted_price"] = live_price
                 r["status"] = "Target Match" if not budget or live_price <= budget else "Out of Budget"
                 r["is_verified"] = True
-                successful_scrapes += 1
-            else:
-                failed_scrapes += 1
-                if r.get("url"):
-                    print(f"[PriceAgent] ✗ Could not scrape live price for {r['product_name']} from {r['marketplace']}")
                 
             if live_image:
-                print(f"[PriceAgent] ✓ Live image updated for {r['product_name']}")
+                print(f"[PriceAgent] Live image match success! Updated {r['product_name']} image: {r['image_url']} -> {live_image}")
                 r["image_url"] = live_image
-        
-        print(f"\n[PriceAgent] === LIVE SCRAPING SUMMARY ===")
-        print(f"[PriceAgent] Successfully scraped: {successful_scrapes}/{len(results)} products")
-        print(f"[PriceAgent] Failed scrapes: {failed_scrapes}/{len(results)} products")
-        batch_logs.append(f"Live price scraping: {successful_scrapes} successful, {failed_scrapes} failed")
 
         results.sort(key=lambda x: x.get("extracted_price") or float('inf'))
 

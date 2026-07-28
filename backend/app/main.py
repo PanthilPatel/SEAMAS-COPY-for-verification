@@ -266,42 +266,34 @@ async def create_order(request: Request):
         }
     except Exception as e:
         print("Payment link creation failed:", str(e))
-        # Fallback for dummy UI testing
-        return {
-            "payment_link_id": "dummy_link_123",
-            "short_url": "http://localhost:5173/dashboard?payment=success&dummy=true",
-            "error_message": str(e)
-        }
+        raise HTTPException(status_code=500, detail=f"Payment initialization failed: {str(e)}")
 
 @app.post("/api/verify-payment")
 async def verify_payment(payload: PaymentVerification):
     try:
-        is_dummy = payload.razorpay_order_id == "order_dummy_123" or payload.razorpay_payment_link_id == "dummy_link_123"
-        
-        if not is_dummy:
-            if payload.razorpay_payment_link_id:
-                params_dict = {
-                    'razorpay_payment_link_id': payload.razorpay_payment_link_id,
-                    'razorpay_payment_id': payload.razorpay_payment_id,
-                    'razorpay_payment_link_reference_id': payload.razorpay_payment_link_reference_id or '',
-                    'razorpay_payment_link_status': payload.razorpay_payment_link_status or 'paid',
-                    'razorpay_signature': payload.razorpay_signature
-                }
-                rzp_client.utility.verify_payment_signature(params_dict)
-            else:
-                params_dict = {
-                    'razorpay_order_id': payload.razorpay_order_id,
-                    'razorpay_payment_id': payload.razorpay_payment_id,
-                    'razorpay_signature': payload.razorpay_signature
-                }
-                rzp_client.utility.verify_payment_signature(params_dict)
+        if payload.razorpay_payment_link_id:
+            params_dict = {
+                'razorpay_payment_link_id': payload.razorpay_payment_link_id,
+                'razorpay_payment_id': payload.razorpay_payment_id,
+                'razorpay_payment_link_reference_id': payload.razorpay_payment_link_reference_id or '',
+                'razorpay_payment_link_status': payload.razorpay_payment_link_status or 'paid',
+                'razorpay_signature': payload.razorpay_signature
+            }
+            rzp_client.utility.verify_payment_signature(params_dict)
+        else:
+            params_dict = {
+                'razorpay_order_id': payload.razorpay_order_id,
+                'razorpay_payment_id': payload.razorpay_payment_id,
+                'razorpay_signature': payload.razorpay_signature
+            }
+            rzp_client.utility.verify_payment_signature(params_dict)
         
         upgrade_to_pro(payload.user_id)
         return {"status": "success", "message": "Upgraded to Pro"}
     except Exception as e:
         print("Payment verification failed error:", str(e))
-        is_dummy = payload.razorpay_order_id == "order_dummy_123" or payload.razorpay_payment_link_id == "dummy_link_123"
-        if is_dummy:
-             upgrade_to_pro(payload.user_id)
-             return {"status": "success", "message": "Upgraded to Pro (Dummy)"}
         raise HTTPException(status_code=400, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

@@ -95,9 +95,9 @@ async def web_search_tool(
                         "format": "json",
                         "language": "en-IN",
                         "categories": "general",
-                        "engines": "google,bing,duckduckgo,brave",
+                        "engines": "google,bing,duckduckgo,brave,yahoo",
                         "safesearch": "0",
-                        "pageno": page,
+                        "pageno": 1,
                     },
                 )
 
