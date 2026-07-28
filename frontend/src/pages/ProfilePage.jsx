@@ -87,183 +87,114 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] text-white p-4 md:p-8 lg:p-12 overflow-y-auto">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-2xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-4 mb-6">
                     <button 
                         onClick={() => navigate('/dashboard')}
                         className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.05] text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
+                    <h1 className="text-3xl font-black tracking-tight font-display bg-clip-text text-transparent bg-gradient-to-r from-white to-neutral-400">My Account</h1>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column (Profile & Subscription) */}
-                    <div className="space-y-6 lg:col-span-1">
-                        
-                        {/* Profile Card */}
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
-                            <div className="flex flex-col items-center text-center">
-                                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 flex items-center justify-center mb-4 text-4xl font-bold shadow-lg shadow-cyan-500/20">
-                                    {userSession.name?.slice(0, 2).toUpperCase() || 'GU'}
-                                </div>
-                                <h2 className="text-2xl font-bold tracking-tight">
-                                    {userSession.name || 'Guest User'}
-                                </h2>
-                                <p className="text-neutral-400 text-sm mt-1 mb-6 flex items-center gap-1.5 justify-center">
-                                    <Mail className="w-3.5 h-3.5" /> {userSession.email || 'No email provided'}
-                                </p>
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full py-2.5 rounded-xl font-medium text-sm bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <LogOut className="w-4 h-4" /> Sign Out
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Subscription Card */}
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 relative overflow-hidden">
-                            {isPro && <div className="absolute inset-0 bg-violet-500/5 pointer-events-none" />}
-                            <div className="flex items-center gap-2 mb-4">
-                                <Zap className={`w-5 h-5 ${isPro ? 'text-violet-400' : 'text-neutral-400'}`} />
-                                <h3 className="font-semibold">Subscription Plan</h3>
-                            </div>
-                            
-                            <div className="flex items-end justify-between mb-6">
-                                <div>
-                                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Current Tier</div>
-                                    <div className={`text-2xl font-black ${isPro ? 'text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400' : 'text-white'}`}>
-                                        {userSession.tier || 'Free'}
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Tokens</div>
-                                    <div className="text-xl font-mono text-neutral-200">{currentCredits.toLocaleString()}</div>
-                                </div>
-                            </div>
-
-                            {!isPro && !userSession.isGuest && (
-                                <button 
-                                    onClick={() => setSubModalOpen(true)}
-                                    className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-violet-600 to-sky-600 hover:from-violet-500 hover:to-sky-500 transition-all text-white shadow-lg shadow-violet-500/25"
-                                >
-                                    Upgrade to Pro
-                                </button>
-                            )}
-                        </div>
+                {/* Profile Summary Card */}
+                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-cyan-500/10">
+                        {userSession.name?.slice(0, 2).toUpperCase() || 'GU'}
                     </div>
-
-                    {/* Right Column (Stats, Prefs, Security) */}
-                    <div className="space-y-6 lg:col-span-2">
-                        
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center shrink-0">
-                                    <History className="w-6 h-6 text-cyan-400" />
-                                </div>
-                                <div>
-                                    <div className="text-neutral-400 text-sm">Total Searches</div>
-                                    <div className="text-2xl font-bold font-mono">{stats.totalSearches}</div>
-                                </div>
-                            </div>
-                            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                    <Calendar className="w-6 h-6 text-indigo-400" />
-                                </div>
-                                <div>
-                                    <div className="text-neutral-400 text-sm">Member Since</div>
-                                    <div className="text-lg font-bold">{stats.joinDate || 'N/A'}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Preferences */}
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
-                            <div className="flex items-center gap-2 mb-6">
-                                <Settings className="w-5 h-5 text-neutral-400" />
-                                <h3 className="font-semibold">Preferences</h3>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-start gap-3">
-                                        <Bell className="w-5 h-5 text-neutral-400 mt-0.5" />
-                                        <div>
-                                            <div className="font-medium">Email Notifications</div>
-                                            <div className="text-sm text-neutral-500">Receive alerts when tracked product prices drop.</div>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => toggleSetting('emailAlerts')}
-                                        className={`w-12 h-6 rounded-full p-1 transition-colors ${settings.emailAlerts ? 'bg-cyan-500' : 'bg-neutral-700'}`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.emailAlerts ? 'translate-x-6' : 'translate-x-0'}`} />
-                                    </button>
-                                </div>
-                                
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-start gap-3">
-                                        <Database className="w-5 h-5 text-neutral-400 mt-0.5" />
-                                        <div>
-                                            <div className="font-medium">Data Saver Mode</div>
-                                            <div className="text-sm text-neutral-500">Limits deep web scraping to preserve your token balance.</div>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => toggleSetting('dataSaver')}
-                                        className={`w-12 h-6 rounded-full p-1 transition-colors ${settings.dataSaver ? 'bg-cyan-500' : 'bg-neutral-700'}`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.dataSaver ? 'translate-x-6' : 'translate-x-0'}`} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Security & Danger Zone */}
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
-                            <div className="flex items-center gap-2 mb-6">
-                                <ShieldAlert className="w-5 h-5 text-neutral-400" />
-                                <h3 className="font-semibold">Security</h3>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.01] border border-white/[0.05]">
-                                    <div className="flex items-center gap-3">
-                                        <Key className="w-5 h-5 text-neutral-400" />
-                                        <div className="font-medium text-sm">Change Password</div>
-                                    </div>
-                                    <button 
-                                        onClick={handleResetPassword}
-                                        className="px-4 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] transition-colors text-sm font-medium"
-                                    >
-                                        Send Reset Email
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-rose-500/5 border border-rose-500/10">
-                                    <div className="flex items-center gap-3">
-                                        <Trash2 className="w-5 h-5 text-rose-400" />
-                                        <div>
-                                            <div className="font-medium text-sm text-rose-400">Delete Account</div>
-                                            <div className="text-xs text-rose-400/70">Permanently delete your data.</div>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={handleDeleteAccount}
-                                        className="px-4 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors text-sm font-medium"
-                                    >
-                                        Delete...
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
+                    <div className="text-left">
+                        <h2 className="text-xl font-bold tracking-tight text-white">
+                            {userSession.name || 'Guest User'}
+                        </h2>
+                        <p className="text-xs text-cyan-400 font-mono mt-0.5 uppercase tracking-wider">
+                            {isPro ? 'Pro Member' : 'Free Member'}
+                        </p>
                     </div>
                 </div>
+
+                {/* Profile Information Card */}
+                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-base font-bold text-white">Profile Information</h3>
+                        <button 
+                            onClick={() => alert("Profile editing is disabled in demo mode. Please contact admin@seamas.com.")}
+                            className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold uppercase tracking-wider transition-colors"
+                        >
+                            Edit
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 text-left">
+                        <div>
+                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Full Name</div>
+                            <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                {userSession.name || 'N/A'}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Email Address</div>
+                            <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                {userSession.email || 'N/A'}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Phone</div>
+                            <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                {userSession.phone || '+91 98765 43210'}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Member Since</div>
+                            <div className="text-sm font-semibold text-neutral-200 mt-1">
+                                {stats.joinDate || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Settings Card */}
+                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 space-y-6">
+                    <h3 className="text-base font-bold text-white text-left">Settings</h3>
+
+                    <div className="flex items-center justify-between">
+                        <div className="text-left">
+                            <div className="font-medium text-sm text-neutral-200">Dark Theme</div>
+                            <div className="text-xs text-neutral-500 mt-0.5">Adjust the appearance of the store</div>
+                        </div>
+                        <button 
+                            onClick={() => toggleSetting('dataSaver')}
+                            className="w-12 h-6 rounded-full p-1 bg-cyan-500 transition-colors"
+                        >
+                            <div className="w-4 h-4 rounded-full bg-white translate-x-6 transition-transform" />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="text-left">
+                            <div className="font-medium text-sm text-neutral-200">Notifications</div>
+                            <div className="text-xs text-neutral-500 mt-0.5">Receive order updates via email</div>
+                        </div>
+                        <button 
+                            onClick={() => toggleSetting('emailAlerts')}
+                            className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold uppercase tracking-wider transition-colors"
+                        >
+                            {settings.emailAlerts ? 'Enabled' : 'Disabled'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Sign Out Button */}
+                <button
+                    onClick={handleLogout}
+                    className="w-full py-3.5 rounded-xl font-bold text-sm bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/30 transition-all flex items-center justify-center gap-2"
+                >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                </button>
             </div>
             
             <SubscriptionModal isOpen={subModalOpen} onClose={() => setSubModalOpen(false)} userSession={userSession} />
