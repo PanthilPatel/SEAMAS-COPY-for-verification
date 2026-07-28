@@ -49,7 +49,9 @@ NODE_TO_FRONTEND_ID = {
 @app.post("/api/chat")
 async def chat_endpoint(payload: ChatRequest):
     if payload.user_id:
-        if not deduct_credit(payload.user_id):
+        steering = payload.steering_mode or "balanced"
+        cost = 1 if steering == "speed" else (4 if steering == "accuracy" else 2)
+        if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     try:
         # Check cache disabled to ensure fresh search results on identical queries
@@ -70,6 +72,7 @@ async def chat_endpoint(payload: ChatRequest):
             "analysis_report": {},
             "recommendations": [],
             "budget_status": {}, 
+            "steering_mode": payload.steering_mode or "balanced",
             "logs": [f"Session routing initialized via main API endpoint for context: '{payload.query}'."]
         }
         
@@ -98,7 +101,9 @@ async def chat_endpoint(payload: ChatRequest):
 @app.post("/api/chat/stream")
 async def chat_stream_endpoint(payload: ChatRequest):
     if payload.user_id:
-        if not deduct_credit(payload.user_id):
+        steering = payload.steering_mode or "balanced"
+        cost = 1 if steering == "speed" else (4 if steering == "accuracy" else 2)
+        if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     async def event_generator():
         query_key = payload.query.lower().strip()
@@ -126,6 +131,7 @@ async def chat_stream_endpoint(payload: ChatRequest):
             "analysis_report": {},
             "recommendations": [],
             "budget_status": {}, 
+            "steering_mode": payload.steering_mode or "balanced",
             "logs": [f"Session routing initialized via main API endpoint for context: '{payload.query}'."]
         }
         

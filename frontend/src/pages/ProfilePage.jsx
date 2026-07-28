@@ -86,8 +86,12 @@ export default function ProfilePage() {
     const currentCredits = userSession?.isGuest ? 0 : (userSession?.credits ?? 50);
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] text-white p-4 md:p-8 lg:p-12 overflow-y-auto">
-            <div className="max-w-2xl mx-auto space-y-6">
+        <div className="relative min-h-screen text-white p-4 md:p-8 lg:p-12 overflow-y-auto bg-[#0a0a0f]">
+            <div className="seamas-ambient" aria-hidden="true" />
+            <div className="seamas-grid" aria-hidden="true" />
+            <div className="seamas-noise" />
+
+            <div className="relative z-10 max-w-2xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
                     <button 

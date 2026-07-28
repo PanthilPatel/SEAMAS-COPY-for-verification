@@ -5,6 +5,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=300, description="The client intent search string")
     max_price: Optional[int] = Field(None, description="Optional upper boundary price target limit")
     user_id: Optional[str] = Field(None, description="User ID for credit tracking")
+    steering_mode: Optional[str] = Field("balanced", description="AI Steering Mode: balanced, speed, accuracy")
 
     @field_validator("query")
     @classmethod

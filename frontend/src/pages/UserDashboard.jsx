@@ -36,7 +36,8 @@ import {
     ExternalLink,
     RotateCcw,
     LogOut,
-    MessageSquare
+    MessageSquare,
+    Trash2
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
@@ -387,18 +388,18 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 
     return (
         <aside
-            className="relative z-20 hidden shrink-0 flex-col border-r border-white/[0.06] bg-[#07070a]/90 md:flex transition-all duration-300 select-none text-left"
-            style={{ width: collapsed ? 72 : 264, backdropFilter: 'blur(24px)' }}
+            className="relative z-20 hidden shrink-0 flex-col border-r border-white/[0.06] bg-white/[0.015] md:flex transition-all duration-300 select-none text-left h-screen overflow-hidden"
+            style={{ width: collapsed ? 72 : 264, backdropFilter: 'blur(20px)' }}
         >
             {/* Brand Title */}
             <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 via-sky-400 to-indigo-500 shadow-[0_0_24px_-6px_rgba(34,211,238,0.8)] shrink-0 transition-transform duration-300 hover:scale-102">
-                    <Sparkles className="h-4 w-4 text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]" strokeWidth={2} />
+                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 shadow-[0_0_24px_-6px_hsl(187_92%_43%/0.7)] shrink-0">
+                    <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col leading-tight">
-                        <span className="font-display text-[15px] font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-neutral-100 to-neutral-400">SEAMAS</span>
-                        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-neutral-500 font-semibold">AI Workspace · v2.4</span>
+                        <span className="font-display text-[15px] font-semibold tracking-tight text-white">SEAMAS</span>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500">AI Workspace · v2.4</span>
                     </div>
                 )}
             </div>
@@ -406,27 +407,27 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
             <div className="px-3">
                 <button
                     onClick={onNewSearch}
-                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-2.5 text-left text-sm text-neutral-300 transition-all duration-300 hover:border-cyan-500/30 hover:bg-cyan-500/[0.03] hover:shadow-[0_0_12px_rgba(34,211,238,0.06)]"
+                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-left text-sm text-neutral-300 transition-colors hover:border-white/[0.14] hover:bg-white/[0.04]"
                 >
-                    <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-cyan-300" strokeWidth={2} />
+                    <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-cyan-300" strokeWidth={1.75} />
                     {!collapsed && (
                         <>
-                            <span className="flex-1 text-[11px] font-medium tracking-wide">New search</span>
-                            <kbd className="seamas-kbd border-white/[0.08] text-[9px] bg-white/[0.04]">⌘K</kbd>
+                            <span className="flex-1 text-xs">New search</span>
+                            <kbd className="seamas-kbd">⌘K</kbd>
                         </>
                     )}
                 </button>
             </div>
 
-            <nav className="mt-6 flex-1 space-y-6 px-3">
+            <nav className="mt-6 flex-1 space-y-6 px-3 overflow-y-auto">
                 {NAV.map((section) => (
                     <div key={section.group}>
                         {!collapsed && (
-                            <div className="mb-2.5 px-3.5 font-mono text-[9px] font-bold uppercase tracking-[0.26em] text-neutral-500/75">
+                            <div className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-600">
                                 {section.group}
                             </div>
                         )}
-                        <ul className="space-y-1">
+                        <ul className="space-y-0.5">
                             {section.items.map((item) => {
                                 const isActive = activeTab === item.id;
                                 const displayCount = item.id === 'wishlist' ? wishlistCount : item.id === 'history' ? threadCount : item.count;
@@ -434,29 +435,21 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     <li key={item.id}>
                                         <button
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-300 ${
-                                                isActive 
-                                                    ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/5 text-cyan-200 border border-white/[0.03] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]' 
-                                                    : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white border border-transparent'
+                                            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                                                isActive ? 'bg-white/[0.05] text-white' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
                                             }`}
                                         >
                                             {isActive && (
-                                                <span className="absolute inset-y-2.5 left-0 w-[3px] rounded-full bg-gradient-to-b from-cyan-300 via-cyan-400 to-indigo-500 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                                <span className="absolute inset-y-1.5 left-0 w-[2px] rounded-full bg-gradient-to-b from-cyan-300 to-indigo-400" />
                                             )}
-                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-all duration-300 ${
-                                                isActive 
-                                                    ? 'text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.5)] scale-105' 
-                                                    : 'text-neutral-500 group-hover:text-neutral-200 group-hover:scale-102'
-                                            }`} strokeWidth={isActive ? 2 : 1.6} />
+                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+                                                isActive ? 'text-cyan-300' : 'text-neutral-500 group-hover:text-neutral-200'
+                                            }`} strokeWidth={1.6} />
                                             {!collapsed && (
                                                 <>
-                                                    <span className="flex-1 truncate text-left text-xs tracking-wide">{item.label}</span>
+                                                    <span className="flex-1 truncate text-left text-xs">{item.label}</span>
                                                     {displayCount != null && displayCount > 0 ? (
-                                                        <span className={`rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold transition-all ${
-                                                            isActive
-                                                                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/20'
-                                                                : 'bg-white/[0.06] text-neutral-400'
-                                                        }`}>
+                                                        <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
                                                             {displayCount}
                                                         </span>
                                                     ) : null}
@@ -837,9 +830,10 @@ export default function UserDashboard() {
             }
         }
 
-        // Deduct 10 credits on query execution
+        // Deduct credits on query execution based on steering mode
         if (userSession && userSession.id !== 'guest') {
-            const nextCredits = Math.max(0, (userSession.credits ?? 5000) - 10);
+            const cost = steeringMode === 'speed' ? 5 : (steeringMode === 'accuracy' ? 20 : 10);
+            const nextCredits = Math.max(0, (userSession.credits ?? 5000) - cost);
             setUserSession(prev => ({
                 ...prev,
                 credits: nextCredits
@@ -868,7 +862,7 @@ export default function UserDashboard() {
         setCurrentQuery(query);
 
         try {
-            const data = await apiService.sendChatQueryStream(query, (evt) => {
+            const data = await apiService.sendChatQueryStream(query, steeringMode, (evt) => {
                 if (evt.type === 'node_start') {
                     setAgentStatusMap(prev => ({
                         ...prev,
@@ -975,7 +969,7 @@ export default function UserDashboard() {
     const progressPercent = Math.round((completedCount / AGENT_LIST.length) * 100);
 
     return (
-        <div className="relative min-h-screen text-white flex overflow-hidden">
+        <div className="relative h-screen w-screen text-white flex overflow-hidden bg-[#0a0a0f]">
 
             <div className="seamas-ambient" aria-hidden="true" />
             <div className="seamas-grid" aria-hidden="true" />
@@ -1194,7 +1188,26 @@ export default function UserDashboard() {
                                             <div className="flex-1 space-y-1">
                                                 <div className="flex justify-between items-center">
                                                     <span className="font-display font-medium text-white text-sm">{agent.name}</span>
-                                                    <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300">Ready</span>
+                                                    {(() => {
+                                                        const state = agentStatusMap[agent.id] || AGENT_STATES.IDLE;
+                                                        if (state === AGENT_STATES.RUNNING) {
+                                                            return (
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/[0.04] text-cyan-300 animate-pulse">Running</span>
+                                                            );
+                                                        } else if (state === AGENT_STATES.COMPLETED) {
+                                                            return (
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300">Complete</span>
+                                                            );
+                                                        } else if (state === AGENT_STATES.ERROR) {
+                                                            return (
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-rose-500/20 bg-rose-500/[0.04] text-rose-300">Error</span>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-neutral-500/20 bg-neutral-500/[0.04] text-neutral-400">Ready</span>
+                                                            );
+                                                        }
+                                                    })()}
                                                 </div>
                                                 <p className="text-xs text-neutral-500">{agent.role}</p>
                                                 <div className="pt-2 flex items-center gap-4 font-mono text-[9px] text-neutral-500">
@@ -1346,6 +1359,65 @@ export default function UserDashboard() {
                                             className="w-full accent-cyan-400 bg-white/5 h-1 rounded-lg cursor-pointer"
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* AI Agent Steering Model Card */}
+                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
+                                <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
+                                    <Brain className="h-4 w-4 text-cyan-400" />
+                                    AI Agent Steering Model
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {[
+                                        { id: 'balanced', label: 'Balanced', desc: 'Optimal speed & depth' },
+                                        { id: 'speed', label: 'High Speed', desc: 'Faster scans, lower cost' },
+                                        { id: 'accuracy', label: 'Deep Accuracy', desc: 'Full trust verification' }
+                                    ].map((mode) => (
+                                        <button
+                                            key={mode.id}
+                                            onClick={() => setSteeringMode(mode.id)}
+                                            className={`p-3 rounded-xl border text-left transition-all ${
+                                                steeringMode === mode.id
+                                                    ? 'border-cyan-500/40 bg-cyan-500/[0.04] text-white'
+                                                    : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-neutral-400'
+                                            }`}
+                                        >
+                                            <div className="text-xs font-semibold">{mode.label}</div>
+                                            <div className="text-[10px] text-neutral-500 mt-1">{mode.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Danger Zone Card */}
+                            <div className="seamas-glass p-6 rounded-2xl border border-rose-500/10 bg-rose-500/[0.01] space-y-4">
+                                <h3 className="font-display font-semibold text-sm text-rose-400 flex items-center gap-2">
+                                    <Trash2 className="h-4 w-4" />
+                                    Danger Zone
+                                </h3>
+                                <div className="flex items-center justify-between">
+                                    <div className="text-left space-y-0.5">
+                                        <div className="text-xs font-semibold text-neutral-200">Clear Search History</div>
+                                        <div className="text-[10px] text-neutral-500 font-mono">Delete all your past queries from your search history memory</div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm("Are you sure you want to clear your search history? This cannot be undone.")) {
+                                                setRecentQueries([]);
+                                                if (userSession && userSession.id !== 'guest') {
+                                                    supabase.from('search_history').delete().eq('user_id', userSession.id).then(() => {
+                                                        alert("History cleared successfully!");
+                                                    });
+                                                } else {
+                                                    alert("History cleared successfully!");
+                                                }
+                                            }
+                                        }}
+                                        className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors"
+                                    >
+                                        Clear History
+                                    </button>
                                 </div>
                             </div>
                         </div>

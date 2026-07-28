@@ -15,10 +15,14 @@ export const apiService = {
      * Dispatches a user search query down the multi-agent pipeline orchestration layer
      * @param {string} query 
      */
-    async sendChatQuery(query) {
+    async sendChatQuery(query, steeringMode = 'balanced') {
         try {
             const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
-            const response = await apiClient.post('/api/chat', { query, user_id: session.id });
+            const response = await apiClient.post('/api/chat', { 
+                query, 
+                user_id: session.id,
+                steering_mode: steeringMode 
+            });
             return response.data;
         } catch (error) {
             console.error('API service transaction failed:', error);
@@ -35,15 +39,20 @@ export const apiService = {
     /**
      * Dispatches a user search query via streaming SSE to receive real-time agent node updates
      * @param {string} query 
+     * @param {string} steeringMode
      * @param {function} onEvent 
      */
-    async sendChatQueryStream(query, onEvent) {
+    async sendChatQueryStream(query, steeringMode = 'balanced', onEvent) {
         try {
             const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
             const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, user_id: session.id })
+                body: JSON.stringify({ 
+                    query, 
+                    user_id: session.id,
+                    steering_mode: steeringMode
+                })
             });
 
             if (!response.ok) {

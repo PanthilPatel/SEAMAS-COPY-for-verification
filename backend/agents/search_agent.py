@@ -29,7 +29,17 @@ def normalize_url(raw_url: str) -> str:
 
 async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     query = state.get("query", "")
-    print(f"\n--- LIVE SEARCH AGENT INITIATED: Sequential multi-page search for '{query}' (Max Pages: {MAX_SEARCH_PAGES}) ---")
+    steering_mode = state.get("steering_mode", "balanced")
+    
+    # Dynamically determine search depth based on steering mode
+    if steering_mode == "speed":
+        max_search_pages = 1
+    elif steering_mode == "balanced":
+        max_search_pages = 2
+    else:  # accuracy
+        max_search_pages = 4
+        
+    print(f"\n--- LIVE SEARCH AGENT INITIATED: Sequential multi-page search for '{query}' (Steering Mode: {steering_mode}, Max Pages: {max_search_pages}) ---")
 
     shopping_query_1 = f"{query} buy store product options"
     shopping_query_2 = f"{query} amazon flipkart myntra electronics pricing"
@@ -45,8 +55,8 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     all_raw_results: List[Dict[str, Any]] = []
     page_logs: List[str] = []
 
-    for current_page in range(1, MAX_SEARCH_PAGES + 1):
-        print(f"\n[SearchAgent] ---> Fetching Search Results for Page {current_page} of {MAX_SEARCH_PAGES}...")
+    for current_page in range(1, max_search_pages + 1):
+        print(f"\n[SearchAgent] ---> Fetching Search Results for Page {current_page} of {max_search_pages}...")
         page_results: List[Dict[str, Any]] = []
 
         try:
@@ -87,7 +97,7 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
         merged.append(record)
 
-    summary_log_1 = f"Total raw results collected across all {MAX_SEARCH_PAGES} pages: {len(all_raw_results)}."
+    summary_log_1 = f"Total raw results collected across all {max_search_pages} pages: {len(all_raw_results)}."
     summary_log_2 = f"Passing complete dataset: {len(merged)} results to downstream agents (Price Comparison, Review Analyzer, Recommendation)."
     handoff_log = f"[SearchAgent] Passing complete dataset ({len(merged)} records) to downstream agents."
 

@@ -32,20 +32,20 @@ def get_credits(user_id: str) -> dict:
     conn.close()
     return {'tier': row[0], 'credits': row[1]}
 
-def deduct_credit(user_id: str) -> bool:
+def deduct_credit(user_id: str, amount: int = 1) -> bool:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('SELECT tier, credits FROM user_credits WHERE user_id = ?', (user_id,))
     row = cursor.fetchone()
     if not row:
         # Implicitly create for guests/new users and deduct
-        cursor.execute('INSERT INTO user_credits (user_id, tier, credits) VALUES (?, ?, ?)', (user_id, 'free', 49))
+        cursor.execute('INSERT INTO user_credits (user_id, tier, credits) VALUES (?, ?, ?)', (user_id, 'free', max(0, 50 - amount)))
         conn.commit()
         conn.close()
         return True
 
-    if row[1] > 0:
-        cursor.execute('UPDATE user_credits SET credits = credits - 1 WHERE user_id = ?', (user_id,))
+    if row[1] >= amount:
+        cursor.execute('UPDATE user_credits SET credits = credits - ? WHERE user_id = ?', (amount, user_id))
         conn.commit()
         conn.close()
         return True

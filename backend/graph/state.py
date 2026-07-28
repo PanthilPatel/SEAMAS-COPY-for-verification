@@ -11,4 +11,5 @@ class AgentState(TypedDict):
     recommendations: List[str]
     budget_status: Dict[str, Any]
     final_output: str
+    steering_mode: str
     logs: Annotated[List[str], operator.add]
