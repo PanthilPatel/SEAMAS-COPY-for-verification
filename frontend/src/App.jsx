@@ -89,11 +89,20 @@ export default function App() {
                 <div className="seamas-grid" aria-hidden="true" />
                 <div className="relative z-10 w-full h-full">
                     <Routes>
+                        <Route path="/" element={<Navigate to="/login" replace />} />
                         <Route
-                            path="/"
+                            path="/login"
                             element={
                                 <PublicRoute>
-                                    <AuthPage />
+                                    <AuthPage defaultIsLogin={true} />
+                                </PublicRoute>
+                            }
+                        />
+                        <Route
+                            path="/signup"
+                            element={
+                                <PublicRoute>
+                                    <AuthPage defaultIsLogin={false} />
                                 </PublicRoute>
                             }
                         />

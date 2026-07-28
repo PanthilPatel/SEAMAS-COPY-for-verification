@@ -115,7 +115,8 @@ kbd {
         radial-gradient(48rem 40rem at 92% 12%, hsl(187 92% 43% / 0.10), transparent 60%),
         radial-gradient(80rem 60rem at 50% 100%, hsl(280 60% 50% / 0.08), transparent 60%),
         hsl(var(--seamas-bg));
-    animation: ambient-breathe 12s ease-in-out infinite;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 @keyframes ambient-breathe {
@@ -142,6 +143,8 @@ kbd {
     mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, #000 30%, transparent 80%);
     -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 40%, #000 30%, transparent 80%);
     opacity: 0.5;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .seamas-noise::before {
@@ -158,8 +161,8 @@ kbd {
 
 .seamas-glass {
     background: hsl(240 8% 8% / 0.55);
-    backdrop-filter: blur(24px) saturate(140%);
-    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
     border: 1px solid hsl(0 0% 100% / 0.07);
     box-shadow:
         0 1px 0 0 hsl(0 0% 100% / 0.04) inset,

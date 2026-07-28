@@ -228,28 +228,30 @@ export default function ProfilePage() {
                 {/* Stats Grid */}
                 {!userSession.isGuest && (
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 text-left space-y-1">
-                            <div className="flex items-center gap-2 text-neutral-500">
+                        <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-5 text-left space-y-1 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-3xl group-hover:bg-cyan-500/10 transition-colors"></div>
+                            <div className="flex items-center gap-2 text-neutral-500 relative z-10">
                                 <History className="w-3.5 h-3.5" />
                                 <span className="text-[10px] uppercase tracking-widest font-mono">Total Searches</span>
                             </div>
-                            <div className="text-3xl font-black font-display text-white">{stats.totalSearches}</div>
-                            <div className="text-[10px] font-mono text-neutral-500">queries executed</div>
+                            <div className="text-3xl font-black font-display text-white relative z-10">{stats.totalSearches}</div>
+                            <div className="text-[10px] font-mono text-neutral-500 relative z-10">queries executed</div>
                         </div>
-                        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 text-left space-y-1">
-                            <div className="flex items-center gap-2 text-neutral-500">
+                        <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-5 text-left space-y-1 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
+                            <div className="flex items-center gap-2 text-neutral-500 relative z-10">
                                 <Calendar className="w-3.5 h-3.5" />
                                 <span className="text-[10px] uppercase tracking-widest font-mono">Member Since</span>
                             </div>
-                            <div className="text-2xl font-black font-display text-white">{stats.joinDate || '—'}</div>
-                            <div className="text-[10px] font-mono text-neutral-500">account created</div>
+                            <div className="text-2xl font-black font-display text-white relative z-10">{stats.joinDate || '—'}</div>
+                            <div className="text-[10px] font-mono text-neutral-500 relative z-10">account created</div>
                         </div>
                     </div>
                 )}
 
                 {/* Credits Card */}
                 {!userSession.isGuest && (
-                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 space-y-4 text-left">
+                    <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-6 space-y-4 text-left">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <CreditCard className="w-4 h-4 text-cyan-400" />
@@ -287,7 +289,7 @@ export default function ProfilePage() {
                 )}
 
                 {/* Profile Information Card */}
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
+                <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-base font-bold text-white">Profile Information</h3>
                         {!isEditing ? (
@@ -366,22 +368,23 @@ export default function ProfilePage() {
                         </div>
 
                         <div>
-                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Account Type</div>
-                            <div className={`text-sm font-semibold mt-1 ${isPro ? 'text-indigo-300' : 'text-cyan-300'}`}>
-                                {isPro ? '⚡ Pro Member' : '🔓 Free Member'}
+                            <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono mb-2">Account Type</div>
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shadow-sm ${isPro ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-slate-800/50 border-slate-700 text-slate-300'}`}>
+                                {isPro ? <Zap className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                                {isPro ? 'Pro Member' : 'Free Member'}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Preferences Card */}
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 space-y-5">
+                <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-6 space-y-5">
                     <h3 className="text-base font-bold text-white text-left">Preferences</h3>
 
                     {/* Email Alerts */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                            <div className="p-2 rounded-lg bg-[#1e293b]/50 border border-white/5 shadow-inner">
                                 <Bell className="w-4 h-4 text-cyan-400" />
                             </div>
                             <div>
@@ -402,7 +405,7 @@ export default function ProfilePage() {
                     {/* Data Saver */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                            <div className="p-2 rounded-lg bg-[#1e293b]/50 border border-white/5 shadow-inner">
                                 <Database className="w-4 h-4 text-indigo-400" />
                             </div>
                             <div>
@@ -420,7 +423,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Security Card */}
-                <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6 space-y-4">
+                <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 shadow-2xl rounded-2xl p-6 space-y-4">
                     <div className="flex items-center gap-2 text-left mb-1">
                         <Shield className="w-4 h-4 text-neutral-400" />
                         <h3 className="text-base font-bold text-white">Security</h3>
@@ -428,10 +431,10 @@ export default function ProfilePage() {
 
                     <button
                         onClick={handleResetPassword}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.08] transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-[#1e293b]/30 border border-white/5 hover:bg-[#1e293b]/60 transition-all group shadow-sm"
                     >
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                                 <Key className="w-4 h-4 text-amber-400" />
                             </div>
                             <div>
@@ -444,10 +447,10 @@ export default function ProfilePage() {
 
                     <button
                         onClick={handleDeleteAccount}
-                        className="w-full flex items-center justify-between p-4 rounded-xl bg-rose-500/[0.03] border border-rose-500/[0.08] hover:bg-rose-500/[0.07] hover:border-rose-500/20 transition-all group"
+                        className="w-full flex items-center justify-between p-4 rounded-xl bg-rose-900/10 border border-rose-500/10 hover:bg-rose-900/20 hover:border-rose-500/20 transition-all group shadow-sm"
                     >
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded-lg bg-rose-500/[0.05] border border-rose-500/[0.10]">
+                            <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
                                 <Trash2 className="w-4 h-4 text-rose-400" />
                             </div>
                             <div>

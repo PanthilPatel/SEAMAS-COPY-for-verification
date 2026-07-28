@@ -7,8 +7,8 @@ import { supabase } from '../lib/supabase';
 
 
 
-export default function AuthPage() {
-    const [isLogin, setIsLogin] = useState(true);
+export default function AuthPage({ defaultIsLogin = true }) {
+    const isLogin = defaultIsLogin;
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -332,7 +332,7 @@ export default function AuthPage() {
 
                     <p className="text-[11px] text-neutral-500 font-medium">
                         {isLogin ? "Don't have an account? " : "Already have one? "}
-                        <button onClick={() => { setIsLogin(!isLogin); setFormData({ name: '', email: '', password: '' }); }} className="text-blue-400 hover:text-blue-300 ml-1 font-bold">
+                        <button onClick={() => { navigate(isLogin ? '/signup' : '/login'); setFormData({ name: '', email: '', password: '' }); }} className="text-blue-400 hover:text-blue-300 ml-1 font-bold">
                             {isLogin ? 'Sign Up' : 'Sign In'}
                         </button>
                     </p>

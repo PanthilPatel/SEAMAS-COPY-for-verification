@@ -18,12 +18,14 @@ export default function MarketTicker() {
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
         >
-            <div className="flex items-center gap-2 shrink-0 pr-4 border-r border-white/10 text-cyan-400 font-mono text-[10px] uppercase tracking-wider font-semibold">
-                <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
-                </span>
-                <span>Live Feed</span>
+            <div className="flex items-center gap-2 shrink-0 pr-4 border-r border-white/10">
+                <div className="flex items-center gap-1.5 bg-cyan-500/10 border border-cyan-400/20 px-2 py-0.5 rounded-md shadow-[0_0_12px_-3px_rgba(34,211,238,0.3)]">
+                    <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
+                    </span>
+                    <span className="text-cyan-400 font-mono text-[9px] uppercase tracking-widest font-semibold">Live Feed</span>
+                </div>
             </div>
 
             <div 

@@ -75,84 +75,99 @@ function ProductDetailsDrawer({ product, onClose }) {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
 
-                    <div className="w-full h-64 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center overflow-hidden relative group">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="w-full h-72 rounded-3xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/[0.08] flex items-center justify-center overflow-hidden relative group shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md p-6">
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] opacity-50" />
                         {!imgError ? (
                             <img
                                 src={product.image_url || product.image}
                                 alt=""
-                                className="object-contain w-full h-full p-4 transition-transform duration-500 group-hover:scale-102"
+                                className="object-contain w-full h-full drop-shadow-2xl transition-all duration-700 group-hover:scale-105 group-hover:-translate-y-2 relative z-10"
                                 onError={() => setImgError(true)}
                             />
                         ) : (
-                            <span className="text-xs text-neutral-500 font-mono">Image details unavailable</span>
+                            <span className="text-xs text-neutral-500 font-mono relative z-10">Image details unavailable</span>
                         )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#070d19] via-transparent to-transparent opacity-80 pointer-events-none" />
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                         <div className="flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-200">
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-neutral-200 shadow-sm backdrop-blur-sm">
                                 {product.marketplace}
                             </span>
                             {isVerified && (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/[0.06] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-300">
+                                <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.15)]">
                                     ✓ Verified Deal
                                 </span>
                             )}
                         </div>
 
-                        <div className="border-b border-white/5 pb-4">
-                            <div className="flex items-baseline gap-3">
-                                <div className="text-4xl font-bold font-display text-white">
+                        <div className="border-b border-white/[0.06] pb-5">
+                            <div className="flex items-end gap-3 mb-1">
+                                <div className="text-5xl font-bold font-display text-white tracking-tight drop-shadow-md">
                                     ₹{price.toLocaleString('en-IN')}
                                 </div>
                                 {original && (
-                                    <span className="text-base text-neutral-500 line-through">
+                                    <span className="text-lg text-neutral-500 line-through mb-1">
                                         ₹{original.toLocaleString('en-IN')}
                                     </span>
                                 )}
                             </div>
                             {discount > 0 && (
-                                <div className="mt-2 text-xs font-mono text-emerald-400 uppercase tracking-wider">
-                                    Save {discount}% off original price
+                                <div className="inline-block mt-2 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 uppercase tracking-widest shadow-sm">
+                                    Save {discount}% Off
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        <h4 className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">Pipeline Insights</h4>
-                        <div className="space-y-2.5">
-                            <div className="flex items-center justify-between rounded-xl bg-white/[0.01] border border-white/[0.04] p-3 text-xs">
-                                <span className="text-neutral-400">Budget Match Status</span>
-                                <span className={`font-semibold ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                    {isOverBudget ? 'Out of Budget' : 'Target Match'}
+                    <div className="space-y-4 pt-2">
+                        <h4 className="font-mono text-[11px] font-semibold uppercase tracking-[0.25em] text-neutral-500 flex items-center gap-2">
+                            <span className="h-px bg-white/10 flex-1"></span>
+                            Pipeline Insights
+                            <span className="h-px bg-white/10 flex-1"></span>
+                        </h4>
+                        <div className="grid gap-3">
+                            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/[0.05] p-4 text-xs shadow-sm hover:border-white/10 transition-all backdrop-blur-xl">
+                                <span className="text-neutral-400">Budget Match</span>
+                                <span className={`font-bold px-2 py-0.5 rounded-md ${isOverBudget ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                                    {isOverBudget ? 'Over Budget' : 'Matched'}
                                 </span>
                             </div>
-                            <div className="flex items-center justify-between rounded-xl bg-white/[0.01] border border-white/[0.04] p-3 text-xs">
-                                <span className="text-neutral-400">Trust Index Score</span>
-                                <span className="text-cyan-300 font-mono font-semibold">9.8/10</span>
+                            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-cyan-500/[0.05] to-transparent border border-cyan-500/[0.1] p-4 text-xs shadow-sm backdrop-blur-xl">
+                                <span className="text-neutral-400">Trust Index</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-16 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                        <div className="w-[98%] h-full bg-cyan-400 shadow-[0_0_10px_cyan]" />
+                                    </div>
+                                    <span className="text-cyan-400 font-mono font-bold">9.8</span>
+                                </div>
                             </div>
-                            <div className="flex items-center justify-between rounded-xl bg-white/[0.01] border border-white/[0.04] p-3 text-xs">
+                            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-indigo-500/[0.05] to-transparent border border-indigo-500/[0.1] p-4 text-xs shadow-sm backdrop-blur-xl">
                                 <span className="text-neutral-400">Review Sentiment</span>
-                                <span className="text-indigo-300 font-semibold">94% Positive</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-16 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                        <div className="w-[94%] h-full bg-indigo-400 shadow-[0_0_10px_indigo]" />
+                                    </div>
+                                    <span className="text-indigo-400 font-bold">94%</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="shrink-0 p-6 border-t border-white/5 bg-white/[0.01] flex gap-3">
+                <div className="shrink-0 p-6 border-t border-white/[0.06] bg-[#070d19]/80 backdrop-blur-md flex gap-3 relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
                     {product.url ? (
                         <a
                             href={product.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl py-3 text-sm font-medium text-white shadow-lg transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99] btn-magnetic"
+                            className="flex-1 group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-sm font-bold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:scale-[1.02] active:scale-[0.98]"
+                            style={{ background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)' }}
                         >
-                            <span className="aurora-cta absolute inset-0" aria-hidden="true" />
-                            <span className="relative flex items-center gap-1.5">
-                                Visit Deal Store
-                                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2} />
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+                            <span className="relative flex items-center gap-2">
+                                Visit Deal Store <ArrowUpRight className="h-4 w-4" />
                             </span>
                         </a>
                     ) : (
@@ -173,10 +188,10 @@ function ProductDetailsDrawer({ product, onClose }) {
 
 const AGENT_LIST = [
     { id: 'search', name: 'Search Agent', role: 'Sweeps 14 marketplaces in parallel', icon: Radar },
-    { id: 'price', name: 'Price Comparison Agent', role: 'Cross-checks history & true discounts', icon: LineChart },
-    { id: 'reviews', name: 'Review Analyzer Agent', role: 'Distills 12k+ verified reviews', icon: Quote },
-    { id: 'recommendation', name: 'Recommendation Agent', role: 'Ranks candidates against your intent', icon: Layers },
     { id: 'budget', name: 'Budget Advisor Agent', role: 'Parses intent, budget, constraints', icon: Brain },
+    { id: 'reviews', name: 'Review Analyzer Agent', role: 'Distills 12k+ verified reviews', icon: Quote },
+    { id: 'price', name: 'Price Comparison Agent', role: 'Cross-checks history & true discounts', icon: LineChart },
+    { id: 'recommendation', name: 'Recommendation Agent', role: 'Ranks candidates against your intent', icon: Layers },
     { id: 'finalizer', name: 'Finalizer Agent', role: 'Confirms stock, warranty & seller trust', icon: ShieldCheck }
 ];
 
@@ -393,13 +408,12 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
         >
             {/* Brand Title */}
             <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 shadow-[0_0_24px_-6px_hsl(187_92%_43%/0.7)] shrink-0">
-                    <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
+                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-[#0f52ba] shadow-lg shadow-blue-500/20 shrink-0 border border-white/5">
+                    <span className="text-white text-base leading-none">🛒</span>
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col leading-tight">
-                        <span className="font-display text-[15px] font-semibold tracking-tight text-white">SEAMAS</span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500">AI Workspace · v2.4</span>
+                        <span className="font-display text-[16px] font-bold tracking-widest text-white">SEAMAS</span>
                     </div>
                 )}
             </div>
@@ -1297,22 +1311,6 @@ export default function UserDashboard() {
                             <div className="text-left border-b border-white/5 pb-4">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">System Preferences</span>
                                 <h2 className="text-3xl font-display font-semibold text-white mt-1">Settings Configuration</h2>
-                            </div>
-
-                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
-                                <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
-                                    <ExternalLink className="h-4 w-4 text-cyan-400" />
-                                    Core Connection Configuration
-                                </h3>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-500">API Gateway Endpoint URL</label>
-                                    <input
-                                        type="text"
-                                        value={apiUrl}
-                                        onChange={(e) => setApiUrl(e.target.value)}
-                                        className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
-                                    />
-                                </div>
                             </div>
 
                             <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
