@@ -17,7 +17,7 @@ CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING
 -- 2. Search History Table
 CREATE TABLE public.search_history (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.profiles(id) not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
   query text not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -29,7 +29,7 @@ CREATE POLICY "Users can manage own history" ON public.search_history FOR ALL US
 -- 3. Wishlists Table
 CREATE TABLE public.wishlists (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.profiles(id) not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
   product_name text not null,
   marketplace text,
   extracted_price numeric,
