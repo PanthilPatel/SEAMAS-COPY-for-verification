@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
 import AuthModal from '../components/AuthModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import AssistantChatDrawer from '../components/AssistantChatDrawer';
+import PriceChart from '../components/PriceChart';
 import {
     Sparkles,
     Compass,
@@ -449,16 +450,14 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     <li key={item.id}>
                                         <button
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                                                isActive ? 'bg-white/[0.05] text-white' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
-                                            }`}
+                                            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-white/[0.05] text-white' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
+                                                }`}
                                         >
                                             {isActive && (
                                                 <span className="absolute inset-y-1.5 left-0 w-[2px] rounded-full bg-gradient-to-b from-cyan-300 to-indigo-400" />
                                             )}
-                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                                                isActive ? 'text-cyan-300' : 'text-neutral-500 group-hover:text-neutral-200'
-                                            }`} strokeWidth={1.6} />
+                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? 'text-cyan-300' : 'text-neutral-500 group-hover:text-neutral-200'
+                                                }`} strokeWidth={1.6} />
                                             {!collapsed && (
                                                 <>
                                                     <span className="flex-1 truncate text-left text-xs">{item.label}</span>
@@ -482,27 +481,25 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 <div className="mx-3 mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
-                            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${
-                                status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
                                     ? 'bg-emerald-400'
                                     : status.api === 'down'
-                                    ? 'bg-red-400'
-                                    : 'bg-amber-400'
-                            }`} />
-                            <span className={`relative inline-flex h-2 w-2 rounded-full ${
-                                status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                                        ? 'bg-red-400'
+                                        : 'bg-amber-400'
+                                }`} />
+                            <span className={`relative inline-flex h-2 w-2 rounded-full ${status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
                                     ? 'bg-emerald-400'
                                     : status.api === 'down'
-                                    ? 'bg-red-400'
-                                    : 'bg-amber-400'
-                            }`} />
+                                        ? 'bg-red-400'
+                                        : 'bg-amber-400'
+                                }`} />
                         </span>
                         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
                             {status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
                                 ? 'All systems nominal'
                                 : status.api === 'down'
-                                ? 'System offline'
-                                : 'Degraded performance'}
+                                    ? 'System offline'
+                                    : 'Degraded performance'}
                         </span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
@@ -538,10 +535,10 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                             <div className="relative shrink-0 flex items-center justify-center">
                                 <svg className="absolute -inset-1 w-10 h-10 -rotate-90 transform pointer-events-none" viewBox="0 0 36 36">
                                     <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-white/10" strokeWidth="1.5" />
-                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-cyan-400" strokeWidth="1.5" 
-                                        strokeDasharray={100.53} 
-                                        strokeDashoffset={100.53 - (creditPercent / 100) * 100.53} 
-                                        strokeLinecap="round" 
+                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-cyan-400" strokeWidth="1.5"
+                                        strokeDasharray={100.53}
+                                        strokeDashoffset={100.53 - (creditPercent / 100) * 100.53}
+                                        strokeLinecap="round"
                                         style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
                                     />
                                 </svg>
@@ -549,19 +546,19 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     {userInitials}
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => navigate('/profile')}
                                 className="min-w-0 flex-1 text-left hover:bg-white/[0.03] rounded-lg p-1 -ml-1 transition-colors"
                             >
                                 <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">{userName}</div>
                                 <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500 mt-0.5">
                                     <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
-                                    {userSession?.isGuest 
-                                        ? 'Free · 0 credits' 
+                                    {userSession?.isGuest
+                                        ? 'Free · 0 credits'
                                         : <span className={currentCredits === 0 ? 'text-rose-400 font-bold' : ''}>{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits`}</span>}
                                 </div>
                                 {!isPro && !userSession?.isGuest && (
-                                    <button 
+                                    <button
                                         onClick={() => setSubscriptionModalOpen(true)}
                                         className="mt-1.5 text-[10px] font-bold bg-gradient-to-r from-violet-600 to-sky-600 px-2 py-0.5 rounded-full text-white hover:opacity-90 transition-opacity"
                                     >
@@ -591,6 +588,14 @@ export default function UserDashboard() {
     const [userSession, setUserSession] = useState(null);
     const [authModalOpen, setAuthModalOpen] = useState(false);
     const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+    const [notification, setNotification] = useState(null);
+
+    const showNotification = (message, type = 'info') => {
+        setNotification({ message, type });
+        setTimeout(() => {
+            setNotification(null);
+        }, 5000);
+    };
 
     useEffect(() => {
         const local = localStorage.getItem('seamas_user_session');
@@ -615,6 +620,11 @@ export default function UserDashboard() {
             }
         }
 
+        if (sessionStorage.getItem('payment_success_toast')) {
+            sessionStorage.removeItem('payment_success_toast');
+            showNotification('Payment Successful! You are now a Pro user.', 'success');
+        }
+
         // Handle Razorpay Payment Link Callback
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('payment') === 'success') {
@@ -624,7 +634,7 @@ export default function UserDashboard() {
             const rzpPaymentLinkRefId = urlParams.get('razorpay_payment_link_reference_id') || '';
             const rzpPaymentLinkStatus = urlParams.get('razorpay_payment_link_status') || 'paid';
             const rzpSignature = urlParams.get('razorpay_signature') || 'dummy_sig';
-            
+
             if (local) {
                 const parsed = JSON.parse(local);
                 fetch('http://localhost:8000/api/verify-payment', {
@@ -641,15 +651,15 @@ export default function UserDashboard() {
                     })
                 }).then(async (res) => {
                     if (res.ok) {
-                        alert('Payment Successful! You are now a Pro user.');
+                        sessionStorage.setItem('payment_success_toast', 'true');
                         window.history.replaceState({}, document.title, "/dashboard");
                         window.location.reload();
                     } else {
                         const err = await res.json();
-                        alert('Payment verification failed: ' + (err.detail || 'Unknown error'));
+                        showNotification('Payment verification failed: ' + (err.detail || 'Unknown error'), 'error');
                     }
                 }).catch(() => {
-                    alert('Payment verification failed due to network issue.');
+                    showNotification('Payment verification failed due to network issue.', 'error');
                 });
             }
         }
@@ -674,7 +684,7 @@ export default function UserDashboard() {
                 } catch (e) {
                     console.error("Failed to fetch credits", e);
                 }
-                
+
                 setUserSession({
                     id: session.user.id,
                     email: session.user.email,
@@ -699,7 +709,7 @@ export default function UserDashboard() {
                         actualCredits = data.credits;
                     }
                 } catch (e) { console.error(e); }
-                
+
                 setUserSession({
                     id: session.user.id,
                     email: session.user.email,
@@ -755,6 +765,7 @@ export default function UserDashboard() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [currentQuery, setCurrentQuery] = useState('');
+    const [logs, setLogs] = useState([]);
 
     const [agentStatusMap, setAgentStatusMap] = useState({});
 
@@ -847,6 +858,11 @@ export default function UserDashboard() {
         // Deduct credits on query execution based on steering mode
         if (userSession && userSession.id !== 'guest') {
             const cost = steeringMode === 'speed' ? 5 : (steeringMode === 'accuracy' ? 20 : 10);
+            if ((userSession.credits ?? 0) < cost) {
+                showNotification("Insufficient search credits. Please upgrade your plan.", 'error');
+                setSubscriptionModalOpen(true);
+                return;
+            }
             const nextCredits = Math.max(0, (userSession.credits ?? 1000) - cost);
             setUserSession(prev => ({
                 ...prev,
@@ -874,6 +890,11 @@ export default function UserDashboard() {
         setLoading(true);
         setError(null);
         setCurrentQuery(query);
+        setLogs([
+            "[SYSTEM] Initiating multi-agent search workflow...",
+            `[STEERING] Mode locked: ${steeringMode}`,
+            "[NETWORK] Routing query to orchestration gateway..."
+        ]);
 
         try {
             const data = await apiService.sendChatQueryStream(query, steeringMode, (evt) => {
@@ -882,6 +903,8 @@ export default function UserDashboard() {
                         ...prev,
                         [evt.agent_id]: AGENT_STATES.RUNNING
                     }));
+                    const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
+                    setLogs(prev => [...prev, `[ACTIVE] ${agentName} has commenced reasoning...`]);
                 } else if (evt.type === 'node_complete') {
                     setAgentStatusMap(prev => {
                         const next = { ...prev, [evt.agent_id]: AGENT_STATES.COMPLETED };
@@ -892,10 +915,17 @@ export default function UserDashboard() {
                         }
                         return next;
                     });
+                    const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
+                    setLogs(prev => [...prev, `[SUCCESS] ${agentName} finished task successfully.`]);
                 }
             });
 
             if (!data) return;
+
+            // Save the logs returned from backend
+            if (data.logs) {
+                setLogs(data.logs);
+            }
 
             const extractedPrices = data.price_data || [];
             setPriceData(extractedPrices);
@@ -1041,7 +1071,13 @@ export default function UserDashboard() {
 
                     {activeTab === 'discover' && (
                         <>
-                            <ChatInterface onQuerySubmit={handleQuerySubmit} loading={loading} isGuest={userSession?.isGuest} />
+                            <ChatInterface
+                                onQuerySubmit={handleQuerySubmit}
+                                loading={loading}
+                                isGuest={userSession?.isGuest}
+                                steeringMode={steeringMode}
+                                setSteeringMode={setSteeringMode}
+                            />
                             {(loading || currentQuery) && (
                                 <section className="relative z-10 mx-auto w-full max-w-6xl">
                                     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -1110,13 +1146,13 @@ export default function UserDashboard() {
                                                 opacity="0.5"
                                             />
                                         </svg>
-
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                                             {AGENT_LIST.map((agent) => {
                                                 const state = agentStatusMap[agent.id] || AGENT_STATES.IDLE;
                                                 return <AgentNode key={agent.id} agent={agent} state={state} />;
                                             })}
                                         </div>
+
                                     </div>
                                 </section>
                             )}
@@ -1138,10 +1174,26 @@ export default function UserDashboard() {
                                             setInBudgetOnly={setInBudgetOnly}
                                             hasBudget={Boolean(budgetStatus?.ceiling)}
                                         />
+
+                                        {logs.length > 0 && (
+                                            <div className="mt-6 border-t border-white/[0.05] pt-6 text-left">
+                                                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">Telemetry Feed</span>
+                                                <div className="mt-2 h-48 rounded-xl border border-white/[0.05] bg-black/40 p-3 font-mono text-[10px] text-neutral-400 overflow-y-auto space-y-1.5 custom-scrollbar">
+                                                    {logs.map((log, index) => (
+                                                        <div key={index} className="leading-relaxed border-b border-white/[0.02] pb-1 last:border-0">
+                                                            <span className="text-cyan-400 select-none mr-1.5">›</span>
+                                                            {log}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="lg:col-span-3 space-y-6">
                                         <SentimentBanner report={sentimentReport} />
+
+                                        <PriceChart items={sortedItems} budgetLimit={budgetStatus?.ceiling} />
 
                                         <ProductGrid items={sortedItems} query={currentQuery} ready={true} onCardClick={handleCardClick} />
                                     </div>
@@ -1375,11 +1427,10 @@ export default function UserDashboard() {
                                         <button
                                             key={mode.id}
                                             onClick={() => setSteeringMode(mode.id)}
-                                            className={`p-3 rounded-xl border text-left transition-all ${
-                                                steeringMode === mode.id
+                                            className={`p-3 rounded-xl border text-left transition-all ${steeringMode === mode.id
                                                     ? 'border-cyan-500/40 bg-cyan-500/[0.04] text-white'
                                                     : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-neutral-400'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="text-xs font-semibold">{mode.label}</div>
                                             <div className="text-[10px] text-neutral-500 mt-1">{mode.desc}</div>
@@ -1405,10 +1456,10 @@ export default function UserDashboard() {
                                                 setRecentQueries([]);
                                                 if (userSession && userSession.id !== 'guest') {
                                                     supabase.from('search_history').delete().eq('user_id', userSession.id).then(() => {
-                                                        alert("History cleared successfully!");
+                                                        showNotification("History cleared successfully!", "success");
                                                     });
                                                 } else {
-                                                    alert("History cleared successfully!");
+                                                    showNotification("History cleared successfully!", "success");
                                                 }
                                             }
                                         }}
@@ -1424,8 +1475,42 @@ export default function UserDashboard() {
                 </main>
             </div>
 
-
-
+            {notification && (
+                <div 
+                    className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl animate-slide-in-right max-w-sm"
+                    style={{
+                        background: 'hsl(240 8% 8% / 0.85)',
+                        borderColor: notification.type === 'success' 
+                            ? 'hsl(158 64% 52% / 0.3)' 
+                            : notification.type === 'error' 
+                            ? 'hsl(350 89% 60% / 0.3)' 
+                            : 'hsl(187 92% 55% / 0.3)',
+                        boxShadow: notification.type === 'success'
+                            ? '0 10px 30px -10px hsl(158 64% 52% / 0.2)'
+                            : notification.type === 'error'
+                            ? '0 10px 30px -10px hsl(350 89% 60% / 0.2)'
+                            : '0 10px 30px -10px hsl(187 92% 55% / 0.2)'
+                    }}
+                >
+                    <span className="text-base select-none">
+                        {notification.type === 'success' ? '🎉' : notification.type === 'error' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    <div className="flex flex-col text-left">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
+                            {notification.type === 'success' ? 'Success' : notification.type === 'error' ? 'Warning' : 'Info'}
+                        </span>
+                        <p className="text-xs font-medium text-white mt-0.5 leading-relaxed">
+                            {notification.message}
+                        </p>
+                    </div>
+                    <button 
+                        onClick={() => setNotification(null)}
+                        className="ml-auto text-white/30 hover:text-white text-xs font-bold pl-3"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

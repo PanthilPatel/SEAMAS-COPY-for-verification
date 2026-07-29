@@ -50,7 +50,7 @@ NODE_TO_FRONTEND_ID = {
 async def chat_endpoint(payload: ChatRequest):
     if payload.user_id:
         steering = payload.steering_mode or "balanced"
-        cost = 1 if steering == "speed" else (4 if steering == "accuracy" else 2)
+        cost = 5 if steering == "speed" else (20 if steering == "accuracy" else 10)
         if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     try:
@@ -102,7 +102,7 @@ async def chat_endpoint(payload: ChatRequest):
 async def chat_stream_endpoint(payload: ChatRequest):
     if payload.user_id:
         steering = payload.steering_mode or "balanced"
-        cost = 1 if steering == "speed" else (4 if steering == "accuracy" else 2)
+        cost = 5 if steering == "speed" else (20 if steering == "accuracy" else 10)
         if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     async def event_generator():

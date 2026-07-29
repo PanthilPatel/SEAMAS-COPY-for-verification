@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Sparkles, Mic, Command, ArrowUpRight } from 'lucide-react';
+import { Search, Sparkles, Mic, Command, ArrowUpRight, Zap, Sliders } from 'lucide-react';
 
 const ALL_SUGGESTIONS = [
     { label: 'Cozy retro mechanical keyboards with RGB light & pastel keycaps' },
@@ -11,7 +11,7 @@ const ALL_SUGGESTIONS = [
     { label: 'Sony PlayStation 5 vs Xbox Series X deals' },
 ];
 
-export default function ChatInterface({ onQuerySubmit, loading, isGuest = false }) {
+export default function ChatInterface({ onQuerySubmit, loading, isGuest = false, steeringMode = 'balanced', setSteeringMode }) {
     const [input, setInput] = useState('');
     const [focused, setFocused] = useState(false);
     const [isListening, setIsListening] = useState(false);
@@ -111,8 +111,43 @@ export default function ChatInterface({ onQuerySubmit, loading, isGuest = false 
                 reviews, and price history — and returns a decision, not just a list.
             </p>
 
+            {/* Steering Mode Selector */}
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                    { id: 'speed', name: 'Speed Mode', desc: '1 page, basic comparison', cost: '5 credits', icon: Zap, color: 'text-amber-400', activeBg: 'bg-amber-400/[0.05]', activeBorder: 'border-amber-400/40' },
+                    { id: 'balanced', name: 'Balanced', desc: '2 pages, deep pricing & reviews', cost: '10 credits', icon: Sliders, color: 'text-cyan-400', activeBg: 'bg-cyan-400/[0.05]', activeBorder: 'border-cyan-400/40' },
+                    { id: 'accuracy', name: 'Accuracy Mode', desc: '4 pages, exhaustive analysis', cost: '20 credits', icon: Sparkles, color: 'text-indigo-400', activeBg: 'bg-indigo-400/[0.05]', activeBorder: 'border-indigo-400/40' },
+                ].map((mode) => {
+                    const isActive = steeringMode === mode.id;
+                    const Icon = mode.icon;
+                    return (
+                        <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => !loading && setSteeringMode && setSteeringMode(mode.id)}
+                            disabled={loading}
+                            className={`group relative flex flex-col rounded-2xl p-4 border text-left transition-all duration-300 ${
+                                isActive 
+                                    ? `${mode.activeBorder} ${mode.activeBg} shadow-[0_0_20px_-5px_rgba(255,255,255,0.05)]` 
+                                    : 'border-white/[0.04] bg-white/[0.01] hover:border-white/10 hover:bg-white/[0.02]'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isActive && (
+                                <span className={`absolute top-3 right-3 h-2 w-2 rounded-full bg-current ${mode.color} animate-pulse`} />
+                            )}
+                            <div className="flex items-center gap-2">
+                                <Icon className={`h-4 w-4 ${isActive ? mode.color : 'text-neutral-500 group-hover:text-neutral-300'}`} />
+                                <span className="font-display font-medium text-xs text-white">{mode.name}</span>
+                            </div>
+                            <span className="mt-1 text-[10px] text-neutral-500 leading-snug">{mode.desc}</span>
+                            <span className="mt-2 font-mono text-[9px] text-neutral-400 uppercase tracking-wider">{mode.cost}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
             {/* Search Box Card */}
-            <div className="relative mt-10">
+            <div className="relative mt-6">
                 {/* Glow backdrop shadow */}
                 <div
                     aria-hidden="true"
