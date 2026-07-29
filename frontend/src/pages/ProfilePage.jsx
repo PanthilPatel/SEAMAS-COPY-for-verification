@@ -86,7 +86,7 @@ export default function ProfilePage() {
             setDialog({ type: 'alert', title: 'Action Denied', message: 'Guest accounts cannot be deleted.' });
             return;
         }
-        
+
         setDialog({
             type: 'confirm',
             title: 'Delete Account',
@@ -100,7 +100,7 @@ export default function ProfilePage() {
                     console.log("Server-side deletion unavailable, performing account lock & wipe.");
                     // Scramble the password so the user can no longer log in
                     const randomPass = crypto.randomUUID() + 'Xx1!@';
-                    await supabase.auth.updateUser({ 
+                    await supabase.auth.updateUser({
                         password: randomPass,
                         data: { full_name: 'Deleted User', phone: '' }
                     });
@@ -109,11 +109,11 @@ export default function ProfilePage() {
                         await supabase.from('search_history').delete().eq('user_id', userSession.id);
                     }
                 }
-                
+
                 await supabase.auth.signOut();
                 localStorage.removeItem('seamas_user_session');
                 localStorage.removeItem('seamas_preferences');
-                
+
                 setDialog({
                     type: 'alert',
                     title: 'Account Deleted',
@@ -153,15 +153,15 @@ export default function ProfilePage() {
             const { data, error } = await supabase.auth.updateUser({
                 data: { full_name: editForm.name, phone: finalPhone }
             });
-            
+
             if (error) throw error;
-            
-            const updatedSession = { 
-                ...userSession, 
+
+            const updatedSession = {
+                ...userSession,
                 name: editForm.name,
                 phone: finalPhone
             };
-            
+
             setUserSession(updatedSession);
             localStorage.setItem('seamas_user_session', JSON.stringify(updatedSession));
             setIsEditing(false);
@@ -282,7 +282,7 @@ export default function ProfilePage() {
                                 className="w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-600/20 to-indigo-600/20 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-300 hover:from-cyan-600/30 hover:to-indigo-600/30 transition-all"
                             >
                                 <Zap className="inline w-3.5 h-3.5 mr-1 mb-0.5" />
-                                Upgrade to Pro — 5,000 Credits / Month
+                                Upgrade to Pro — 1,000 Credits / Month
                             </button>
                         )}
                     </div>
@@ -322,10 +322,10 @@ export default function ProfilePage() {
                         <div>
                             <div className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">Full Name</div>
                             {isEditing ? (
-                                <input 
-                                    type="text" 
-                                    value={editForm.name} 
-                                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                                     className="w-full mt-1 bg-black/40 border border-white/10 rounded-lg py-1.5 px-3 text-sm text-white outline-none focus:border-cyan-400/50"
                                 />
                             ) : (
@@ -349,12 +349,12 @@ export default function ProfilePage() {
                                     <div className="pl-3 py-1.5 text-sm text-neutral-400 bg-white/[0.02] border-r border-white/10 select-none pr-3">
                                         +91
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.phone} 
+                                    <input
+                                        type="text"
+                                        value={editForm.phone}
                                         onChange={(e) => {
                                             const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            setEditForm({...editForm, phone: digits});
+                                            setEditForm({ ...editForm, phone: digits });
                                         }}
                                         className="w-full py-1.5 px-3 text-sm text-white bg-transparent outline-none"
                                         placeholder="9876543210"
@@ -496,11 +496,10 @@ export default function ProfilePage() {
                                         setDialog(null);
                                     }
                                 }}
-                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                    dialog.title === 'Delete Account' 
-                                        ? 'bg-rose-500 hover:bg-rose-600 text-white' 
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${dialog.title === 'Delete Account'
+                                        ? 'bg-rose-500 hover:bg-rose-600 text-white'
                                         : 'bg-cyan-500 hover:bg-cyan-600 text-white'
-                                }`}
+                                    }`}
                             >
                                 {dialog.type === 'confirm' ? 'Confirm' : 'OK'}
                             </button>
