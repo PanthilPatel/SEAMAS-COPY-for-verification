@@ -102,6 +102,20 @@ export const apiService = {
     },
 
     /**
+     * Fetches user tier and credits
+     * @param {string} userId 
+     */
+    async getCredits(userId) {
+        try {
+            const response = await apiClient.get(`/api/credits/${userId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Failed to fetch credits:', error);
+            throw error;
+        }
+    },
+
+    /**
      * Checks the health and status of the API, Database, and Agents
      */
     async checkSystemStatus() {

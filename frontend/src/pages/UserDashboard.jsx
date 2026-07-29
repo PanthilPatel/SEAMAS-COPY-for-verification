@@ -669,17 +669,14 @@ export default function UserDashboard() {
                 let actualTier = localTier;
                 let actualCredits = localCredits;
                 try {
-                    const res = await fetch(`http://localhost:8000/api/credits/${session.user.id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        actualTier = data.tier === 'pro' ? 'Pro' : 'Free';
-                        actualCredits = data.credits;
-                        if (local) {
-                            const parsed = JSON.parse(local);
-                            parsed.tier = actualTier;
-                            parsed.credits = actualCredits;
-                            localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
-                        }
+                    const data = await apiService.getCredits(session.user.id);
+                    actualTier = data.tier?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
+                    actualCredits = data.credits;
+                    if (local) {
+                        const parsed = JSON.parse(local);
+                        parsed.tier = actualTier;
+                        parsed.credits = actualCredits;
+                        localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
                     }
                 } catch (e) {
                     console.error("Failed to fetch credits", e);
@@ -702,12 +699,9 @@ export default function UserDashboard() {
                 let actualTier = 'Free';
                 let actualCredits = 50;
                 try {
-                    const res = await fetch(`http://localhost:8000/api/credits/${session.user.id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        actualTier = data.tier === 'pro' ? 'Pro' : 'Free';
-                        actualCredits = data.credits;
-                    }
+                    const data = await apiService.getCredits(session.user.id);
+                    actualTier = data.tier?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
+                    actualCredits = data.credits;
                 } catch (e) { console.error(e); }
 
                 setUserSession({
