@@ -126,7 +126,7 @@ export default function FilterSidebar({
                         type="range"
                         min={0}
                         max={maxPriceLimit}
-                        step={Math.max(500, Math.floor(maxPriceLimit / 200))}
+                        step={1}
                         value={priceRange}
                         onChange={e => setPriceRange(Number(e.target.value))}
                     />
