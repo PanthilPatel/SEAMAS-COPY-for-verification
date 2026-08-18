@@ -1,14 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Zap, LogOut, ArrowLeft, Calendar, History, Settings, ShieldAlert, Key, Trash2, Bell, Database, CreditCard, Shield, Lock } from 'lucide-react';
+import { User, Mail, Zap, LogOut, ArrowLeft, Calendar, History, Settings, ShieldAlert, Key, Trash2, Bell, Database, CreditCard, Shield, Lock, Sparkles, DollarSign, Sliders } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionModal from '../components/SubscriptionModal';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const [userSession, setUserSession] = useState(null);
+    const [userSession, setUserSession] = useState(() => {
+        const local = localStorage.getItem('seamas_user_session');
+        if (local) {
+            const parsed = JSON.parse(local);
+            return {
+                id: parsed.id,
+                email: parsed.email,
+                name: parsed.name,
+                isGuest: parsed.isGuest,
+                tier: parsed.tier || 'Free',
+                credits: parsed.credits ?? 50,
+                phone: parsed.phone
+            };
+        }
+        return null;
+    });
     const [stats, setStats] = useState({ totalSearches: 0, joinDate: null });
-    const [settings, setSettings] = useState({ emailAlerts: true, dataSaver: false });
+    const [settings, setSettings] = useState({
+        emailAlerts: true,
+        dataSaver: false,
+        ambientGlow: true,
+        defaultSteering: 'balanced',
+        preferredCurrency: 'INR'
+    });
     const [subModalOpen, setSubModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -43,7 +64,10 @@ export default function ProfilePage() {
             // Load Settings
             const savedSettings = localStorage.getItem('seamas_preferences');
             if (savedSettings) {
-                setSettings(JSON.parse(savedSettings));
+                setSettings(prev => ({
+                    ...prev,
+                    ...JSON.parse(savedSettings)
+                }));
             }
 
             setLoading(false);
@@ -59,6 +83,12 @@ export default function ProfilePage() {
 
     const toggleSetting = (key) => {
         const newSettings = { ...settings, [key]: !settings[key] };
+        setSettings(newSettings);
+        localStorage.setItem('seamas_preferences', JSON.stringify(newSettings));
+    };
+
+    const changeSetting = (key, value) => {
+        const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
         localStorage.setItem('seamas_preferences', JSON.stringify(newSettings));
     };
@@ -179,7 +209,7 @@ export default function ProfilePage() {
     );
 
     const isPro = userSession?.tier === 'Pro';
-    const maxCredits = isPro ? 1000 : 50;
+    const maxCredits = isPro ? 500 : 50;
     const currentCredits = Math.min(maxCredits, userSession?.isGuest ? 0 : (userSession?.credits ?? 50));
     const creditPercent = Math.min(100, Math.round((currentCredits / maxCredits) * 100));
 
@@ -282,7 +312,7 @@ export default function ProfilePage() {
                                 className="w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-600/20 to-indigo-600/20 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-300 hover:from-cyan-600/30 hover:to-indigo-600/30 transition-all"
                             >
                                 <Zap className="inline w-3.5 h-3.5 mr-1 mb-0.5" />
-                                Upgrade to Pro — 1,000 Credits / Month
+                                Upgrade to Pro — 500 Credits / Month
                             </button>
                         )}
                     </div>

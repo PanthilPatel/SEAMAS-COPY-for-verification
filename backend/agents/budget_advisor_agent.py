@@ -54,8 +54,6 @@ async def budget_advisor_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         else "No explicit budget detected in query."
     )
 
-    # Always include a consistent log key so the frontend pipeline tracker can
-    # detect this agent's completion regardless of whether a budget was found.
     log_entry = (
         f"Financial parameter locked: Rs. {extracted_limit}."
         if extracted_limit

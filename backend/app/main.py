@@ -54,16 +54,6 @@ async def chat_endpoint(payload: ChatRequest):
         if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     try:
-        # Check cache disabled to ensure fresh search results on identical queries
-        # if supabase:
-        #     try:
-        #         res = supabase.table("cached_results").select("result_payload").eq("query", payload.query.lower().strip()).execute()
-        #         if res.data and len(res.data) > 0:
-        #             cached = res.data[0]["result_payload"]
-        #             cached.setdefault("logs", []).append(f"Cache Hit: Loaded instantly from Supabase.")
-        #             return cached
-        #     except Exception as ce:
-        #         print(f"[Supabase Cache Error] {ce}")
 
         initial_state = {
             "query": payload.query,
@@ -107,22 +97,6 @@ async def chat_stream_endpoint(payload: ChatRequest):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
     async def event_generator():
         query_key = payload.query.lower().strip()
-        # Check cache first disabled to ensure fresh search results on identical queries
-        # if supabase:
-        #     try:
-        #         res = supabase.table("cached_results").select("result_payload").eq("query", query_key).execute()
-        #         if res.data and len(res.data) > 0:
-        #             cached = res.data[0]["result_payload"]
-        #             cached.setdefault("logs", []).append(f"Cache Hit: Loaded instantly from Supabase.")
-        #             # Simulate all agent nodes immediately completing
-        #             for agent_id in ["search", "price", "reviews", "budget", "recommendation", "finalizer"]:
-        #                 yield f"data: {json.dumps({'type': 'node_start', 'agent_id': agent_id})}\n\n"
-        #                 yield f"data: {json.dumps({'type': 'node_complete', 'agent_id': agent_id})}\n\n"
-        #             
-        #             yield f"data: {json.dumps({'type': 'result', 'payload': cached})}\n\n"
-        #             return
-        #     except Exception as ce:
-        #         print(f"[Supabase Cache Stream Error] {ce}")
 
         initial_state = {
             "query": payload.query,
@@ -157,11 +131,8 @@ async def chat_stream_endpoint(payload: ChatRequest):
                     elif agent_id == "recommendation":
                         yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'finalizer'})}\n\n"
 
-            # Cache the result for future identical searches
             if supabase:
                 try:
-                    # Supabase cannot serialize sets directly, but our state shouldn't have sets.
-                    # json.loads(json.dumps()) ensures it's JSON serializable.
                     supabase.table("cached_results").upsert({
                         "query": query_key,
                         "result_payload": json.loads(json.dumps(final_state, default=str))
@@ -189,15 +160,14 @@ async def status_endpoint():
     supabase_ok = False
     agents_ok = False
     
-    # 1. Check Supabase
+
     if supabase:
         try:
             supabase.table("cached_results").select("count", count="exact").limit(1).execute()
             supabase_ok = True
         except Exception:
-            pass
-            
-    # 2. Check Agents (Ollama)
+            pass 
+
     try:
         import httpx
         ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
@@ -249,12 +219,11 @@ async def create_order(request: Request):
         phone = body.get("phone", "").strip()
         contact_number = f"+91{phone}" if len(phone) >= 10 else "+919876543210"
         
-        # Create a Razorpay Payment Link (Invoice UI)
         payment_link = rzp_client.payment_link.create({
             "amount": amount,
             "currency": currency,
             "accept_partial": False,
-            "description": "SEAMAS Pro Upgrade (5,000 Search Credits)",
+            "description": "SEAMAS Pro Upgrade (500 Search Credits)",
             "customer": {
                 "name": user_name,
                 "email": user_email,

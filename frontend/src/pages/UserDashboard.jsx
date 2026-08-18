@@ -38,7 +38,10 @@ import {
     RotateCcw,
     LogOut,
     MessageSquare,
-    Trash2
+    Trash2,
+    Globe,
+    DollarSign,
+    Database
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
@@ -368,7 +371,7 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
     }, [userName]);
 
     const isPro = userSession?.tier === 'Pro';
-    const maxCredits = isPro ? 1000 : 50;
+    const maxCredits = isPro ? 500 : 50;
     const currentCredits = Math.min(maxCredits, userSession?.isGuest ? 0 : (userSession?.credits ?? maxCredits));
     const creditPercent = Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100));
 
@@ -585,7 +588,30 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
 export default function UserDashboard() {
     const navigate = useNavigate();
 
-    const [userSession, setUserSession] = useState(null);
+    const [userSession, setUserSession] = useState(() => {
+        const local = localStorage.getItem('seamas_user_session');
+        if (local) {
+            const parsed = JSON.parse(local);
+            if (parsed.isGuest) {
+                return {
+                    id: 'guest',
+                    email: parsed.email,
+                    name: parsed.name,
+                    isGuest: true,
+                    tier: 'Free',
+                    credits: 0
+                };
+            }
+            return {
+                id: parsed.id,
+                email: parsed.email,
+                name: parsed.name,
+                tier: parsed.tier || 'Free',
+                credits: parsed.credits ?? 50
+            };
+        }
+        return null;
+    });
     const [authModalOpen, setAuthModalOpen] = useState(false);
     const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
     const [notification, setNotification] = useState(null);
@@ -755,6 +781,9 @@ export default function UserDashboard() {
     const [deepScan, setDeepScan] = useState(true);
     const [trustVerification, setTrustVerification] = useState(true);
     const [parallelWorkers, setParallelWorkers] = useState(14);
+    const [currency, setCurrency] = useState('INR');
+    const [ambientGlow, setAmbientGlow] = useState(true);
+    const [dataSaver, setDataSaver] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -857,7 +886,7 @@ export default function UserDashboard() {
                 setSubscriptionModalOpen(true);
                 return;
             }
-            const nextCredits = Math.max(0, (userSession.credits ?? 1000) - cost);
+            const nextCredits = Math.max(0, (userSession.credits ?? 500) - cost);
             setUserSession(prev => ({
                 ...prev,
                 credits: nextCredits
@@ -1009,7 +1038,7 @@ export default function UserDashboard() {
     return (
         <div className="relative h-screen w-screen text-white flex overflow-hidden bg-[#0a0a0f]">
 
-            <div className="seamas-ambient" aria-hidden="true" />
+            {ambientGlow && <div className="seamas-ambient" aria-hidden="true" />}
             <div className="seamas-grid" aria-hidden="true" />
             <div className="seamas-noise" />
 
@@ -1402,6 +1431,57 @@ export default function UserDashboard() {
                                             onChange={(e) => setParallelWorkers(Number(e.target.value))}
                                             className="w-full accent-cyan-400 bg-white/5 h-1 rounded-lg cursor-pointer"
                                         />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* UI Customization Card */}
+                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
+                                <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-amber-400" />
+                                    UI Customization & Preferences
+                                </h3>
+                                <div className="space-y-5">
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs font-semibold">Ambient Glow Background</div>
+                                            <div className="text-[10px] text-neutral-500">Show smooth, colorful ambient breathing lights</div>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={ambientGlow}
+                                            onChange={(e) => setAmbientGlow(e.target.checked)}
+                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs font-semibold">Data Saver Mode</div>
+                                            <div className="text-[10px] text-neutral-500">Skip heavy image elements to speed up load times</div>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={dataSaver}
+                                            onChange={(e) => setDataSaver(e.target.checked)}
+                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <div className="text-xs font-semibold">Preferred Currency</div>
+                                            <div className="text-[10px] text-neutral-500">Unit of price measurement for comparisons</div>
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-[#0a0a0f] border border-white/10 rounded-lg px-2 py-0.5">
+                                            <DollarSign className="h-3 w-3 text-emerald-400" />
+                                            <select
+                                                value={currency}
+                                                onChange={(e) => setCurrency(e.target.value)}
+                                                className="bg-transparent text-xs text-white border-none outline-none font-semibold focus:ring-0 cursor-pointer"
+                                            >
+                                                <option value="INR" className="bg-[#0a0a0f] text-white">INR (₹)</option>
+                                                <option value="USD" className="bg-[#0a0a0f] text-white">USD ($)</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

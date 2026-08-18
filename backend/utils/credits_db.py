@@ -1,67 +1,59 @@
-import sqlite3
-import os
-
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credits.db')
+from utils.supabase_client import supabase
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_credits (
-            user_id TEXT PRIMARY KEY,
-            tier TEXT DEFAULT 'free',
-            credits INTEGER DEFAULT 50
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    pass
 
 def get_credits(user_id: str) -> dict:
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT tier, credits FROM user_credits WHERE user_id = ?', (user_id,))
-    row = cursor.fetchone()
-    
-    if not row:
-        # Initialize new user with 50 credits
-        cursor.execute('INSERT INTO user_credits (user_id, tier, credits) VALUES (?, ?, ?)', (user_id, 'free', 50))
-        conn.commit()
-        conn.close()
+    if not supabase:
         return {'tier': 'free', 'credits': 50}
-        
-    conn.close()
-    return {'tier': row[0], 'credits': row[1]}
+    try:
+        res = supabase.table('profiles').select('tier, credits').eq('id', user_id).execute()
+        if res.data and len(res.data) > 0:
+            row = res.data[0]
+            tier = row.get('tier') or 'free'
+            credits = row.get('credits') if row.get('credits') is not None else 50
+            return {'tier': tier, 'credits': credits}
+        else:
+            # Self-healing: if the user profile row does not exist, insert it
+            try:
+                supabase.table('profiles').insert({'id': user_id, 'tier': 'free', 'credits': 50}).execute()
+            except Exception as ie:
+                print(f"[Supabase insert error in get_credits] {ie}")
+            return {'tier': 'free', 'credits': 50}
+    except Exception as e:
+        print(f"[Supabase error in get_credits] {e}")
+        return {'tier': 'free', 'credits': 50}
 
 def deduct_credit(user_id: str, amount: int = 1) -> bool:
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT tier, credits FROM user_credits WHERE user_id = ?', (user_id,))
-    row = cursor.fetchone()
-    if not row:
-        # Implicitly create for guests/new users and deduct
-        cursor.execute('INSERT INTO user_credits (user_id, tier, credits) VALUES (?, ?, ?)', (user_id, 'free', max(0, 50 - amount)))
-        conn.commit()
-        conn.close()
+    if not supabase:
         return True
-
-    if row[1] >= amount:
-        cursor.execute('UPDATE user_credits SET credits = credits - ? WHERE user_id = ?', (amount, user_id))
-        conn.commit()
-        conn.close()
-        return True
-        
-    conn.close()
-    return False
+    try:
+        res = supabase.table('profiles').select('tier, credits').eq('id', user_id).execute()
+        if res.data and len(res.data) > 0:
+            row = res.data[0]
+            current_credits = row.get('credits') if row.get('credits') is not None else 50
+            if current_credits >= amount:
+                supabase.table('profiles').update({'credits': current_credits - amount}).eq('id', user_id).execute()
+                return True
+        else:
+            # Self-healing: if the user profile row does not exist, insert and deduct
+            credits = 50 - amount
+            if credits >= 0:
+                try:
+                    supabase.table('profiles').insert({'id': user_id, 'tier': 'free', 'credits': credits}).execute()
+                    return True
+                except Exception as ie:
+                    print(f"[Supabase insert error in deduct_credit] {ie}")
+        return False
+    except Exception as e:
+        print(f"[Supabase error in deduct_credit] {e}")
+        return False
 
 def upgrade_to_pro(user_id: str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO user_credits (user_id, tier, credits) 
-        VALUES (?, 'pro', 1000)
-        ON CONFLICT(user_id) DO UPDATE SET tier = 'pro', credits = 1000
-    ''', (user_id,))
-    conn.commit()
-    conn.close()
-
-init_db()
+    if not supabase:
+        return
+    try:
+        # Use upsert to handle case where profile row does not exist yet
+        supabase.table('profiles').upsert({'id': user_id, 'tier': 'pro', 'credits': 500}).execute()
+    except Exception as e:
+        print(f"[Supabase error in upgrade_to_pro] {e}")

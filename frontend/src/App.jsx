@@ -8,16 +8,12 @@ import { supabase } from './lib/supabase';
 const PrivateRoute = ({ children }) => {
     const session = localStorage.getItem('seamas_user_session');
     if (!session) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/login" replace />;
     }
     return children;
 };
 
 const PublicRoute = ({ children }) => {
-    const session = localStorage.getItem('seamas_user_session');
-    if (session) {
-        return <Navigate to="/dashboard" replace />;
-    }
     return children;
 };
 
@@ -47,11 +43,15 @@ export default function App() {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
                 const profileName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+                const existing = localStorage.getItem('seamas_user_session');
+                const parsedExisting = existing ? JSON.parse(existing) : {};
                 localStorage.setItem('seamas_user_session', JSON.stringify({
                     id: session.user.id,
                     name: profileName,
                     email: session.user.email,
-                    isLoggedIn: true
+                    isLoggedIn: true,
+                    tier: parsedExisting.tier || 'Free',
+                    credits: parsedExisting.credits ?? 50
                 }));
             }
             setIsAuthLoading(false);
@@ -60,11 +60,15 @@ export default function App() {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 const profileName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+                const existing = localStorage.getItem('seamas_user_session');
+                const parsedExisting = existing ? JSON.parse(existing) : {};
                 localStorage.setItem('seamas_user_session', JSON.stringify({
                     id: session.user.id,
                     name: profileName,
                     email: session.user.email,
-                    isLoggedIn: true
+                    isLoggedIn: true,
+                    tier: parsedExisting.tier || 'Free',
+                    credits: parsedExisting.credits ?? 50
                 }));
             } else if (event === 'SIGNED_OUT') {
                 localStorage.removeItem('seamas_user_session');
