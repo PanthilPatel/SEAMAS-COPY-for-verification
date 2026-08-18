@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import UserDashboard from './pages/UserDashboard';
 import AuthPage from './pages/AuthPage';
 import ProfilePage from './pages/ProfilePage';
-import AdminDashboard from './pages/AdminDashboard';
 import { supabase } from './lib/supabase';
 
 const PrivateRoute = ({ children }) => {
@@ -22,17 +21,16 @@ const ProtectedLayout = () => {
     const location = useLocation();
     
     // Redirect unknown authenticated routes to dashboard
-    if (location.pathname !== '/dashboard' && location.pathname !== '/profile' && location.pathname !== '/admin') {
+    if (location.pathname !== '/dashboard' && location.pathname !== '/profile') {
         return <Navigate to="/dashboard" replace />;
     }
 
     return (
         <div className="w-full h-full">
-            <div style={{ display: (location.pathname === '/profile' || location.pathname === '/admin') ? 'none' : 'block', width: '100%', height: '100%' }}>
+            <div style={{ display: location.pathname === '/profile' ? 'none' : 'block', width: '100%', height: '100%' }}>
                 <UserDashboard />
             </div>
             {location.pathname === '/profile' && <ProfilePage />}
-            {location.pathname === '/admin' && <AdminDashboard />}
         </div>
     );
 };
