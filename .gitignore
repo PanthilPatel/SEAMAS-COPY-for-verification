@@ -4,6 +4,7 @@
 *.sqlite3
 *.log
 out.json
+repomix-output.xml
 
 # Environment variables
 .env

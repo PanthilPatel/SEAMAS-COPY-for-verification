@@ -35,22 +35,14 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     if steering_mode == "speed":
         max_search_pages = 1
     elif steering_mode == "balanced":
-        max_search_pages = 2
+        max_search_pages = 1
     else:  # accuracy
-        max_search_pages = 4
+        max_search_pages = 2
         
-    print(f"\n--- LIVE SEARCH AGENT INITIATED: Sequential multi-page search for '{query}' (Steering Mode: {steering_mode}, Max Pages: {max_search_pages}) ---")
+    print(f"\n--- LIVE SEARCH AGENT INITIATED: High-yield search for '{query}' (Steering Mode: {steering_mode}, Max Pages: {max_search_pages}) ---")
 
-    shopping_query_1 = f"{query} buy store product options"
-    shopping_query_2 = f"{query} amazon flipkart myntra electronics pricing"
-    shopping_query_3 = f"{query} marketplace listings online"
+    shopping_query = f"{query} buy online amazon flipkart price india"
     sentiment_query = f"{query} review rating user feedback india"
-
-    sem = asyncio.Semaphore(4)
-
-    async def sem_search(q: str, max_res: int, aug: bool, page_no: int):
-        async with sem:
-            return await web_search_tool(q, max_results=max_res, augment_query=aug, page=page_no)
 
     all_raw_results: List[Dict[str, Any]] = []
     page_logs: List[str] = []
@@ -60,15 +52,13 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         page_results: List[Dict[str, Any]] = []
 
         try:
-            res_shop1, res_shop2, res_shop3, res_sentiment = await asyncio.gather(
-                sem_search(shopping_query_1, 15, True, current_page),
-                sem_search(shopping_query_2, 15, False, current_page),
-                sem_search(shopping_query_3, 15, True, current_page),
-                sem_search(sentiment_query, 15, False, current_page),
+            res_shop, res_sentiment = await asyncio.gather(
+                web_search_tool(shopping_query, max_results=25, augment_query=False, page=current_page),
+                web_search_tool(sentiment_query, max_results=15, augment_query=False, page=current_page),
                 return_exceptions=True,
             )
 
-            for res in [res_shop1, res_shop2, res_shop3, res_sentiment]:
+            for res in [res_shop, res_sentiment]:
                 if isinstance(res, Exception):
                     print(f"[SearchAgent] Warning: Search query error on Page {current_page}: {res}")
                 elif isinstance(res, list):

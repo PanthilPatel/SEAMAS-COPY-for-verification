@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import sys
+import asyncio
 
 backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(backend_root, ".env"))
@@ -11,8 +12,9 @@ sys.path.append(os.path.dirname(backend_root))
 
 from schemas.request_models import ChatRequest
 from graph.graph import seamas_graph
-from agents.orchestrator import run_orchestrator_pipeline
+from agents.orchestrator import run_orchestrator_pipeline, stream_orchestrator_pipeline
 from utils.supabase_client import supabase
+from utils.credits_db import get_credits, deduct_credit, upgrade_to_pro
 import json
 
 app = FastAPI(title="SEAMAS Multi-Agent Backend", version="1.0.0")
@@ -32,9 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
 
-import json
+
 from fastapi.responses import StreamingResponse
 
 NODE_TO_FRONTEND_ID = {
@@ -95,6 +96,7 @@ async def chat_stream_endpoint(payload: ChatRequest):
         cost = 5 if steering == "speed" else (20 if steering == "accuracy" else 10)
         if not deduct_credit(payload.user_id, cost):
             raise HTTPException(status_code=402, detail="Insufficient search credits. Please upgrade your plan.")
+
     async def event_generator():
         query_key = payload.query.lower().strip()
 
@@ -108,39 +110,22 @@ async def chat_stream_endpoint(payload: ChatRequest):
             "steering_mode": payload.steering_mode or "balanced",
             "logs": [f"Session routing initialized via main API endpoint for context: '{payload.query}'."]
         }
-        
-        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'search'})}\n\n"
-        
-        final_state = dict(initial_state)
-        
+
         try:
-            async for event in seamas_graph.astream(initial_state):
-                for node_name, state_update in event.items():
-                    if isinstance(state_update, dict):
-                        final_state.update(state_update)
-                    
-                    agent_id = NODE_TO_FRONTEND_ID.get(node_name, node_name)
-                    yield f"data: {json.dumps({'type': 'node_complete', 'agent_id': agent_id})}\n\n"
-                    
-                    if agent_id == "search":
-                        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'price'})}\n\n"
-                        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'reviews'})}\n\n"
-                        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'budget'})}\n\n"
-                    elif agent_id in ("price", "reviews", "budget"):
-                        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'recommendation'})}\n\n"
-                    elif agent_id == "recommendation":
-                        yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'finalizer'})}\n\n"
+            async for event in stream_orchestrator_pipeline(initial_state):
+                yield f"data: {json.dumps(event)}\n\n"
+                await asyncio.sleep(0.01)  # Yields execution to ASGI transport so the TCP chunk is pushed immediately
 
-            if supabase:
-                try:
-                    supabase.table("cached_results").upsert({
-                        "query": query_key,
-                        "result_payload": json.loads(json.dumps(final_state, default=str))
-                    }).execute()
-                except Exception as ce:
-                    print(f"[Supabase Cache Write Error] {ce}")
+                # Write final state payload to Supabase cache when completed
+                if event.get("type") == "result" and supabase:
+                    try:
+                        supabase.table("cached_results").upsert({
+                            "query": query_key,
+                            "result_payload": json.loads(json.dumps(event.get("payload", {}), default=str))
+                        }).execute()
+                    except Exception as ce:
+                        print(f"[Supabase Cache Write Error] {ce}")
 
-            yield f"data: {json.dumps({'type': 'result', 'payload': final_state})}\n\n"
         except Exception as err:
             yield f"data: {json.dumps({'type': 'error', 'message': str(err)})}\n\n"
 
@@ -148,9 +133,10 @@ async def chat_stream_endpoint(payload: ChatRequest):
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream",
         }
     )
 
@@ -187,7 +173,6 @@ async def status_endpoint():
 import razorpay
 from fastapi import Request
 from pydantic import BaseModel
-from utils.credits_db import get_credits, deduct_credit, upgrade_to_pro
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_1DP5mmOlF5G5ag")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "dummy_secret_for_test")

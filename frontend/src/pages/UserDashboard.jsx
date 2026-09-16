@@ -818,31 +818,6 @@ export default function UserDashboard() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    useEffect(() => {
-        if (!loading) return;
-
-        setAgentStatusMap({
-            search: AGENT_STATES.RUNNING,
-            price: AGENT_STATES.IDLE,
-            reviews: AGENT_STATES.IDLE,
-            budget: AGENT_STATES.IDLE,
-            recommendation: AGENT_STATES.IDLE,
-            finalizer: AGENT_STATES.IDLE,
-        });
-
-        const t1 = setTimeout(() => {
-            setAgentStatusMap(prev => ({
-                ...prev,
-                search: AGENT_STATES.COMPLETED,
-                price: prev.price === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
-                reviews: prev.reviews === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
-                budget: prev.budget === AGENT_STATES.COMPLETED ? AGENT_STATES.COMPLETED : AGENT_STATES.RUNNING,
-            }));
-        }, 6000);
-
-        return () => clearTimeout(t1);
-    }, [loading]);
-
     const LOG_AGENT_MAP = [
         { id: 'search', successKey: 'search agent aggregated', errorKey: 'search agent error' },
         { id: 'price', successKey: 'successfully matched category context', errorKey: 'price comparison agent error' },
@@ -913,6 +888,14 @@ export default function UserDashboard() {
         setLoading(true);
         setError(null);
         setCurrentQuery(query);
+        setAgentStatusMap({
+            search: AGENT_STATES.RUNNING,
+            budget: AGENT_STATES.IDLE,
+            reviews: AGENT_STATES.IDLE,
+            price: AGENT_STATES.IDLE,
+            recommendation: AGENT_STATES.IDLE,
+            finalizer: AGENT_STATES.IDLE,
+        });
         setLogs([
             "[SYSTEM] Initiating multi-agent search workflow...",
             `[STEERING] Mode locked: ${steeringMode}`,
@@ -929,17 +912,19 @@ export default function UserDashboard() {
                     const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
                     setLogs(prev => [...prev, `[ACTIVE] ${agentName} has commenced reasoning...`]);
                 } else if (evt.type === 'node_complete') {
-                    setAgentStatusMap(prev => {
-                        const next = { ...prev, [evt.agent_id]: AGENT_STATES.COMPLETED };
-                        if (evt.agent_id === 'search') {
-                            if (next.price === AGENT_STATES.IDLE) next.price = AGENT_STATES.RUNNING;
-                            if (next.reviews === AGENT_STATES.IDLE) next.reviews = AGENT_STATES.RUNNING;
-                            if (next.budget === AGENT_STATES.IDLE) next.budget = AGENT_STATES.RUNNING;
-                        }
-                        return next;
-                    });
+                    setAgentStatusMap(prev => ({
+                        ...prev,
+                        [evt.agent_id]: AGENT_STATES.COMPLETED
+                    }));
                     const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
                     setLogs(prev => [...prev, `[SUCCESS] ${agentName} finished task successfully.`]);
+                } else if (evt.type === 'node_error') {
+                    setAgentStatusMap(prev => ({
+                        ...prev,
+                        [evt.agent_id]: AGENT_STATES.ERROR
+                    }));
+                    const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
+                    setLogs(prev => [...prev, `[ERROR] ${agentName}: ${evt.message || 'Encountered an issue'}`]);
                 }
             });
 
@@ -972,7 +957,9 @@ export default function UserDashboard() {
             setAgentStatusMap(prev => {
                 const next = { ...prev };
                 AGENT_LIST.forEach(({ id }) => {
-                    next[id] = AGENT_STATES.COMPLETED;
+                    if (next[id] !== AGENT_STATES.ERROR) {
+                        next[id] = AGENT_STATES.COMPLETED;
+                    }
                 });
                 return next;
             });

@@ -38,14 +38,19 @@ Context Dataset:
 """
 
     try:
-        response = await AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434")).chat(
-            model="qwen2.5",  
-            messages=[{"role": "user", "content": prompt}],
-            format="json",
-            options={
-                "temperature": 0.0,
-                "num_ctx": 4096,  # ⚡ OPTIMIZATION 2: Cut down context token size from 16k to 4k for immediate compute turnaround
-            },
+        import asyncio
+        response = await asyncio.wait_for(
+            AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434")).chat(
+                model="qwen2.5",  
+                messages=[{"role": "user", "content": prompt}],
+                format="json",
+                options={
+                    "temperature": 0.0,
+                    "num_ctx": 2048,
+                    "num_predict": 220,
+                },
+            ),
+            timeout=15.0
         )
 
         raw_content = response["message"]["content"].strip()
