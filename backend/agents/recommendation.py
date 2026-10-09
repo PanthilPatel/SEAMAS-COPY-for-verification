@@ -22,29 +22,41 @@ def _algorithmic_fallback(
             f"Evaluated {len(price_data)} candidate offers across marketplaces ({verified_count} verified listings)."
         )
 
-        valid_prices = [x for x in price_data if isinstance(x.get("extracted_price"), (int, float)) and x.get("extracted_price") > 0]
+        def _get_eff_price(x):
+            px = x.get("extracted_price")
+            if isinstance(px, (int, float)) and px > 0:
+                return int(px)
+            px = x.get("indexed_price") or x.get("price")
+            if isinstance(px, (int, float)) and px > 0:
+                return int(px)
+            return None
+
+        valid_prices = [x for x in price_data if _get_eff_price(x) is not None]
         if valid_prices:
-            verified = [x for x in valid_prices if x.get("is_verified", True)]
+            verified = [x for x in valid_prices if x.get("is_verified", False) and x.get("extracted_price")]
             pool = verified if verified else valid_prices
             in_budget = [x for x in pool if eval_map.get(x.get("url") or x.get("product_name"), x.get("status")) in ("Target Match", "Stretch Match")]
             candidates = in_budget if in_budget else pool
-            best_deal = min(candidates, key=lambda x: x.get("extracted_price"))
+            best_deal = min(candidates, key=lambda x: _get_eff_price(x))
+            best_px = _get_eff_price(best_deal)
+            prefix = "" if best_deal.get("is_verified") else "~"
 
-            rec_text = f"Top Value Pick: {best_deal.get('marketplace', 'Store')} — {best_deal.get('product_name')} at ₹{best_deal.get('extracted_price'):,}."
+            rec_text = f"Top Value Pick: {best_deal.get('marketplace', 'Store')} — {best_deal.get('product_name')} at {prefix}₹{best_px:,}."
             recommendation_list.append(rec_text)
 
             ceiling = budget_status.get("ceiling")
             if not in_budget and ceiling:
                 recommendation_list.append(
-                    f"Notice: No confirmed listings found under ₹{ceiling:,}. The closest available option is ₹{best_deal.get('extracted_price'):,}."
+                    f"Notice: No confirmed listings found under ₹{ceiling:,}. The closest available option is {prefix}₹{best_px:,}."
                 )
             elif in_budget and len(candidates) > 1:
-                highest_deal = max(candidates, key=lambda x: x.get("extracted_price"))
-                if highest_deal != best_deal:
-                    diff = highest_deal.get("extracted_price") - best_deal.get("extracted_price")
+                highest_deal = max(candidates, key=lambda x: _get_eff_price(x))
+                high_px = _get_eff_price(highest_deal)
+                if highest_deal != best_deal and high_px and best_px:
+                    diff = high_px - best_px
                     if diff > 1000:
                         recommendation_list.append(
-                            f"Price Spread Insight: Deals range from ₹{best_deal.get('extracted_price'):,} on {best_deal.get('marketplace')} up to ₹{highest_deal.get('extracted_price'):,} on {highest_deal.get('marketplace')} (save ₹{diff:,})."
+                            f"Price Spread Insight: Deals range from {prefix}₹{best_px:,} on {best_deal.get('marketplace')} up to ₹{high_px:,} on {highest_deal.get('marketplace')} (save ₹{diff:,})."
                         )
         else:
             recommendation_list.append("Listings found, but price confirmation remains pending verification.")
@@ -85,9 +97,18 @@ async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     eval_map = {e.get("url") or e.get("product_name"): e.get("status") for e in budget_evaluations}
 
     # Top candidates for the LLM to analyze (up to 5 best options)
+    def _candidate_price(p):
+        px = p.get("extracted_price")
+        if isinstance(px, (int, float)) and px > 0:
+            return int(px)
+        px = p.get("indexed_price") or p.get("price")
+        if isinstance(px, (int, float)) and px > 0:
+            return int(px)
+        return None
+
     valid_candidates = [
         p for p in price_data
-        if isinstance(p.get("extracted_price"), (int, float)) and p.get("extracted_price") > 0
+        if _candidate_price(p) is not None
     ][:5]
 
     if not valid_candidates:
@@ -100,7 +121,7 @@ async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     candidates_text = "\n".join([
-        f"- {p.get('product_name', 'Unknown')} on {p.get('marketplace', 'Web')} | Price: ₹{p.get('extracted_price')} | Status: {eval_map.get(p.get('url') or p.get('product_name'), p.get('status', 'Target Match'))} | Verified: {p.get('is_verified', False)}"
+        f"- {p.get('product_name', 'Unknown')} on {p.get('marketplace', 'Web')} | Price: ₹{_candidate_price(p)} | Status: {eval_map.get(p.get('url') or p.get('product_name'), p.get('status', 'Target Match'))} | Verified: {p.get('is_verified', False)}"
         for p in valid_candidates
     ])
 

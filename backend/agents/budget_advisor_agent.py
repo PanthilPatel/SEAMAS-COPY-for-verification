@@ -129,7 +129,7 @@ def evaluate_budget_listings(
     ceiling = budget_info.get("ceiling")
 
     for item in price_data:
-        price_val = item.get("extracted_price")
+        price_val = item.get("extracted_price") or item.get("indexed_price") or item.get("price")
         if isinstance(price_val, (int, float)):
             price_int = int(price_val)
             status_tag, variance = tag_product_budget(price_int, budget_info)

@@ -48,13 +48,17 @@ def _build_markdown_report(
             for p in verified_prices:
                 eval_item = (eval_map or {}).get(p.get("url") or p.get("product_name"), {})
                 status_label = eval_item.get("status", p.get('status', 'Target Match'))
-                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **₹{p.get('extracted_price'):,}** ({status_label})"
+                price_val = p.get("extracted_price") or p.get("indexed_price") or p.get("price")
+                price_str = f"₹{price_val:,}" if isinstance(price_val, (int, float)) else "Price on Store"
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **{price_str}** ({status_label})"
                 url = p.get("url")
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
         if unverified_prices:
             for p in unverified_prices:
-                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **~₹{p.get('extracted_price'):,}** (approximate)"
+                price_val = p.get("extracted_price") or p.get("indexed_price") or p.get("price")
+                price_str = f"~₹{price_val:,}" if isinstance(price_val, (int, float)) else "Price on Store"
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **{price_str}** (approximate)"
                 url = p.get("url")
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
