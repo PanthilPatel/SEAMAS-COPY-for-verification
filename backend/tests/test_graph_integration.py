@@ -153,16 +153,19 @@ async def test_actual_parallel_execution():
     starts = {e["agent_id"]: e.get("start_time") for e in streamed_events if e.get("type") == "node_start"}
     completes = {e["agent_id"]: e.get("end_time") for e in streamed_events if e.get("type") == "node_complete"}
 
-    # Both parallel nodes must execute
-    assert "price" in starts and "reviews" in starts
-    assert "budget" in starts
+    # All 3 parallel nodes must execute
+    assert "price" in starts and "reviews" in starts and "budget" in starts
+    assert "recommendation" in starts
 
-    # Verification: Budget node must start AFTER both parallel nodes complete
-    assert starts["budget"] >= completes["price"]
-    assert starts["budget"] >= completes["reviews"]
+    # Verification: Recommendation node must start AFTER all 3 parallel nodes complete (fan-in)
+    assert starts["recommendation"] >= completes["price"]
+    assert starts["recommendation"] >= completes["reviews"]
+    assert starts["recommendation"] >= completes["budget"]
 
-    # Verification: Parallel nodes start times overlap (all start before budget)
-    assert starts["price"] < completes["reviews"] or starts["reviews"] < completes["price"]
+    # Verification: Price, Reviews, and Budget nodes start concurrently before Recommendation
+    assert starts["price"] < completes["recommendation"]
+    assert starts["reviews"] < completes["recommendation"]
+    assert starts["budget"] < completes["recommendation"]
 
 
 @pytest.mark.asyncio

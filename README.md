@@ -1,6 +1,6 @@
 # 🛍️ SEAMAS: Smart E-Commerce Multi-Agent System
 
-**SEAMAS (Smart E-Commerce Multi-Agent System)** is a production-grade, AI-powered multi-agent e-commerce shopping assistant. It coordinates 7 autonomous specialists orchestrated via **LangGraph as the Single Source of Truth**, querying live Indian and global marketplaces, comparing authentic prices, normalizing technical specifications, evaluating budget constraints, synthesizing customer reviews, and streaming real-time execution events directly to a modern React frontend.
+**SEAMAS (Smart E-Commerce Multi-Agent System)** is a production-grade, AI-powered multi-agent e-commerce shopping assistant. It coordinates 7 autonomous specialists orchestrated via **LangGraph as the Single Source of Truth**, querying live Indian and global marketplaces, comparing authentic prices, evaluating budget constraints, synthesizing customer reviews, and streaming real-time execution events directly to a modern React frontend.
 
 ---
 
@@ -13,19 +13,19 @@ graph TD
     User([User Query]) --> API[FastAPI Layer]
     
     subgraph Single Source of Truth: LangGraph Workflow
-        API --> SearchAgent[1. Search Agent]
+        API --> Orchestrator[1. Orchestrator Agent]
+        Orchestrator --> SearchAgent[2. Search Agent]
         SearchAgent --> |SearXNG Primary + Tavily Fallback| RawData[Raw Marketplace Records]
         
-        RawData --> PriceAgent[2. Price Comparison Agent]
-        RawData --> ReviewAgent[3. Review Analyzer Agent]
-        RawData --> SpecAgent[4. Product Specification Agent]
+        RawData --> PriceAgent[3. Price Comparison Agent]
+        RawData --> ReviewAgent[4. Review Analyzer Agent]
+        RawData --> BudgetAgent[5. Budget Advisor Agent]
         
-        PriceAgent --> |Extract & Verify Prices| BudgetAgent[5. Budget Advisor Agent]
-        ReviewAgent --> |Sentiment Synthesis| BudgetAgent
-        SpecAgent --> |Normalize Hardware Specs| BudgetAgent
+        PriceAgent --> |Verified Prices| RecAgent[6. Recommendation Agent]
+        ReviewAgent --> |Customer Sentiment| RecAgent
+        BudgetAgent --> |Budget Constraints & Tagging| RecAgent
         
-        BudgetAgent --> |Tag In/Out of Budget| RecAgent[6. Recommendation Agent]
-        RecAgent --> |Grounded Qwen2.5 Reasoning| FinalizerAgent[7. Finalizer Agent]
+        RecAgent --> |Grounded Qwen 2.5 Reasoning| FinalizerAgent[7. Finalizer Agent]
         FinalizerAgent --> |Executive Buyer Verdict| ResultState[Shared LangGraph State]
     end
     
@@ -34,12 +34,12 @@ graph TD
 ```
 
 ### The 7 Autonomous Agents
-1. 🔍 **Search Agent (`search`)**: High-yield e-commerce retrieval using SearXNG as primary engine (Render or local) with seamless Tavily API fallback.
-2. 🏷️ **Price Comparison Agent (`price`)**: Extracts authentic current sale prices, crossed-out MRPs, filters out deceptive EMIs, eliminates duplicate listings, and preserves source URLs.
-3. 💬 **Review Analyzer Agent (`reviews`)**: Extracts marketplace ratings (out of 5 stars) and review volume, distilling genuine pros and cons via Qwen2.5 with deterministic fallback.
-4. ⚙️ **Product Specification Agent (`specs`)**: Category-aware hardware and product attribute normalizer (Display, Processor, RAM, Storage, Camera, Battery, OS, Connectivity).
-5. 💰 **Budget Advisor Agent (`budget`)**: Deterministically parses hard ceilings ("under ₹30,000") vs flexible targets ("around 25k") and classifies listings as *Target Match*, *Stretch Match*, or *Out of Budget*.
-6. 💡 **Recommendation Agent (`recommendation`)**: Formulates strategic buyer recommendations grounded strictly in verified candidate listings.
+1. 🎯 **Orchestrator Agent (`orchestrator`)**: Single entry point into LangGraph; extracts product category, intent constraints, and early budget ceilings.
+2. 🔍 **Search Agent (`search`)**: High-yield e-commerce retrieval using SearXNG as primary engine (Render or local Docker) with seamless Tavily API fallback.
+3. 🏷️ **Price Comparison Agent (`price`)**: Executes live HTTP product-page checks with SSRF protection, extracts authentic prices, filters out deceptive EMIs, and marks unverified listings clearly.
+4. 💬 **Review Analyzer Agent (`reviews`)**: Extracts marketplace ratings and review volume, distilling genuine pros and cons via Qwen 2.5 with deterministic fallback.
+5. 💰 **Budget Advisor Agent (`budget`)**: Runs concurrently during research fan-out; interprets hard ceilings ("under ₹30,000") vs approximate targets ("around 25k"). Listings are tagged at fan-in as *Target Match*, *Stretch Match*, or *Out of Budget*.
+6. 💡 **Recommendation Agent (`recommendation`)**: Formulates strategic buyer recommendations grounded strictly in verified candidate listings and evaluates per-listing budget status.
 7. 🛡️ **Finalizer Agent (`finalizer`)**: Compiles structured Markdown reports and synthesizes executive purchase verdicts with return/warranty confidence.
 
 ---
@@ -47,10 +47,11 @@ graph TD
 ## ⚡ Key Technical Capabilities
 
 - **LangGraph Single Source of Truth**: Unified workflow definition; streaming execution observes real LangGraph node transitions (`node_start`, `node_complete`, `node_error`, `result`) without duplicate pipeline implementations.
-- **Resilient Search Pipeline**: Render SearXNG with configurable timeout (22s) and automatic fallback to Tavily when unavailable.
-- **Local LLM with Deterministic Fallbacks**: Leverages `qwen2.5` via Ollama (`OLLAMA_MODEL` configurable, e.g. `qwen2.5:0.5b`), with immediate rule-based fallbacks ensuring zero crashes when Ollama is offline.
+- **Concurrent Research Fan-Out**: Price, Review, and Budget agents run concurrently from Search Agent (~35% faster than sequential execution).
+- **Resilient Search Pipeline**: SearXNG with configurable timeout (8.0s) and automatic fallback to Tavily when unavailable.
+- **Local LLM with Deterministic Fallbacks**: Leverages `qwen2.5:7b` via Ollama (`OLLAMA_MODEL` configurable), with immediate rule-based fallbacks ensuring zero crashes when Ollama is offline.
 - **Grounded AI Reasoning**: The LLM evaluates only extracted candidate records; no fabricated prices, models, or hallucinated specifications.
-- **Strict Verification & Anti-Deception**: Filters out EMI amounts, accessory listings (cases, covers) when searching for flagship phones, and validates seller reputation.
+- **Strict Verification & Anti-Deception**: Snippets are candidate discovery only; prices require live page checks with timestamps, filtering out deceptive EMIs and accessory noise.
 
 ---
 
@@ -61,23 +62,23 @@ Create a `backend/.env` file with the following configuration:
 ```ini
 # Search Engines
 SEARXNG_BASE_URL=https://seamas-searxng.onrender.com
-SEARXNG_TIMEOUT=22.0
+SEARXNG_TIMEOUT=8.0
 TAVILY_API_KEY=tvly-your-api-key-here
 MAX_SEARCH_PAGES=2
 
-# Ollama / Qwen2.5
+# Ollama / Qwen 2.5
 OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:0.5b
+OLLAMA_MODEL=qwen2.5:7b
 
 # Workflow Orchestration
 AGENT_MODE=graph
 
-# Supabase (Optional for user auth, history & caching)
+# Supabase (Auth, search history, wishlist & cache)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Razorpay (Test / Sandbox)
+# Razorpay (Test / Production)
 RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_secret_key
 ```

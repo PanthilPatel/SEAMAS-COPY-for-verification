@@ -114,7 +114,7 @@ def create_initial_state(payload: ChatRequest) -> dict:
         "query": payload.query,
         "category": "general",
         "budget": payload.max_price,
-        "budget_type": "max" if payload.max_price is not None else "none",
+        "budget_type": "hard_limit" if payload.max_price is not None else "none",
         "user_preferences": {}, "search_results": [], "price_data": [],
         "analysis_report": {}, "recommendations": [], "budget_status": {},
         "steering_mode": payload.steering_mode or "balanced",
@@ -243,7 +243,16 @@ async def ready():
 @app.get("/api/status")
 async def status_endpoint(request: Request):
     await enforce_rate_limit("public-status", request.client.host if request.client else "unknown", 60, 60)
-    return {"api": "operational", "database": "configured" if supabase else "unavailable"}
+    from core.config import resolve_ollama_model
+    active_model = resolve_ollama_model()
+    return {
+        "api": "operational",
+        "database": "configured" if supabase else "unavailable",
+        "ollama": {
+            "status": "connected" if active_model else "offline",
+            "model": active_model,
+        }
+    }
 
 
 @app.get("/api/credits/me")

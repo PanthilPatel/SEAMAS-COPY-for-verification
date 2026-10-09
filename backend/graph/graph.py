@@ -150,16 +150,17 @@ def create_seamas_graph():
     # Orchestrator to Search Agent
     workflow.add_edge("orchestrator_agent", "search_agent")
 
-    # Parallel Fan-Out from Search Agent to Price and Reviews
+    # Parallel Fan-Out from Search Agent to Price, Reviews, and Budget
     workflow.add_edge("search_agent", "price_comparison_agent")
     workflow.add_edge("search_agent", "review_analyzer_agent")
+    workflow.add_edge("search_agent", "budget_advisor_agent")
 
-    # Fan-In to Budget Advisor Agent (Stage 2: evaluates collected price_data against budget)
-    workflow.add_edge("price_comparison_agent", "budget_advisor_agent")
-    workflow.add_edge("review_analyzer_agent", "budget_advisor_agent")
+    # Fan-In at Recommendation Agent (Parallel Stage 2)
+    workflow.add_edge("price_comparison_agent", "recommendation_agent")
+    workflow.add_edge("review_analyzer_agent", "recommendation_agent")
+    workflow.add_edge("budget_advisor_agent", "recommendation_agent")
 
     # Sequential Decision & Synthesis Pipeline
-    workflow.add_edge("budget_advisor_agent", "recommendation_agent")
     workflow.add_edge("recommendation_agent", "finalizer_agent")
     workflow.add_edge("finalizer_agent", END)
 

@@ -784,6 +784,43 @@ export default function UserDashboard() {
                     .then(({ data }) => {
                         if (data) setRecentQueries(data.map(r => r.query));
                     });
+
+                // Fetch and migrate wishlist from Supabase
+                (async () => {
+                    try {
+                        const localSaved = JSON.parse(localStorage.getItem('seamas_wishlist') || '[]');
+                        if (localSaved.length > 0) {
+                            for (const item of localSaved) {
+                                if (item.url) {
+                                    await supabase.from('wishlists').upsert({
+                                        user_id: session.user.id,
+                                        url: item.url,
+                                        title: item.product_name || item.title,
+                                        product_name: item.product_name || item.title,
+                                        extracted_price: item.extracted_price != null ? Number(item.extracted_price) : null,
+                                        original_price: item.original_price != null ? Number(item.original_price) : null,
+                                        marketplace: item.marketplace || 'Store',
+                                        image_url: item.image_url || item.image || null,
+                                        is_verified: !!item.is_verified,
+                                        rating: item.rating != null ? Number(item.rating) : null,
+                                    }, { onConflict: 'user_id,url' });
+                                }
+                            }
+                            localStorage.removeItem('seamas_wishlist');
+                        }
+                        const { data: cloudWishlist } = await supabase
+                            .from('wishlists')
+                            .select('*')
+                            .eq('user_id', session.user.id)
+                            .order('created_at', { ascending: false });
+                        if (cloudWishlist) {
+                            setWishlistItems(cloudWishlist);
+                        }
+                    } catch (wErr) {
+                        console.error('Failed to load/migrate cloud wishlist', wErr);
+                    }
+                })();
+
                 setAuthModalOpen(false);
 
                 // Auto execute pending search query if any
@@ -875,26 +912,65 @@ export default function UserDashboard() {
         }
     };
 
-    const handleToggleWishlist = (product) => {
+    const handleToggleWishlist = async (product) => {
         const pTitle = product.product_name || product.title;
         const pUrl = product.url;
-        setWishlistItems(prev => {
-            const exists = prev.some(w => (w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle);
-            let updated;
-            if (exists) {
-                updated = prev.filter(w => !((w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle));
-                showNotification(`Removed from wishlist`, 'info');
-            } else {
-                updated = [product, ...prev];
-                showNotification(`Saved to wishlist!`, 'success');
+        const previousItems = wishlistItems;
+        const exists = previousItems.some(w => (w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle);
+
+        // Optimistic UI update
+        let updated;
+        if (exists) {
+            updated = previousItems.filter(w => !((w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle));
+            setWishlistItems(updated);
+            showNotification('Removed from wishlist', 'info');
+        } else {
+            updated = [product, ...previousItems];
+            setWishlistItems(updated);
+            showNotification('Saved to wishlist!', 'success');
+        }
+
+        // Persist to Supabase if authenticated
+        if (userSession?.id && !userSession.isGuest) {
+            try {
+                if (exists) {
+                    const { error } = await supabase
+                        .from('wishlists')
+                        .delete()
+                        .eq('user_id', userSession.id)
+                        .eq('url', pUrl);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase
+                        .from('wishlists')
+                        .upsert({
+                            user_id: userSession.id,
+                            url: pUrl,
+                            title: pTitle,
+                            product_name: product.product_name || pTitle,
+                            extracted_price: product.extracted_price != null ? Number(product.extracted_price) : null,
+                            original_price: product.original_price != null ? Number(product.original_price) : null,
+                            marketplace: product.marketplace || 'Store',
+                            image_url: product.image_url || product.image || null,
+                            is_verified: !!product.is_verified,
+                            rating: product.rating != null ? Number(product.rating) : null,
+                        }, { onConflict: 'user_id,url' });
+                    if (error) throw error;
+                }
+            } catch (err) {
+                console.error('Supabase wishlist persistence failed:', err);
+                // Rollback optimistic update on failure
+                setWishlistItems(previousItems);
+                showNotification('Could not sync wishlist with cloud. Changes reverted.', 'error');
             }
+        } else {
+            // Unauthenticated/guest fallback in localStorage
             try {
                 localStorage.setItem('seamas_wishlist', JSON.stringify(updated));
             } catch (e) {
-                console.error('Failed to save wishlist', e);
+                console.error('Failed to save wishlist in local storage', e);
             }
-            return updated;
-        });
+        }
     };
 
     const [loading, setLoading] = useState(false);

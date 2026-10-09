@@ -11,6 +11,9 @@ const ALL_SUGGESTIONS = [
     { label: 'Sony PlayStation 5 vs Xbox Series X deals' },
 ];
 
+const AGENT_COUNT = 7;
+const AGENT_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+
 export default function ChatInterface({ onQuerySubmit, loading, isGuest = false, steeringMode = 'balanced', setSteeringMode }) {
     const [input, setInput] = useState('');
     const [focused, setFocused] = useState(false);
@@ -104,7 +107,7 @@ export default function ChatInterface({ onQuerySubmit, loading, isGuest = false,
             <h1 className="font-display text-center text-4xl font-light leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
                 <span className="text-gradient">Shop as if </span>
                 <br className="hidden sm:block" />
-                <span className="text-white/95">six specialists worked for you.</span>
+                <span className="text-white/95">{`${AGENT_COUNT_WORDS[AGENT_COUNT] || AGENT_COUNT} specialists worked for you.`}</span>
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-center text-[15px] leading-relaxed text-neutral-400">
                 Describe what you want. SEAMAS orchestrates a team of AI agents across marketplaces,

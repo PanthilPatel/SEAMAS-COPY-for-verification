@@ -64,6 +64,7 @@ async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     Recommendation Agent:
     Synthesizes pricing, review sentiment, and budget limits.
     Produces grounded, actionable shopping recommendations using Qwen2.5 or algorithmic fallback.
+    Performs fan-in budget evaluation to generate budget_evaluations for the frontend.
     """
     print("\n--- RECOMMENDATION AGENT INITIATED: AI Synthesis & Ranking ---")
 
@@ -71,7 +72,15 @@ async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     price_data = state.get("price_data", [])
     analysis_report = state.get("analysis_report", {})
     budget_status = state.get("budget_status", {})
-    budget_evaluations = state.get("budget_evaluations", [])
+    budget_evaluations = state.get("budget_evaluations") or []
+
+    # If parallel budget_advisor ran, evaluate listings against budget_status now at fan-in
+    from agents.budget_advisor_agent import evaluate_budget_listings
+    if not budget_evaluations and price_data:
+        budget_evaluations, updated_budget_status = evaluate_budget_listings(price_data, budget_status)
+        budget_status = updated_budget_status
+    elif not budget_evaluations:
+        updated_budget_status = budget_status
 
     eval_map = {e.get("url") or e.get("product_name"): e.get("status") for e in budget_evaluations}
 
@@ -85,6 +94,8 @@ async def recommendation_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         fallback = _algorithmic_fallback(price_data, budget_status, analysis_report, budget_evaluations)
         return {
             "recommendations": fallback,
+            "budget_status": budget_status,
+            "budget_evaluations": budget_evaluations,
             "logs": ["Recommendation Agent: No valid candidates for LLM ranking. Used deterministic fallback."]
         }
 
@@ -158,12 +169,16 @@ Output only the bullet points, clear, factual, and strictly grounded in the cand
             print(f"[RecommendationAgent] Successfully synthesized {len(bullets)} recommendations via {model_name}.")
             return {
                 "recommendations": bullets,
+                "budget_status": budget_status,
+                "budget_evaluations": budget_evaluations,
                 "logs": [f"Recommendation Agent: Synthesized {len(bullets)} strategic points via {model_name}."]
             }
         else:
             fallback = _algorithmic_fallback(price_data, budget_status, analysis_report, budget_evaluations)
             return {
                 "recommendations": fallback,
+                "budget_status": budget_status,
+                "budget_evaluations": budget_evaluations,
                 "logs": ["Recommendation Agent: Fallback heuristic engaged after concise LLM output."]
             }
 
@@ -172,6 +187,8 @@ Output only the bullet points, clear, factual, and strictly grounded in the cand
         fallback = _algorithmic_fallback(price_data, budget_status, analysis_report, budget_evaluations)
         return {
             "recommendations": fallback,
+            "budget_status": budget_status,
+            "budget_evaluations": budget_evaluations,
             "logs": [f"Recommendation Agent: Heuristic fallback engaged ({str(e)})."]
         }
 

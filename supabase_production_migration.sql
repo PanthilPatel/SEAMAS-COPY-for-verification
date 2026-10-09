@@ -77,25 +77,38 @@ DROP POLICY IF EXISTS "Anyone can read cache" ON public.cached_results;
 REVOKE ALL ON public.cached_results FROM anon, authenticated;
 GRANT ALL ON public.cached_results TO service_role;
 
--- The legacy wishlist table exists on fresh installs; retain it if present and
--- constrain it to owner-only access with explicit insert checks.
-DO $$ BEGIN
-  IF to_regclass('public.wishlists') IS NOT NULL THEN
-    ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
-    DROP POLICY IF EXISTS "Users can manage own wishlist" ON public.wishlists;
-    DROP POLICY IF EXISTS "Users can view own wishlist" ON public.wishlists;
-    DROP POLICY IF EXISTS "Users can add own wishlist" ON public.wishlists;
-    DROP POLICY IF EXISTS "Users can update own wishlist" ON public.wishlists;
-    DROP POLICY IF EXISTS "Users can delete own wishlist" ON public.wishlists;
-    CREATE POLICY "Users can view own wishlist" ON public.wishlists FOR SELECT TO authenticated USING (auth.uid() = user_id);
-    CREATE POLICY "Users can add own wishlist" ON public.wishlists FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "Users can update own wishlist" ON public.wishlists FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-    CREATE POLICY "Users can delete own wishlist" ON public.wishlists FOR DELETE TO authenticated USING (auth.uid() = user_id);
-    REVOKE ALL ON public.wishlists FROM anon;
-    GRANT SELECT, INSERT, UPDATE, DELETE ON public.wishlists TO authenticated;
-    GRANT ALL ON public.wishlists TO service_role;
-  END IF;
-END $$;
+CREATE TABLE IF NOT EXISTS public.wishlists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  title text,
+  product_name text,
+  url text NOT NULL,
+  extracted_price numeric,
+  original_price numeric,
+  marketplace text,
+  image_url text,
+  rating numeric,
+  reviews_count integer,
+  is_verified boolean DEFAULT false,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT wishlists_user_url_unique UNIQUE (user_id, url)
+);
+CREATE INDEX IF NOT EXISTS wishlists_user_created_idx ON public.wishlists(user_id, created_at DESC);
+
+ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage own wishlist" ON public.wishlists;
+DROP POLICY IF EXISTS "Users can view own wishlist" ON public.wishlists;
+DROP POLICY IF EXISTS "Users can add own wishlist" ON public.wishlists;
+DROP POLICY IF EXISTS "Users can update own wishlist" ON public.wishlists;
+DROP POLICY IF EXISTS "Users can delete own wishlist" ON public.wishlists;
+CREATE POLICY "Users can view own wishlist" ON public.wishlists FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can add own wishlist" ON public.wishlists FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own wishlist" ON public.wishlists FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own wishlist" ON public.wishlists FOR DELETE TO authenticated USING (auth.uid() = user_id);
+REVOKE ALL ON public.wishlists FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.wishlists TO authenticated;
+GRANT ALL ON public.wishlists TO service_role;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.search_history ENABLE ROW LEVEL SECURITY;

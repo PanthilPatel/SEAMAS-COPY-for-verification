@@ -4,9 +4,10 @@ from typing import Dict, Any, AsyncGenerator, Optional
 from utils.agent_tracker import log_pipeline_start, log_pipeline_complete
 
 
-def extract_intent_and_constraints(query: str) -> Dict[str, Any]:
+def extract_intent_and_constraints(query: str, explicit_budget: Optional[float] = None) -> Dict[str, Any]:
     """
     Stage 1: Extracts category, budget, budget_type, and user constraints from raw query.
+    If an explicit budget is supplied (e.g., from UI max_price), it takes precedence over query parsing.
     Enables early constraint awareness before the search and research stages run.
     """
     q = query.lower()
@@ -28,8 +29,21 @@ def extract_intent_and_constraints(query: str) -> Dict[str, Any]:
     # 2. Budget Extraction (Hard Limit vs Approximate Budget)
     from agents.budget_advisor_agent import parse_budget_intent
     budget_info = parse_budget_intent(query)
-    ceiling = budget_info.get("ceiling")
-    budget_type = budget_info.get("budget_type", "none")
+    
+    if explicit_budget is not None and explicit_budget > 0:
+        ceiling = int(explicit_budget)
+        budget_type = "hard_limit"
+        budget_info = {
+            "ceiling": ceiling,
+            "budget_type": "hard_limit",
+            "status": f"User-defined budget ceiling locked at ₹{ceiling:,}",
+            "tolerance_pct": 0.0,
+        }
+    else:
+        ceiling = budget_info.get("ceiling")
+        budget_type = budget_info.get("budget_type", "none")
+        if budget_type not in ("hard_limit", "approximate", "none"):
+            budget_type = "none"
 
     # 3. User Preference / Feature Tagging
     preferences: Dict[str, Any] = {}
@@ -50,10 +64,12 @@ async def orchestrator_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Stage 1 Orchestrator Node in LangGraph.
     Acts as the single graph entry point, extracting user intent, category, and budget constraints.
+    Preserves UI-supplied explicit budget (max_price) if present in state.
     Writes strictly to its owned state keys: category, budget, budget_type, user_preferences, budget_status.
     """
     query = state.get("query", "")
-    intent_data = extract_intent_and_constraints(query)
+    existing_budget = state.get("budget")
+    intent_data = extract_intent_and_constraints(query, explicit_budget=existing_budget)
 
     log_msg = (
         f"Orchestrator Stage 1: Category='{intent_data['category']}', "

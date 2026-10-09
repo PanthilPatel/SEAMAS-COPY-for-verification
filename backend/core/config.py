@@ -7,13 +7,13 @@ class Settings(BaseSettings):
 
     # Search configuration
     SEARXNG_BASE_URL: str = os.getenv("SEARXNG_BASE_URL", "https://seamas-searxng.onrender.com")
-    SEARXNG_TIMEOUT: float = float(os.getenv("SEARXNG_TIMEOUT", "5.0"))
+    SEARXNG_TIMEOUT: float = float(os.getenv("SEARXNG_TIMEOUT", "8.0"))
     TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
     MAX_SEARCH_PAGES: int = int(os.getenv("MAX_SEARCH_PAGES", "2"))
 
     # LLM / Ollama configuration
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", os.getenv("OLLAMA_BASE_URL", ""))
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:0.5b")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
     # Database / Cache
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
@@ -98,9 +98,10 @@ def resolve_ollama_model() -> str | None:
     """
     Deterministically resolves an available Qwen model for Ollama in order:
     1. Explicit OLLAMA_MODEL setting (if present in installed models).
-    2. Any installed compatible Qwen model from predefined candidates in priority order.
-    3. Returns None if Ollama is unreachable or no compatible model is found,
-       signaling agents to use deterministic non-LLM algorithmic fallbacks.
+    2. Preferred 7B models (qwen2.5:7b, qwen2.5-coder:7b).
+    3. Other compatible Qwen candidates with an explicit warning on downgrade.
+    4. Returns None if Ollama is unreachable or no compatible model is found,
+       logging a clear warning that deterministic non-LLM algorithmic fallbacks are active.
     """
     global _RESOLVED_OLLAMA_MODEL, _OLLAMA_CHECKED
     if _OLLAMA_CHECKED:
@@ -123,25 +124,29 @@ def resolve_ollama_model() -> str | None:
         # 1. Check explicit setting
         configured = settings.OLLAMA_MODEL.strip()
         if configured:
-            # Check exact or prefix match (e.g. qwen2.5:0.5b vs qwen2.5:0.5b-chat)
             for inst in installed_models:
                 if inst == configured or inst.startswith(configured):
                     _RESOLVED_OLLAMA_MODEL = configured
                     return _RESOLVED_OLLAMA_MODEL
 
-        # 2. Check installed candidates in deterministic priority order (fastest/smallest first)
+        # 2. Check candidates preferring 7b, then descending
         candidates = [
-            "qwen2.5:0.5b",
-            "qwen2.5:1.5b",
-            "qwen2.5:3b",
             "qwen2.5:7b",
-            "qwen2.5:latest",
             "qwen2.5-coder:7b",
+            "qwen2.5:latest",
+            "qwen2.5:3b",
+            "qwen2.5:1.5b",
+            "qwen2.5:0.5b",
         ]
         for cand in candidates:
             for inst in installed_models:
                 if inst == cand or inst.startswith(cand.split(":")[0]):
                     _RESOLVED_OLLAMA_MODEL = inst
+                    if configured and inst != configured:
+                        import logging
+                        logging.getLogger("seamas.config").warning(
+                            f"[Ollama] Configured model '{configured}' unavailable. Falling back to installed '{inst}'."
+                        )
                     return _RESOLVED_OLLAMA_MODEL
 
         # If configured is non-empty, test if Ollama can run it anyway
@@ -149,9 +154,15 @@ def resolve_ollama_model() -> str | None:
             _RESOLVED_OLLAMA_MODEL = configured
             return _RESOLVED_OLLAMA_MODEL
 
-    except Exception:
-        # Ollama offline, uninstalled, or connection timed out
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger("seamas.config").warning(
+            f"[Ollama] Unreachable or error listing models ({exc}). Engaging deterministic fallbacks."
+        )
 
+    import logging
+    logging.getLogger("seamas.config").warning(
+        "[Ollama] No compatible LLM model active. System operating in deterministic fallback mode."
+    )
     _RESOLVED_OLLAMA_MODEL = None
     return None

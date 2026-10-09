@@ -211,7 +211,7 @@ async def web_search_tool(
     effective_query = _build_shopping_query(query) if augment_query else query
     tavily_key = os.getenv("TAVILY_API_KEY", "")
     searxng_url = os.getenv("SEARXNG_BASE_URL", "https://seamas-searxng.onrender.com").rstrip("/")
-    searxng_timeout = float(os.getenv("SEARXNG_TIMEOUT", "10.0"))
+    searxng_timeout = float(os.getenv("SEARXNG_TIMEOUT", "8.0"))
 
     # ── 1. PRIMARY SEARCH: SearXNG (with retry on transient timeout) ──────────
     if searxng_url:

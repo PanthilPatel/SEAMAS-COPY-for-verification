@@ -1132,19 +1132,8 @@ Records:
                 r["price_verification_method"] = "source_page"
                 r["tags"] = ["Store Listing", "Live Verified"]
                 verified_results.append(r)
-            elif (snippet_verified or snippet_price) and snippet_price and snippet_price >= min_price_floor:
-                # Tier 2: Search Index Verified (from authentic e-commerce product index/snippet)
-                r["extracted_price"] = snippet_price
-                if snippet_mrp and snippet_mrp > snippet_price:
-                    r["original_price"] = snippet_mrp
-                r["is_verified"] = True
-                r["price_verified"] = True
-                r["price_verified_at"] = datetime.now(timezone.utc).isoformat()
-                r["price_verification_method"] = "store_index"
-                r["status"] = "Target Match" if not budget or snippet_price <= budget else "Out of Budget"
-                r["tags"] = ["Store Listing", "Indexed Offer"]
-                verified_results.append(r)
             else:
+                # Unverified / snippet-only candidates: snippet only discovers product, not authoritative price
                 r["extracted_price"] = None
                 r["original_price"] = None
                 r["is_verified"] = False

@@ -115,25 +115,18 @@ def tag_product_budget(extracted_price: Optional[int], budget_info: Dict[str, An
         return ("Out of Budget", variance)
 
 
-async def budget_advisor_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+def evaluate_budget_listings(
+    price_data: List[Dict[str, Any]],
+    budget_info: Dict[str, Any]
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
-    Budget Advisor Agent:
-    1. Interprets hard ceilings vs approximate targets deterministically.
-    2. Classifies all product offers in price_data consistently.
-    3. Explicitly flags out-of-budget listings and calculates exact variance.
+    Evaluates listings in price_data against budget_info after fan-in.
+    Returns (budget_evaluations, updated_budget_info).
     """
-    query = state.get("query", "")
-    price_data = state.get("price_data", [])
-
-    print(f"\n--- BUDGET ADVISOR AGENT INITIATED: Evaluating '{query}' ---")
-
-    budget_info = parse_budget_intent(query)
-    ceiling = budget_info.get("ceiling")
-
-    # Classify candidate listings into budget_evaluations without mutating price_data
     budget_evaluations: List[Dict[str, Any]] = []
     in_budget_count = 0
     out_budget_count = 0
+    ceiling = budget_info.get("ceiling")
 
     for item in price_data:
         price_val = item.get("extracted_price")
@@ -154,24 +147,67 @@ async def budget_advisor_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 out_budget_count += 1
 
-    # Compile advisory summary
+    updated_info = dict(budget_info)
     if ceiling:
         if budget_evaluations:
-            budget_info["in_budget_count"] = in_budget_count
-            budget_info["out_of_budget_count"] = out_budget_count
-            summary_msg = f"{budget_info['status']}. Filtered: {in_budget_count} in-budget offers, {out_budget_count} out-of-budget."
+            updated_info["in_budget_count"] = in_budget_count
+            updated_info["out_of_budget_count"] = out_budget_count
+            summary_msg = f"{updated_info.get('status', '')}. Filtered: {in_budget_count} in-budget offers, {out_budget_count} out-of-budget."
         else:
-            summary_msg = budget_info["status"]
+            summary_msg = updated_info.get("status", "")
     else:
         summary_msg = "No financial limits enforced; full marketplace pricing spectrum active."
+
+    updated_info["summary"] = summary_msg
+    return budget_evaluations, updated_info
+
+
+async def budget_advisor_agent(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Budget Advisor Agent (Parallel Stage 2):
+    Runs in parallel with Price Comparison and Review Analyzer directly from Search Agent.
+    Depends only on the user query, state budget ceiling, and intent constraints.
+    Does NOT depend on price_data during fan-out.
+    """
+    query = state.get("query", "")
+    existing_budget = state.get("budget")
+    existing_status = state.get("budget_status") or {}
+
+    print(f"\n--- BUDGET ADVISOR AGENT INITIATED: Evaluating '{query}' ---")
+
+    if existing_status and existing_status.get("ceiling") is not None:
+        budget_info = dict(existing_status)
+    elif existing_budget is not None and existing_budget > 0:
+        budget_info = {
+            "ceiling": int(existing_budget),
+            "budget_type": state.get("budget_type", "hard_limit"),
+            "status": f"Budget constraint locked at ₹{int(existing_budget):,}",
+            "tolerance_pct": 0.08 if state.get("budget_type") == "approximate" else 0.0,
+        }
+    else:
+        budget_info = parse_budget_intent(query)
+
+    ceiling = budget_info.get("ceiling")
+    if ceiling:
+        summary_msg = budget_info.get("status", f"Budget ceiling set at ₹{ceiling:,}")
+    else:
+        summary_msg = "No financial limits enforced; full marketplace pricing spectrum active."
+
+    price_data = state.get("price_data", [])
+    budget_evaluations: List[Dict[str, Any]] = []
+
+    if price_data:
+        budget_evaluations, updated_info = evaluate_budget_listings(price_data, budget_info)
+        budget_info = updated_info
+        summary_msg = budget_info.get("summary", summary_msg)
 
     budget_info["summary"] = summary_msg
     print(f"[BudgetAdvisor] {summary_msg}")
 
-    # Strict State Ownership: Budget Advisor owns budget_status and budget_evaluations.
-    # Price Comparison Agent exclusively owns price_data.
-    return {
+    result: Dict[str, Any] = {
         "budget_status": budget_info,
-        "budget_evaluations": budget_evaluations,
         "logs": [f"Budget Advisor: {summary_msg}"]
     }
+    if budget_evaluations or price_data:
+        result["budget_evaluations"] = budget_evaluations
+    return result
