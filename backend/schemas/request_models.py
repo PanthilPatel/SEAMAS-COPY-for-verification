@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, Literal
 
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=300, description="The client intent search string")
-    max_price: Optional[int] = Field(None, description="Optional upper boundary price target limit")
-    user_id: Optional[str] = Field(None, description="User ID for credit tracking")
-    steering_mode: Optional[str] = Field("balanced", description="AI Steering Mode: balanced, speed, accuracy")
+    max_price: Optional[int] = Field(None, gt=0, le=100000000, description="Optional upper boundary price target limit")
+    user_id: Optional[str] = Field(None, max_length=128, description="Deprecated UI compatibility field; ignored by the API")
+    steering_mode: Literal["balanced", "speed", "accuracy"] = Field("balanced", description="AI Steering Mode")
 
     @field_validator("query")
     @classmethod

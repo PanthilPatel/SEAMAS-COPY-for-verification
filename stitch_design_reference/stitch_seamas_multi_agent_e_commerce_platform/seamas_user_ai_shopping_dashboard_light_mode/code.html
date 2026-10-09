@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_dashboard" name="shell-type"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #f4f9fd;
+      }
+      body {
+        overscroll-behavior: none;
+      }
+      main > :first-child {
+        margin-top: 0 !important;
+      }
+      main > :last-child {
+        margin-bottom: 0 !important;
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    .bg-grid-pattern {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#ffffff",
+            "surface-dim": "#eef5fc",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#f8fbff",
+            "surface-container": "#f0f6fc",
+            "surface-container-high": "#e4effa",
+            "surface-container-highest": "#d7e6f5",
+            "background": "#f4f9fd",
+            "primary": "#4648d4",
+            "primary-container": "#eef2ff",
+            "on-primary-container": "#3730a3",
+            "on-primary": "#ffffff",
+            "secondary": "#0284c7",
+            "secondary-container": "#e0f2fe",
+            "on-secondary-container": "#0369a1",
+            "tertiary": "#9333ea",
+            "tertiary-container": "#f3e8ff",
+            "on-tertiary-container": "#6b21a8",
+            "on-surface": "#0c2038",
+            "on-surface-variant": "#475569",
+            "outline": "#94a3b8",
+            "outline-variant": "#cbd5e1",
+            "error": "#dc2626",
+            "error-container": "#fee2e2",
+            "on-error-container": "#991b1b",
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "gutter-desktop": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "margin-desktop": "2rem",
+            "space-xs": "0.25rem",
+            "margin": "1rem",
+            "gutter": "1.25rem",
+            "space-xl": "2.5rem",
+            "space-lg": "1.5rem"
+          },
+          fontFamily: {
+            "headline-sm": ["Space Grotesk", "sans-serif"],
+            "headline-md": ["Space Grotesk", "sans-serif"],
+            "headline-lg": ["Space Grotesk", "sans-serif"],
+            "metric-display": ["Space Grotesk", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "label-caps": ["Space Grotesk", "sans-serif"],
+            "code-badge": ["JetBrains Mono", "monospace"],
+            "code-stream": ["JetBrains Mono", "monospace"]
+          },
+          fontSize: {
+            "headline-sm": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "headline-lg": ["32px", { lineHeight: "38px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "metric-display": ["32px", { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+            "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+            "label-caps": ["11px", { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "600" }],
+            "code-badge": ["10px", { lineHeight: "12px", letterSpacing: "0.05em", fontWeight: "600" }],
+            "code-stream": ["12px", { lineHeight: "18px", letterSpacing: "0.02em", fontWeight: "500" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-background font-body-md text-on-surface antialiased bg-grid-pattern min-h-screen">
+<!-- Left Sidebar (Clean White & Ice Tinted) -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface border-r border-outline-variant/60 z-50 flex flex-col justify-between p-space-md shadow-[2px_0_12px_rgba(15,23,42,0.03)]">
+<div class="flex flex-col gap-space-lg">
+<!-- Brand Logo Header -->
+<div class="flex items-center gap-space-sm px-space-xs pt-1">
+<img alt="SEAMAS Brand Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1X6fm2lmiGtT8ZZ_SlAyDrETMGP0yOJx_GxhoKvbs2OWaekmEiPDMV03vlnOXijNdjMCIQam3iLV15-eEWJ96494s-pj2v-zlaMikpEFte0rU8ePY27pJhSzoVTr94QaGu9GYDc-NRVAaZZbVQ9lFcu1Oc_AAn_tYNSJG5dI7F__q_J-zmXlmrnGgo2l6U5heuk5HEOQJlnYMqgVP_zyUEWy_JSB1-z_m2guZtguCl-qA17LyzfMCRRu2U"/>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-[#0c2038] tracking-tight leading-none font-bold">SEAMAS</span>
+<span class="font-code-badge text-[10px] text-secondary tracking-widest uppercase font-semibold">AI Agent Mesh</span>
+</div>
+</div>
+<!-- Agent Mesh Telemetry pill -->
+<div class="px-space-xs">
+<div class="flex items-center gap-space-xs px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/50 text-[#0284c7]">
+<span class="w-2 h-2 rounded-full bg-[#0284c7] animate-pulse"></span>
+<span class="font-code-stream text-[11px] font-semibold tracking-wide truncate">Agent Mesh v2.4 · 18ms</span>
+</div>
+</div>
+<!-- Main Navigation Menu -->
+<nav class="flex flex-col gap-1.5">
+<a aria-current="page" class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl transition-all bg-[#eef2ff] text-[#4f46e5] font-semibold shadow-sm border border-indigo-100" data-path="dashboard" href="#">
+<span class="material-symbols-outlined text-lg text-[#6366f1]">chat_spark</span>
+<span class="font-body-md text-sm">Explore / Chat</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-[#3d5b7d] hover:bg-surface-container hover:text-[#0c2038] transition-colors" data-path="agents-mesh" href="#">
+<span class="material-symbols-outlined text-lg text-slate-500">hub</span>
+<span class="font-body-md text-sm font-medium">Agents Mesh</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-[#3d5b7d] hover:bg-surface-container hover:text-[#0c2038] transition-colors" data-path="products" href="#">
+<span class="material-symbols-outlined text-lg text-slate-500">shopping_bag</span>
+<span class="font-body-md text-sm font-medium">Products</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-[#3d5b7d] hover:bg-surface-container hover:text-[#0c2038] transition-colors" data-path="admin-analytics" href="#">
+<span class="material-symbols-outlined text-lg text-slate-500">monitoring</span>
+<span class="font-body-md text-sm font-medium">Admin Analytics</span>
+</a>
+<a class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-[#3d5b7d] hover:bg-surface-container hover:text-[#0c2038] transition-colors" data-path="profile-settings" href="#">
+<span class="material-symbols-outlined text-lg text-slate-500">tune</span>
+<span class="font-body-md text-sm font-medium">Profile Settings</span>
+</a>
+</nav>
+</div>
+<!-- Bottom Sidebar Section -->
+<div class="flex flex-col gap-space-sm pt-space-md">
+<div class="p-3 rounded-xl bg-surface-container border border-outline-variant/60 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-caps text-[10px] text-slate-500 uppercase tracking-wider">Orchestration</span>
+<span class="font-code-stream text-xs font-semibold text-emerald-600">4/4 Active</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-xl">memory</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="pl-64">
+<!-- Top Global Header Bar (Crisp Light Mode) -->
+<header class="fixed top-0 left-64 right-0 z-40 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/60 shadow-[0_1px_4px_rgba(0,0,0,0.03)]">
+<div class="h-16 w-full px-space-lg flex items-center justify-between gap-space-md">
+<!-- Global Omni-search -->
+<div class="flex-1 max-w-xl">
+<div class="relative flex items-center w-full">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg pointer-events-none">search</span>
+<input class="w-full h-10 pl-10 pr-12 rounded-xl bg-[#f8fafc] border border-outline-variant/70 text-[#0c2038] font-body-sm text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" placeholder="Instruct agent or search market mesh... (e.g. Find RTX 4090 under $1500)" type="text"/>
+<span class="absolute right-3 font-code-badge text-[11px] px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 border border-slate-300/60 pointer-events-none">⌘K</span>
+</div>
+</div>
+<!-- Right Header Controls -->
+<div class="flex items-center gap-3">
+<div class="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-code-stream text-xs text-emerald-700 font-medium">Connected · 18ms</span>
+</div>
+<button class="p-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-amber-500 transition-colors flex items-center justify-center shadow-sm" id="theme-toggle-btn" title="Light mode active" type="button">
+<span class="material-symbols-outlined text-lg" id="theme-toggle-icon">light_mode</span>
+</button>
+<button class="relative p-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-slate-600 hover:text-slate-900 transition-colors flex items-center justify-center shadow-sm" type="button">
+<span class="material-symbols-outlined text-lg">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-600 ring-2 ring-white"></span>
+</button>
+<div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold text-xs shadow-sm ring-2 ring-indigo-100">
+<span>JD</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Viewport -->
+<main class="w-full pt-16 min-h-screen bg-background pb-16">
+<div class="flex flex-col w-full">
+<!-- Live Market Ticker Strip -->
+<div class="w-full bg-surface border-b border-outline-variant/60 py-2.5 px-space-lg shadow-sm">
+<div class="flex items-center gap-space-md whitespace-nowrap overflow-hidden">
+<div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping"></span>
+<span class="font-code-badge text-[11px] tracking-wider uppercase font-semibold">Live Mesh Feed</span>
+</div>
+<div class="flex items-center gap-space-xl overflow-x-auto text-slate-600 font-code-stream text-xs scrollbar-none py-0.5">
+<span class="flex items-center gap-1.5 text-slate-800">
+<span class="material-symbols-outlined text-emerald-600 text-sm">trending_down</span>
+<strong>Sony WH-1000XM5</strong> dropped to <span class="text-emerald-700 font-headline-sm text-xs font-bold">₹24,990</span> (-22%) on Amazon
+              </span>
+<span class="text-slate-300 font-bold">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-indigo-600 text-sm">bolt</span>
+<strong>MacBook Air M3</strong> at <span class="text-indigo-600 font-headline-sm text-xs font-bold">₹96,490</span> on Flipkart
+              </span>
+<span class="text-slate-300 font-bold">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-purple-600 text-sm">save_as</span>
+<strong>Samsung S24 Ultra</strong> at <span class="text-slate-900 font-bold">₹1,04,999</span> on Croma
+              </span>
+<span class="text-slate-300 font-bold">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-600 text-sm">trending_down</span>
+<strong>Bose QC45</strong> dropped to <span class="text-emerald-700 font-headline-sm text-xs font-bold">₹19,990</span> (-31%)
+              </span>
+<span class="text-slate-300 font-bold">/</span>
+<span class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-slate-400 text-sm">sync</span>
+<span>418 marketplace endpoints synchronizing at 14ms latency</span>
+</span>
+</div>
+</div>
+</div>
+<!-- Main Multi-Pane Control Room Workspace -->
+<div class="w-full px-space-lg py-space-lg flex flex-col gap-space-lg">
+<!-- Hero Universal Query Omnibar & Agent Mesh Orchestrator -->
+<div class="w-full rounded-2xl bg-surface border border-outline-variant/70 p-space-lg shadow-sm relative overflow-hidden">
+<!-- Subtle Light Ambient Glows -->
+<div class="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-sky-200/40 blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-24 -left-24 w-80 h-80 rounded-full bg-indigo-200/40 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-space-md">
+<!-- Sub-header & Meta Telemetry -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-2.5">
+<span class="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-code-badge text-xs uppercase tracking-wider font-semibold">Multi-Agent Swarm</span>
+<h1 class="font-headline-sm text-lg text-[#0c2038] font-bold">Real-Time Autonomous Shopping Pipeline</h1>
+</div>
+<div class="flex items-center gap-space-md font-code-stream text-xs text-slate-600">
+<span class="flex items-center gap-1.5 text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+<span class="material-symbols-outlined text-sm">network_check</span>
+<span>100% Consensus reached</span>
+</span>
+<span class="text-slate-300 font-bold">·</span>
+<span class="text-slate-500 font-medium">Total Compute: 940ms</span>
+</div>
+</div>
+<!-- Universal Interactive Omnibar -->
+<div class="w-full flex flex-col md:flex-row items-center gap-space-sm rounded-xl bg-[#f8fbfe] border border-indigo-100 p-2 shadow-inner">
+<div class="flex items-center gap-2.5 flex-1 px-space-sm w-full">
+<span class="material-symbols-outlined text-indigo-600 text-2xl">psychology</span>
+<input class="w-full bg-transparent text-[#0c2038] font-headline-sm text-base font-semibold focus:outline-none placeholder:text-slate-400" id="agentQueryInput" placeholder="Command 7 agents (e.g. Find lightweight 4K OLED monitor under ₹40,000)..." type="text" value="Best noise-cancelling headphones under ₹25,000"/>
+</div>
+<div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+<button class="px-3.5 py-2 rounded-lg bg-surface border border-outline-variant/70 text-slate-700 font-code-badge text-xs font-semibold hover:bg-slate-50 transition-colors shadow-sm" type="button">
+                    FILTER PRESETS
+                  </button>
+<button class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-headline-sm text-sm font-semibold transition-all shadow-md shadow-indigo-500/20 flex items-center gap-1.5" type="button">
+<span>Execute Mesh</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Preset Chips -->
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-caps text-[11px] text-slate-500 uppercase tracking-wider mr-1">Active Mesh Directives:</span>
+<button class="px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 font-body-sm text-xs font-medium flex items-center gap-1.5 hover:bg-indigo-100 transition-colors" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                  Best noise-cancelling headphones under ₹25,000
+                </button>
+<button class="px-3 py-1 rounded-full bg-surface-container border border-outline-variant/60 text-slate-600 font-body-sm text-xs hover:text-[#0c2038] hover:bg-surface-container-high transition-colors" type="button">
+                  OLED 4K TV under ₹65,000
+                </button>
+<button class="px-3 py-1 rounded-full bg-surface-container border border-outline-variant/60 text-slate-600 font-body-sm text-xs hover:text-[#0c2038] hover:bg-surface-container-high transition-colors" type="button">
+                  Lightweight coding laptop 32GB RAM
+                </button>
+<button class="px-3 py-1 rounded-full bg-surface-container border border-outline-variant/60 text-slate-600 font-body-sm text-xs hover:text-[#0c2038] hover:bg-surface-container-high transition-colors" type="button">
+                  Mechanical Keyboard hot-swap wireless
+                </button>
+</div>
+<!-- 7-Agent Execution Timeline / Mesh Status Grid -->
+<div class="mt-1 pt-3.5 bg-white rounded-xl p-space-md border border-indigo-100 shadow-sm">
+<div class="flex items-center justify-between pb-3">
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-xs uppercase text-indigo-700 font-bold tracking-wider">7-Agent Swarm Orchestration Stream</span>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 font-code-badge text-[10px] text-emerald-700 font-semibold">MESH VERIFIED</span>
+</div>
+<span class="font-code-stream text-xs text-slate-500 font-medium">Sync: 14/14 sources verified</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+<!-- Agent 1: Search -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-sky-100 text-sky-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">search</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">82ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Search Agent</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">14 markets · 48 items</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-emerald-600 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>COMPLETE</span>
+</div>
+</div>
+<!-- Agent 2: Price Comparison -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-sky-100 text-sky-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">sell</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">114ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Price Comparison</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">418 points normalized</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-emerald-600 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>COMPLETE</span>
+</div>
+</div>
+<!-- Agent 3: Review Analyzer -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-purple-100 text-purple-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">rate_review</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">230ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Review Analyzer</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">3,420 reviews NLP</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-purple-700 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+<span>SYNTHESIZED</span>
+</div>
+</div>
+<!-- Agent 4: Product Spec -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-sky-100 text-sky-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">straighten</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">92ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Product Spec</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">ANC dB &amp; drivers ok</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-emerald-600 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>VERIFIED</span>
+</div>
+</div>
+<!-- Agent 5: Budget Advisor -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-indigo-100 text-indigo-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">account_balance_wallet</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">64ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Budget Advisor</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">≤₹25,000 ceiling lock</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-indigo-700 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+<span>COMPLIANT</span>
+</div>
+</div>
+<!-- Agent 6: Recommendation -->
+<div class="p-3 rounded-lg bg-surface-container-low border border-outline-variant/60 flex flex-col justify-between gap-2 shadow-sm hover:border-indigo-300 transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-sky-100 text-sky-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">lightbulb</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600">160ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Recommendation</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">Utility matrix calculated</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-emerald-600 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>RANKED</span>
+</div>
+</div>
+<!-- Agent 7: Finalizer -->
+<div class="p-3 rounded-lg bg-purple-50/60 border border-purple-200 flex flex-col justify-between gap-2 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-purple-100 text-purple-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-base">verified_user</span>
+</div>
+<span class="font-code-badge text-[10px] px-1.5 py-0.5 rounded bg-white border border-purple-200 text-purple-700">198ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-xs text-[#0c2038] font-bold leading-tight">Finalizer Agent</p>
+<p class="font-body-sm text-[11px] text-slate-500 truncate">Merchant trust 99.2%</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-[10px] text-purple-700 font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+<span>AUTHENTIC</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Consensus Verdict Banner (Light Tinted Card) -->
+<div class="w-full p-space-md rounded-2xl bg-[#eef6ff] border border-sky-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md shadow-sm">
+<div class="flex items-start gap-space-md">
+<div class="w-10 h-10 rounded-xl bg-white border border-sky-200 flex items-center justify-center text-secondary shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-xl text-sky-600">auto_awesome</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-xs text-sky-800 uppercase font-bold tracking-wider">Agent Consensus Verdict</span>
+<span class="font-code-badge text-[11px] px-2 py-0.5 rounded-full bg-white border border-sky-200 text-sky-700 font-semibold shadow-xs">Confidence Score 98.4%</span>
+</div>
+<p class="font-body-md text-sm text-[#0c2038] max-w-4xl leading-relaxed">
+<strong class="text-sky-800 font-semibold">Sony WH-1000XM5</strong> leads for acoustics, ANC floor attenuation, and spatial realism under ₹25k; <span class="font-semibold text-slate-800">Bose QC45</span> is top comfort runner-up. 
+                  <span class="text-slate-600">94% positive sentiment synthesized across 12,400+ verified customer experiences on Indian e-commerce nodes.</span>
+</p>
+</div>
+</div>
+<div class="flex items-center gap-space-md shrink-0 w-full lg:w-auto justify-end">
+<div class="flex flex-col text-right">
+<span class="font-headline-sm text-sm text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">₹10,000 Saved</span>
+<span class="font-code-badge text-[10px] text-slate-500 mt-0.5">vs. launch MRP</span>
+</div>
+<button class="px-space-md py-2 rounded-xl bg-white border border-outline-variant/70 hover:bg-slate-50 text-[#0c2038] font-headline-sm text-xs font-semibold transition-colors flex items-center gap-1 shadow-sm" onclick="document.getElementById('fullConsensusModal').classList.toggle('hidden')" type="button">
+<span>Read Mesh Log</span>
+<span class="material-symbols-outlined text-sm">unfold_more</span>
+</button>
+</div>
+</div>
+<!-- Main Workspace Split: Filters + Product Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+<!-- Left Filters Sidebar (3 cols on XL) -->
+<div class="xl:col-span-3 flex flex-col gap-space-md">
+<div class="p-space-md rounded-2xl bg-surface border border-outline-variant/70 shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-1 border-b border-slate-100">
+<span class="font-headline-sm text-sm text-[#0c2038] font-bold">Mesh Parameters</span>
+<button class="font-code-badge text-[11px] text-indigo-600 font-bold uppercase hover:underline" type="button">Reset</button>
+</div>
+<!-- Budget Range Slider -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-center">
+<span class="font-label-caps text-[11px] uppercase text-slate-500 font-semibold">Budget Max Ceiling</span>
+<span class="font-headline-sm text-sm font-bold text-[#0c2038]" id="budgetValue">₹25,000</span>
+</div>
+<input class="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg cursor-pointer" max="50000" min="10000" oninput="document.getElementById('budgetValue').innerText = '₹' + Number(this.value).toLocaleString('en-IN')" step="1000" type="range" value="25000"/>
+<div class="flex justify-between text-slate-400 font-code-badge text-[10px]">
+<span>₹10,000</span>
+<span>₹30,000</span>
+<span>₹50,000</span>
+</div>
+</div>
+<!-- Marketplaces Checkboxes -->
+<div class="flex flex-col gap-1.5 pt-1">
+<span class="font-label-caps text-[11px] uppercase text-slate-500 font-semibold">Active Crawlers (4/4)</span>
+<div class="flex flex-col gap-1.5">
+<label class="flex items-center justify-between p-2 rounded-lg bg-surface-container border border-slate-200/60 text-xs text-[#0c2038] cursor-pointer hover:bg-slate-100 transition-colors">
+<span class="flex items-center gap-2 font-medium">
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+<span>Amazon India</span>
+</span>
+<span class="font-code-badge text-[10px] text-emerald-600 font-bold">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded-lg bg-surface-container border border-slate-200/60 text-xs text-[#0c2038] cursor-pointer hover:bg-slate-100 transition-colors">
+<span class="flex items-center gap-2 font-medium">
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+<span>Flipkart Retail</span>
+</span>
+<span class="font-code-badge text-[10px] text-emerald-600 font-bold">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded-lg bg-surface-container border border-slate-200/60 text-xs text-[#0c2038] cursor-pointer hover:bg-slate-100 transition-colors">
+<span class="flex items-center gap-2 font-medium">
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+<span>Croma Electronics</span>
+</span>
+<span class="font-code-badge text-[10px] text-emerald-600 font-bold">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded-lg bg-surface-container border border-slate-200/60 text-xs text-[#0c2038] cursor-pointer hover:bg-slate-100 transition-colors">
+<span class="flex items-center gap-2 font-medium">
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+<span>Reliance Digital</span>
+</span>
+<span class="font-code-badge text-[10px] text-emerald-600 font-bold">ONLINE</span>
+</label>
+</div>
+</div>
+<!-- Feature Toggles -->
+<div class="flex flex-col gap-2 pt-1 border-t border-slate-100">
+<span class="font-label-caps text-[11px] uppercase text-slate-500 font-semibold">Strict Specifications</span>
+<label class="flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:text-slate-900">
+<span>Active Noise Cancellation (ANC)</span>
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:text-slate-900">
+<span>Min Rating 4.0+ Stars</span>
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:text-slate-900">
+<span>In Stock Only</span>
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-xs text-slate-700 cursor-pointer hover:text-slate-900">
+<span>Verified Seller Warranty</span>
+<input checked="" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-0" type="checkbox"/>
+</label>
+</div>
+<!-- Watchdog Trigger CTA -->
+<div class="mt-1 p-3 rounded-xl bg-sky-50/60 border border-sky-200 flex flex-col gap-2 shadow-xs">
+<div class="flex items-center gap-2 text-sky-800">
+<span class="material-symbols-outlined text-base">notifications_active</span>
+<span class="font-headline-sm text-xs font-bold">Price Watchdog</span>
+</div>
+<p class="font-body-sm text-[11px] text-slate-600 leading-tight">Notify via Push &amp; Email if any rank drops below target.</p>
+<button class="w-full py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-headline-sm text-xs font-semibold transition-colors shadow-xs" onclick="alert('Price Watchdog active for Target ₹23,500!')" type="button">
+                    Arm Alert at ₹23,500
+                  </button>
+</div>
+</div>
+<!-- Telemetry Stream Micro-card (Light Ice Gray Terminal) -->
+<div class="p-space-md rounded-2xl bg-white border border-outline-variant/70 shadow-sm flex flex-col gap-2 font-code-stream text-xs">
+<div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+<span class="text-[#0c2038] font-headline-sm text-xs font-bold">Live Agent Log</span>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="flex flex-col gap-1 text-[11px] text-slate-600 max-h-44 overflow-y-auto">
+<div><span class="text-sky-600 font-semibold">[12:44:02]</span> SearchAgent::Amazon response HTTP 200 (18ms)</div>
+<div><span class="text-purple-600 font-semibold">[12:44:03]</span> ReviewAgent::NLP tokenized 3,420 sentences</div>
+<div><span class="text-indigo-600 font-semibold">[12:44:03]</span> SpecAgent::Calculated 30dB ANC drop coefficient</div>
+<div><span class="text-emerald-600 font-semibold">[12:44:04]</span> Ledger::Target matched: Sony WH-1000XM5</div>
+</div>
+</div>
+</div>
+<!-- Right Product Comparison Grid (9 cols on XL) -->
+<div class="xl:col-span-9 flex flex-col gap-space-lg">
+<!-- CARD 1: Rank #1 - Target Match & Best Overall (Featured Bento Hero Card in Pure White) -->
+<div class="w-full rounded-2xl bg-surface p-space-lg shadow-sm border border-indigo-100 relative overflow-hidden flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-2">
+<span class="px-3 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-headline-sm text-xs font-bold flex items-center gap-1.5 shadow-xs">
+<span class="material-symbols-outlined text-sm">workspace_premium</span>
+                      Rank #1 · AI Top Pick
+                    </span>
+<span class="px-2.5 py-1 rounded-md bg-sky-50 border border-sky-200 text-sky-700 font-code-badge text-[11px] uppercase font-bold">Target Match</span>
+<span class="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-code-badge text-[11px] flex items-center gap-1.5 font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      98% Mesh Confidence
+                    </span>
+</div>
+<div class="font-code-stream text-xs text-slate-500 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-emerald-600">verified</span>
+<span>Merchant Authenticity Verified</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-center">
+<!-- Product Visual Hero -->
+<div class="lg:col-span-4 relative rounded-xl overflow-hidden bg-slate-50 border border-slate-200/60 h-64 flex items-center justify-center group p-4">
+<img class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" data-alt="Futuristic studio product photography of Sony WH-1000XM5 noise cancelling headphones in matte black finish, dramatic soft cyan rim lighting against an abyssal dark tech background with subtle reflective surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmrJV7WBYTWJI-GSEPpS6czaF7qzYeZ2tNVt8XiLTpwnDti9l879JjZYHG-OR9u1jgzNh-OuIqnFmluyLtQh6pJUNABtbTc1rIcX1oPG7qYCJlSd_rSNAoicsZRDBkhgh83yKaNJ8VA_WjQbgmTee_RUuRa876msAnbqtkQzQMWkUZZCwKvhuA3DtHfFKnFNSZ2RmZI783BV1k_LgMxurqXhCCt8ib7VQ-dVQd-6LrgSp6pr_kH7fS"/>
+<span class="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded bg-white/95 border border-slate-200 text-slate-700 font-code-badge text-[10px] font-semibold shadow-xs">
+                      30H ANC / LDAC Hi-Res
+                    </span>
+</div>
+<!-- Content & Spec Matrix -->
+<div class="lg:col-span-8 flex flex-col gap-3">
+<div>
+<h2 class="font-headline-md text-xl text-[#0c2038] font-bold leading-tight">Sony WH-1000XM5 Wireless Noise-Cancelling Headphones</h2>
+<p class="font-body-md text-xs text-slate-600 mt-1 leading-relaxed">Industry-leading Auto NC Optimizer with 8 microphones, integrated V1 processor, ultra-comfortable lightweight fit.</p>
+</div>
+<!-- Price & Marketplace Delta Bar -->
+<div class="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-baseline gap-2.5">
+<span class="font-metric-display text-2xl text-[#0c2038] font-bold">₹24,990</span>
+<span class="font-body-md text-sm line-through text-slate-400">₹34,990</span>
+<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-code-badge text-xs font-bold">29% OFF</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="font-code-badge text-[11px] text-slate-500 font-semibold">BEST PRICE AT:</span>
+<span class="font-headline-sm text-xs font-bold text-indigo-600">Amazon India</span>
+</div>
+</div>
+<!-- Live Cross-Store Price Pills -->
+<div class="flex flex-wrap items-center gap-2">
+<div class="px-2.5 py-1 rounded-lg bg-white border border-indigo-200 text-xs text-slate-800 flex items-center gap-1.5 shadow-xs">
+<span class="font-semibold text-indigo-700">Amazon: ₹24,990</span>
+<span class="font-code-badge text-[9px] px-1 py-0.5 rounded bg-emerald-600 text-white font-bold">LOWEST</span>
+</div>
+<div class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-600 flex items-center gap-1.5 shadow-xs">
+<span class="font-medium">Flipkart: ₹25,490</span>
+</div>
+<div class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs text-slate-600 flex items-center gap-1.5 shadow-xs">
+<span class="font-medium">Croma: ₹26,990</span>
+</div>
+</div>
+<!-- Key Specs Badges -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+<div class="p-2 rounded-lg bg-surface-container border border-slate-200/60 text-center">
+<span class="block font-label-caps text-[10px] text-slate-500 font-semibold">BATTERY</span>
+<span class="font-headline-sm text-xs text-[#0c2038] font-bold">30 Hours</span>
+</div>
+<div class="p-2 rounded-lg bg-surface-container border border-slate-200/60 text-center">
+<span class="block font-label-caps text-[10px] text-slate-500 font-semibold">CODEC</span>
+<span class="font-headline-sm text-xs text-[#0c2038] font-bold">LDAC / AAC</span>
+</div>
+<div class="p-2 rounded-lg bg-surface-container border border-slate-200/60 text-center">
+<span class="block font-label-caps text-[10px] text-slate-500 font-semibold">WEIGHT</span>
+<span class="font-headline-sm text-xs text-[#0c2038] font-bold">250 grams</span>
+</div>
+<div class="p-2 rounded-lg bg-surface-container border border-slate-200/60 text-center">
+<span class="block font-label-caps text-[10px] text-slate-500 font-semibold">ANC SENSORS</span>
+<span class="font-headline-sm text-xs text-[#0c2038] font-bold">8 Mics Auto</span>
+</div>
+</div>
+<!-- Interactive Actions -->
+<div class="flex flex-wrap items-center gap-2.5 pt-2">
+<a class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-headline-sm text-xs font-semibold transition-all flex items-center gap-2 shadow-sm shadow-indigo-500/20" href="https://amazon.in" target="_blank">
+<span>Buy on Amazon (₹24,990)</span>
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</a>
+<button class="px-3.5 py-2.5 rounded-xl bg-white border border-outline-variant/70 hover:bg-slate-50 text-slate-800 font-headline-sm text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs" onclick="document.getElementById('priceTrendDrawer').classList.remove('hidden')" type="button">
+<span class="material-symbols-outlined text-sm text-sky-600">show_chart</span>
+<span>90-Day Trend</span>
+</button>
+<button class="px-3.5 py-2.5 rounded-xl bg-white border border-outline-variant/70 hover:bg-slate-50 text-slate-800 font-headline-sm text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs" onclick="document.getElementById('fullConsensusModal').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-sm text-purple-600">analytics</span>
+<span>Agent Spec Breakdown</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 3-Column Comparison Matrix for Ranks #2, #3, and #4 -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- CARD 2: Rank #2 (Bose QC45) -->
+<div class="rounded-2xl bg-surface border border-outline-variant/70 p-space-md shadow-sm flex flex-col justify-between gap-3 hover:-translate-y-0.5 transition-transform duration-200">
+<div class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-sky-50 border border-sky-200 text-sky-700 font-headline-sm text-xs font-bold">Rank #2</span>
+<span class="font-code-badge text-[11px] text-sky-700 font-semibold">94% Confidence</span>
+</div>
+<div class="h-44 rounded-xl bg-slate-50 border border-slate-200/60 overflow-hidden flex items-center justify-center p-3">
+<img class="h-full w-full object-contain" data-alt="Crisp studio commercial photography of Bose QuietComfort 45 headphones in smoke white, angled minimalist presentation with subtle cyan reflections on dark matte background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZIbaK1xnScN-LaAn-KWcr7hnffSZmpo0HYIzdM7l4opt4au-To0GF6X3RyUVckj_wFjkT8AjQZJpGPkyp3cxpk9qa_lLz5ij0LFYw48H8WcmVKByGKNUpAOEElGVZz4GLQQ4YE_4e50fXMGlBM23D1e-1hiqeYO571dZirVBoSMrwEtOQ1bvu6gYOGDv1930QTqVzEEU5vt7omngq_gwzhyZdXUMlzRuS6AqBwFYqeev09PT9xVvY"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-code-badge text-[10px] font-bold uppercase">Within Budget</span>
+<h3 class="font-headline-sm text-sm text-[#0c2038] font-bold mt-1">Bose QuietComfort 45</h3>
+<p class="font-body-sm text-xs text-slate-600 line-clamp-2 mt-0.5">Renowned plush ear-cushion architecture and class-leading voice isolation.</p>
+</div>
+<div class="p-2 rounded-lg bg-slate-50 border border-slate-200/60 flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-base text-[#0c2038] font-bold">₹19,990</span>
+<span class="line-through text-slate-400 font-body-sm text-xs ml-1">₹29,900</span>
+</div>
+<span class="font-code-badge text-[10px] text-slate-500 font-semibold">Flipkart</span>
+</div>
+<!-- Sentiment Meter -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-code-badge text-[10px] text-slate-500">
+<span>Sentiment Score</span>
+<span class="text-sky-700 font-bold">91% Positive (8.2k)</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-sky-600 h-full rounded-full" style="width: 91%"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 pt-2">
+<a class="w-full py-2 rounded-xl bg-white border border-outline-variant/70 text-center hover:bg-slate-50 text-slate-700 font-headline-sm text-xs font-semibold transition-colors shadow-xs" href="#">
+                      Inspect Specs
+                    </a>
+<a class="w-full py-2 rounded-xl bg-indigo-600 text-center text-white font-headline-sm text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs" href="#">
+                      Buy ₹19,990
+                    </a>
+</div>
+</div>
+<!-- CARD 3: Rank #3 (Sennheiser Momentum 4) -->
+<div class="rounded-2xl bg-surface border border-outline-variant/70 p-space-md shadow-sm flex flex-col justify-between gap-3 hover:-translate-y-0.5 transition-transform duration-200">
+<div class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-700 font-headline-sm text-xs font-bold">Rank #3</span>
+<span class="font-code-badge text-[11px] text-purple-700 font-semibold">Audiophile Pick</span>
+</div>
+<div class="h-44 rounded-xl bg-slate-50 border border-slate-200/60 overflow-hidden flex items-center justify-center p-3">
+<img class="h-full w-full object-contain" data-alt="Modern high-resolution product shot of Sennheiser Momentum 4 headphones with fabric wrapped headband and graphite earcups against clean dark ambient shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD99_5jhtYk2Schwfy1vMByTccgsKNi7oGWaArJmhii50LSyageFTHLtnS7vPDZfQ5pJkA62w5Hsa1r2R3LfR2Oi0hdzkr5Ud5vq50V4BYb-wKf-Bea3g1jtgiraAOc_JdN-QesUWTFJJ5V14Q5Oz1WRa9jmICIA7jYTtq3IlPAv-3LqnUZJQgLcVv-P50_3cqxHfKE_jVczzVoCtysVRmxd3jG0ra0FU9NY_-o-UBNom1gMyv0KUVW"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-700 font-code-badge text-[10px] font-bold uppercase">60H Battery Titan</span>
+<h3 class="font-headline-sm text-sm text-[#0c2038] font-bold mt-1">Sennheiser Momentum 4</h3>
+<p class="font-body-sm text-xs text-slate-600 line-clamp-2 mt-0.5">Audiophile-grade 42mm transducer system with massive 60-hour runtime.</p>
+</div>
+<div class="p-2 rounded-lg bg-slate-50 border border-slate-200/60 flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-base text-[#0c2038] font-bold">₹24,990</span>
+<span class="line-through text-slate-400 font-body-sm text-xs ml-1">₹34,990</span>
+</div>
+<span class="font-code-badge text-[10px] text-slate-500 font-semibold">Amazon</span>
+</div>
+<!-- Sentiment Meter -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-code-badge text-[10px] text-slate-500">
+<span>Sentiment Score</span>
+<span class="text-purple-700 font-bold">89% Positive (4.1k)</span>
+</div>
+<div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-purple-600 h-full rounded-full" style="width: 89%"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 pt-2">
+<a class="w-full py-2 rounded-xl bg-white border border-outline-variant/70 text-center hover:bg-slate-50 text-slate-700 font-headline-sm text-xs font-semibold transition-colors shadow-xs" href="#">
+                      Inspect Specs
+                    </a>
+<a class="w-full py-2 rounded-xl bg-indigo-600 text-center text-white font-headline-sm text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs" href="#">
+                      Buy ₹24,990
+                    </a>
+</div>
+</div>
+<!-- CARD 4: Rank #4 - Premium Stretch / Out of Budget -->
+<div class="rounded-2xl bg-surface border border-outline-variant/70 p-space-md shadow-sm flex flex-col justify-between gap-3 opacity-90 hover:opacity-100 transition-opacity">
+<div class="flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-headline-sm text-xs font-bold">Alternative</span>
+<span class="px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-700 font-code-badge text-[10px] font-bold uppercase">Out of Budget</span>
+</div>
+<div class="h-44 rounded-xl bg-slate-50 border border-slate-200/60 overflow-hidden flex items-center justify-center p-3">
+<img class="h-full w-full object-contain" data-alt="Apple AirPods Max Space Gray headphones displayed against a high-contrast dark minimal backdrop with subtle metallic reflections on aluminum earcups" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSPmoYJ6IWz4AScYeDxop8jxD2gxNYU0T6brLMlSVBW57VAcOsD163Idt6Kv-mxPuwwbliUrv0bR6rGXBa_7TsYZf7KFDeu-DXOiXS3p-iy_U19q83yeFK4uoZAt1wZli7lckMrhpnFF9YD5m1uc0Q2LUf--wYi2dgSjkz-yn8Hm7K75CBgT8mQvpYh3l6XQ9volB3sFqNgln54HeWZ39VRMbN0Y0f8R6k1Z2B5Ml17hne2X2pjX8n"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-code-badge text-[10px] font-bold uppercase">+₹29,900 Stretch</span>
+<h3 class="font-headline-sm text-sm text-[#0c2038] font-bold mt-1">Apple AirPods Max (USB-C)</h3>
+<p class="font-body-sm text-xs text-slate-600 line-clamp-2 mt-0.5">Anodized aluminum earcups, computational spatial audio with dynamic head tracking.</p>
+</div>
+<div class="p-2 rounded-lg bg-slate-50 border border-slate-200/60 flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-base text-slate-700 font-bold">₹54,900</span>
+<span class="line-through text-slate-400 font-body-sm text-xs ml-1">₹59,900</span>
+</div>
+<span class="font-code-badge text-[10px] text-slate-500 font-semibold">Croma</span>
+</div>
+<!-- Budget Advisor Note -->
+<div class="p-2 rounded-lg bg-rose-50/70 border border-rose-200/80 text-rose-800 font-code-stream text-[11px] flex items-start gap-1.5 leading-tight">
+<span class="material-symbols-outlined text-xs text-rose-600 shrink-0 mt-0.5">info</span>
+<span>Exceeds requested ₹25,000 threshold by 119%. Kept for acoustic comparison.</span>
+</div>
+</div>
+<div class="flex items-center gap-2 pt-2">
+<a class="w-full py-2 rounded-xl bg-white border border-outline-variant/70 text-center hover:bg-slate-50 text-slate-700 font-headline-sm text-xs font-semibold transition-colors shadow-xs" href="#">
+                      Inspect Specs
+                    </a>
+<a class="w-full py-2 rounded-xl bg-slate-100 text-center text-slate-700 font-headline-sm text-xs font-semibold hover:bg-slate-200 transition-colors shadow-xs" href="#">
+                      View Price
+                    </a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Historical Price Chart & Watchdog Modal Drawer (Toggled) -->
+<div class="hidden fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-space-md" id="priceTrendDrawer">
+<div class="w-full max-w-2xl bg-white border border-outline-variant/70 rounded-2xl p-space-lg shadow-2xl flex flex-col gap-space-md relative">
+<div class="flex items-center justify-between pb-2 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sky-600 text-2xl">monitoring</span>
+<h3 class="font-headline-sm text-base text-[#0c2038] font-bold">90-Day Telemetry Price Index: Sony WH-1000XM5</h3>
+</div>
+<button class="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" onclick="document.getElementById('priceTrendDrawer').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-base">close</span>
+</button>
+</div>
+<!-- Inline SVG Price Sparkline Chart -->
+<div class="w-full bg-slate-50 border border-slate-200 p-space-md rounded-xl flex flex-col gap-2">
+<div class="flex justify-between items-center text-slate-500 font-code-badge text-xs">
+<span>90 DAYS AGO: ₹29,990</span>
+<span>AVG: ₹26,450</span>
+<span class="text-emerald-600 font-bold">TODAY: ₹24,990 (ALL TIME LOW)</span>
+</div>
+<svg class="w-full h-32 overflow-visible" viewbox="0 0 500 120">
+<defs>
+<lineargradient id="chartGradientLight" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#0284c7" stop-opacity="0.25"></stop>
+<stop offset="100%" stop-color="#0284c7" stop-opacity="0.01"></stop>
+</lineargradient>
+</defs>
+<path d="M 0,20 L 50,30 L 100,25 L 150,45 L 200,40 L 250,60 L 300,55 L 350,75 L 400,70 L 450,95 L 500,105 L 500,120 L 0,120 Z" fill="url(#chartGradientLight)"></path>
+<path d="M 0,20 L 50,30 L 100,25 L 150,45 L 200,40 L 250,60 L 300,55 L 350,75 L 400,70 L 450,95 L 500,105" fill="none" stroke="#0284c7" stroke-width="2.5"></path>
+<circle cx="500" cy="105" fill="#0284c7" r="4.5"></circle>
+</svg>
+</div>
+<div class="p-3 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-headline-sm text-xs font-bold text-sky-900">Target Price Watchdog Threshold</span>
+<span class="font-body-sm text-[11px] text-slate-600">Trigger instant buy notification if price falls under ₹23,500</span>
+</div>
+<button class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-headline-sm text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs" onclick="alert('Watchdog alert activated at ₹23,500 on all crawled marketplaces.')" type="button">
+                Confirm Watchdog
+              </button>
+</div>
+</div>
+</div>
+<!-- Agent Full Consensus Log Modal -->
+<div class="hidden fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center p-space-md" id="fullConsensusModal">
+<div class="w-full max-w-3xl bg-white border border-outline-variant/70 rounded-2xl p-space-lg shadow-2xl flex flex-col gap-space-md max-h-[85vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-2 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-indigo-600 text-2xl">hub</span>
+<h3 class="font-headline-sm text-base text-[#0c2038] font-bold">Mesh Consensus Diagnostic Breakdown</h3>
+</div>
+<button class="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" onclick="document.getElementById('fullConsensusModal').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-base">close</span>
+</button>
+</div>
+<div class="space-y-2.5 font-code-stream text-xs">
+<div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+<span class="text-sky-700 font-headline-sm text-xs font-bold block">1. Search Agent Execution</span>
+<p class="text-slate-600 mt-0.5">Crawled Amazon India, Flipkart, Croma, Reliance Digital. Harvested 48 candidates matching query tokens [noise, cancelling, headphones, 25000].</p>
+</div>
+<div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+<span class="text-sky-700 font-headline-sm text-xs font-bold block">2. Price Normalization</span>
+<p class="text-slate-600 mt-0.5">Stripped affiliate markups, accounted for bank discounts (HDFC/ICICI 10% instant card cut), and extracted net payable price ₹24,990.</p>
+</div>
+<div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+<span class="text-purple-700 font-headline-sm text-xs font-bold block">3. Review Sentiment Synthesis</span>
+<p class="text-slate-600 mt-0.5">Classified 3,420 user reviews across Reddit (r/headphones), Amazon, and TechRadar. ANC score: 9.6/10. Comfort: 8.9/10. Build quality: 8.8/10.</p>
+</div>
+<div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+<span class="text-indigo-700 font-headline-sm text-xs font-bold block">4. Final Recommendation Metric</span>
+<p class="text-slate-600 mt-0.5">Utility vector: U = 0.4(Acoustics) + 0.3(ANC) + 0.2(Value) + 0.1(Ecosystem) = 9.84/10. Sony WH-1000XM5 rank affirmed as #1.</p>
+</div>
+</div>
+<div class="flex justify-end pt-2 border-t border-slate-100">
+<button class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-headline-sm text-xs font-semibold transition-colors" onclick="document.getElementById('fullConsensusModal').classList.add('hidden')" type="button">
+                Close Diagnostic
+              </button>
+</div>
+</div>
+</div>
+<!-- Floating Conversational Assistant Drawer (Bottom Right) -->
+<div class="fixed bottom-space-lg right-space-lg z-40 flex flex-col items-end">
+<div class="hidden mb-space-sm w-80 sm:w-96 rounded-2xl bg-white border border-outline-variant/70 shadow-2xl p-space-md flex flex-col gap-space-sm" id="chatDrawerBox">
+<div class="flex items-center justify-between pb-2 border-b border-slate-100">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-headline-sm text-xs font-bold text-[#0c2038]">Agent Assistant Follow-up</span>
+</div>
+<button class="text-slate-400 hover:text-slate-700" onclick="document.getElementById('chatDrawerBox').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-base">close</span>
+</button>
+</div>
+<div class="h-52 overflow-y-auto flex flex-col gap-2 font-body-sm text-xs pr-1">
+<div class="p-2.5 rounded-xl bg-slate-100 text-slate-700 self-start max-w-[85%]">
+                I've pre-analyzed the Sony WH-1000XM5 and Bose QC45 against your ₹25,000 budget. Ask me anything about battery longevity, warranties, or microphone samples.
+              </div>
+<div class="p-2.5 rounded-xl bg-indigo-600 text-white self-end max-w-[85%] shadow-xs">
+                Does the Sony WH-1000XM5 come with an official Indian warranty on Amazon?
+              </div>
+<div class="p-2.5 rounded-xl bg-slate-100 text-slate-700 self-start max-w-[85%]">
+<span class="text-purple-700 font-code-badge text-[10px] block font-bold mb-0.5">FINALIZER AGENT</span>
+                Yes. The current ₹24,990 listing is fulfilled directly by 'Appario Retail Private Ltd' (Authorized Sony Partner), including 1-Year Sony India Domestic Warranty.
+              </div>
+</div>
+<div class="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+<input class="w-full bg-transparent px-2 text-[#0c2038] font-body-sm text-xs focus:outline-none placeholder:text-slate-400" placeholder="Ask follow-up query..." type="text"/>
+<button class="p-1.5 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors" type="button">
+<span class="material-symbols-outlined text-sm">arrow_upward</span>
+</button>
+</div>
+</div>
+<!-- Toggle Action Floating Button -->
+<button class="px-4 py-3 rounded-full bg-white border border-outline-variant/70 text-[#0c2038] shadow-xl hover:shadow-2xl flex items-center gap-2.5 transition-all hover:bg-slate-50" onclick="document.getElementById('chatDrawerBox').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-indigo-600 text-lg">chat_spark</span>
+<span class="font-headline-sm text-xs font-bold text-slate-800">Ask Mesh Agent</span>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</button>
+</div>
+</div>
+</main>
+</div>
+<script>
+    const toggleBtn = document.getElementById('theme-toggle-btn');
+    const icon = document.getElementById('theme-toggle-icon');
+    if (toggleBtn && icon) {
+      toggleBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        icon.textContent = isDark ? 'light_mode' : 'dark_mode';
+      });
+    }
+  </script>
+</body></html>

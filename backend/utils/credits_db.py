@@ -1,59 +1,38 @@
+"""Credit operations delegated to transaction-safe Supabase database RPCs."""
 from utils.supabase_client import supabase
 
-def init_db():
-    pass
+
+class CreditServiceUnavailable(RuntimeError):
+    """Credit storage could not be read or updated reliably."""
+
 
 def get_credits(user_id: str) -> dict:
     if not supabase:
-        return {'tier': 'free', 'credits': 50}
+        raise CreditServiceUnavailable("Credit database is not configured")
     try:
-        res = supabase.table('profiles').select('tier, credits').eq('id', user_id).execute()
-        if res.data and len(res.data) > 0:
-            row = res.data[0]
-            tier = row.get('tier') or 'free'
-            credits = row.get('credits') if row.get('credits') is not None else 50
-            return {'tier': tier, 'credits': credits}
-        else:
-            # Self-healing: if the user profile row does not exist, insert it
-            try:
-                supabase.table('profiles').insert({'id': user_id, 'tier': 'free', 'credits': 50}).execute()
-            except Exception as ie:
-                print(f"[Supabase insert error in get_credits] {ie}")
-            return {'tier': 'free', 'credits': 50}
-    except Exception as e:
-        print(f"[Supabase error in get_credits] {e}")
-        return {'tier': 'free', 'credits': 50}
+        response = supabase.table("profiles").select("tier,credits").eq("id", user_id).single().execute()
+        row = response.data
+        if not isinstance(row, dict):
+            raise ValueError("Profile credit record is missing")
+        credits = row.get("credits")
+        if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
+            raise ValueError("Profile credit balance is invalid")
+        return {"tier": row.get("tier") or "free", "credits": credits, "renew_at": None}
+    except Exception as exc:
+        raise CreditServiceUnavailable("Credit balance could not be loaded") from exc
+
 
 def deduct_credit(user_id: str, amount: int = 1) -> bool:
     if not supabase:
-        return True
+        raise CreditServiceUnavailable("Credit database is not configured")
+    if amount <= 0:
+        raise ValueError("Credit deduction amount must be positive")
     try:
-        res = supabase.table('profiles').select('tier, credits').eq('id', user_id).execute()
-        if res.data and len(res.data) > 0:
-            row = res.data[0]
-            current_credits = row.get('credits') if row.get('credits') is not None else 50
-            if current_credits >= amount:
-                supabase.table('profiles').update({'credits': current_credits - amount}).eq('id', user_id).execute()
-                return True
-        else:
-            # Self-healing: if the user profile row does not exist, insert and deduct
-            credits = 50 - amount
-            if credits >= 0:
-                try:
-                    supabase.table('profiles').insert({'id': user_id, 'tier': 'free', 'credits': credits}).execute()
-                    return True
-                except Exception as ie:
-                    print(f"[Supabase insert error in deduct_credit] {ie}")
-        return False
-    except Exception as e:
-        print(f"[Supabase error in deduct_credit] {e}")
-        return False
-
-def upgrade_to_pro(user_id: str):
-    if not supabase:
-        return
-    try:
-        # Use upsert to handle case where profile row does not exist yet
-        supabase.table('profiles').upsert({'id': user_id, 'tier': 'pro', 'credits': 500}).execute()
-    except Exception as e:
-        print(f"[Supabase error in upgrade_to_pro] {e}")
+        result = supabase.rpc("deduct_credits", {"p_user_id": user_id, "p_amount": amount}).execute()
+        if not isinstance(result.data, bool):
+            raise ValueError("Credit deduction RPC returned an invalid result")
+        return result.data
+    except Exception as exc:
+        # Only an explicit false means insufficient balance. Infrastructure and
+        # schema errors must not be reported as an account entitlement problem.
+        raise CreditServiceUnavailable("Credit deduction could not be completed") from exc

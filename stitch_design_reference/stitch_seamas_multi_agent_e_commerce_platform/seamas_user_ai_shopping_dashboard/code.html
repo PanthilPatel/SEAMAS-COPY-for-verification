@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-container": "#1a202c", "on-primary-fixed": "#07006c", "on-background": "#dde2f4", "primary-fixed": "#e1e0ff", "primary-container": "#8083ff", "tertiary": "#ffaceb", "surface-container-lowest": "#080e1a", "on-tertiary-fixed": "#390034", "inverse-surface": "#dde2f4", "surface-variant": "#2f3542", "on-secondary": "#003546", "on-secondary-fixed": "#001f2a", "secondary": "#66d3ff", "tertiary-fixed-dim": "#ffaceb", "on-surface-variant": "#c7c4d7", "surface-dim": "#0d1320", "error": "#ffb4ab", "on-surface": "#dde2f4", "primary-fixed-dim": "#c0c1ff", "on-tertiary-container": "#52004a", "tertiary-fixed": "#ffd7f1", "outline": "#908fa0", "surface": "#0d1320", "on-tertiary-fixed-variant": "#830079", "surface-tint": "#c0c1ff", "on-primary-fixed-variant": "#2f2ebe", "secondary-container": "#009fcb", "on-primary-container": "#0d0096", "surface-container-highest": "#2f3542", "on-error-container": "#ffdad6", "secondary-fixed-dim": "#66d3ff", "on-tertiary": "#5d0055", "background": "#0d1320", "primary": "#c0c1ff", "on-secondary-container": "#003040", "secondary-fixed": "#bde9ff", "error-container": "#93000a", "surface-bright": "#333947", "surface-container-low": "#151c28", "inverse-on-surface": "#2a303e", "inverse-primary": "#494bd6", "outline-variant": "#464554", "tertiary-container": "#e656d2", "surface-container-high": "#242a37", "on-primary": "#1000a9", "on-secondary-fixed-variant": "#004d64", "on-error": "#690005" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "gutter-desktop": "1.5rem", "space-sm": "0.5rem", "space-md": "1rem", "margin-desktop": "2rem", "space-xs": "0.25rem", "margin": "1rem", "gutter": "1.25rem", "space-xl": "2.5rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-sm": [ "Space Grotesk" ], "headline-hero": [ "Space Grotesk" ], "metric-display": [ "Space Grotesk" ], "body-lg": [ "Inter" ], "body-md": [ "Inter" ], "headline-md": [ "Space Grotesk" ], "label-caps": [ "Space Grotesk" ], "body-sm": [ "Inter" ], "headline-lg": [ "Space Grotesk" ], "headline-hero-mobile": [ "Space Grotesk" ], "code-badge": [ "JetBrains Mono" ], "headline-lg-mobile": [ "Space Grotesk" ], "code-stream": [ "JetBrains Mono" ] }, "fontSize": { "headline-sm": [ "18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "headline-hero": [ "48px", { "lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "700" } ], "metric-display": [ "32px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "headline-md": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" } ], "label-caps": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600" } ], "body-sm": [ "12px", { "lineHeight": "16px", "fontWeight": "400" } ], "headline-lg": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "600" } ], "headline-hero-mobile": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "code-badge": [ "10px", { "lineHeight": "12px", "letterSpacing": "0.05em", "fontWeight": "600" } ], "headline-lg-mobile": [ "26px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "code-stream": [ "12px", { "lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "500" } ] } } } };</script></head><body class="bg-background font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low/90 backdrop-blur-2xl z-50 flex flex-col justify-between p-space-md shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-space-lg"><div class="flex items-center gap-space-sm px-space-xs"><img alt="SEAMAS Brand Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1X6fm2lmiGtT8ZZ_SlAyDrETMGP0yOJx_GxhoKvbs2OWaekmEiPDMV03vlnOXijNdjMCIQam3iLV15-eEWJ96494s-pj2v-zlaMikpEFte0rU8ePY27pJhSzoVTr94QaGu9GYDc-NRVAaZZbVQ9lFcu1Oc_AAn_tYNSJG5dI7F__q_J-zmXlmrnGgo2l6U5heuk5HEOQJlnYMqgVP_zyUEWy_JSB1-z_m2guZtguCl-qA17LyzfMCRRu2U"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">SEAMAS</span><span class="font-code-badge text-code-badge text-secondary tracking-widest uppercase">AI Agent Mesh</span></div></div><div class="px-space-xs"><div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-surface-container-lowest text-secondary"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-code-stream text-code-stream tracking-wide truncate">Agent Mesh v2.4 · 18ms</span></div></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-headline-sm"><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg transition-colors bg-primary-container text-on-primary-container font-headline-sm" data-path="dashboard" href="#"><span class="material-symbols-outlined text-body-lg">chat_spark</span><span class="font-body-md text-body-md">Explore / Chat</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="agents-mesh" href="#"><span class="material-symbols-outlined text-body-lg">hub</span><span class="font-body-md text-body-md">Agents Mesh</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="products" href="#"><span class="material-symbols-outlined text-body-lg">shopping_bag</span><span class="font-body-md text-body-md">Products</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="admin-analytics" href="#"><span class="material-symbols-outlined text-body-lg">monitoring</span><span class="font-body-md text-body-md">Admin Analytics</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="profile-settings" href="#"><span class="material-symbols-outlined text-body-lg">tune</span><span class="font-body-md text-body-md">Profile Settings</span></a></nav></div><div class="flex flex-col gap-space-sm pt-space-md"><div class="p-space-sm rounded-lg bg-surface-container flex items-center justify-between"><div class="flex flex-col"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Orchestration</span><span class="font-code-stream text-code-stream text-tertiary">4/4 Active</span></div><span class="material-symbols-outlined text-secondary text-body-lg">memory</span></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 z-40 bg-surface-container-lowest/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 w-full px-space-lg flex items-center justify-between gap-space-md"><div class="flex-1 max-w-xl"><div class="relative flex items-center w-full"><span class="material-symbols-outlined absolute left-space-md text-outline text-body-lg pointer-events-none">search</span><input class="w-full h-10 pl-10 pr-12 rounded-lg bg-surface-container text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-secondary" placeholder="Instruct agent or search market mesh... (e.g. Find RTX 4090 under $1500)" type="text"/><span class="absolute right-space-sm font-code-badge text-code-badge px-space-xs py-0.5 rounded bg-surface-container-highest text-on-surface-variant pointer-events-none">⌘K</span></div></div><div class="flex items-center gap-space-md"><div class="hidden xl:flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-low"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span class="font-code-stream text-code-stream text-secondary">Connected · 18ms</span></div><button class="p-space-xs rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" id="theme-toggle-btn" type="button"><span class="material-symbols-outlined text-body-lg" id="theme-toggle-icon">light_mode</span></button><button class="relative p-space-xs rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined text-body-lg">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-tertiary-container"></span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-16 min-h-screen bg-background"><div class="flex flex-col w-full">
+<!-- Live Market Ticker Strip -->
+<div class="w-full bg-surface-container-lowest overflow-hidden py-2 px-space-lg shadow-sm">
+<div class="flex items-center gap-space-md whitespace-nowrap">
+<div class="flex items-center gap-1.5 px-space-xs py-0.5 rounded bg-surface-container text-secondary shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
+<span class="font-code-badge text-code-badge tracking-wider uppercase">Live Mesh Feed</span>
+</div>
+<div class="flex items-center gap-space-xl overflow-x-auto text-on-surface-variant font-code-stream text-code-stream scrollbar-none py-0.5">
+<span class="flex items-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-secondary text-body-sm">trending_down</span>
+<strong>Sony WH-1000XM5</strong> dropped to <span class="text-secondary font-headline-sm text-body-sm">₹24,990</span> (-22%) on Amazon
+        </span>
+<span class="text-outline-variant">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-body-sm">bolt</span>
+<strong>MacBook Air M3</strong> at <span class="text-primary font-headline-sm text-body-sm">₹96,490</span> on Flipkart
+        </span>
+<span class="text-outline-variant">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-tertiary text-body-sm">save_as</span>
+<strong>Samsung S24 Ultra</strong> at <span class="text-on-surface">₹1,04,999</span> on Croma
+        </span>
+<span class="text-outline-variant">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-body-sm">trending_down</span>
+<strong>Bose QC45</strong> dropped to <span class="text-secondary font-headline-sm text-body-sm">₹19,990</span> (-31%)
+        </span>
+<span class="text-outline-variant">/</span>
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-outline text-body-sm">sync</span>
+<span>418 marketplace endpoints synchronizing at 14ms latency</span>
+</span>
+</div>
+</div>
+</div>
+<!-- Main Multi-Pane Control Room Workspace -->
+<div class="w-full px-space-lg py-space-lg flex flex-col gap-space-lg">
+<!-- Hero Universal Query Omnibar & Agent Mesh Orchestrator -->
+<div class="w-full rounded-xl bg-surface-container-low p-space-lg shadow-md relative overflow-hidden">
+<!-- Glow ambient background elements -->
+<div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-secondary/10 blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-space-md">
+<!-- Sub-header & Meta telemetry -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="px-space-xs py-0.5 rounded bg-primary-container text-on-primary-container font-code-badge text-code-badge uppercase tracking-wider">Multi-Agent Swarm</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Real-Time Autonomous Shopping Pipeline</span>
+</div>
+<div class="flex items-center gap-space-md font-code-stream text-code-stream text-on-surface-variant">
+<span class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-body-sm">network_check</span>
+<span>100% Consensus reached</span>
+</span>
+<span class="text-outline-variant">·</span>
+<span>Total Compute: 940ms</span>
+</div>
+</div>
+<!-- Universal Interactive Omnibar -->
+<div class="w-full flex flex-col md:flex-row items-center gap-space-sm rounded-xl bg-surface-container-lowest p-2 shadow-sm">
+<div class="flex items-center gap-space-sm flex-1 px-space-sm w-full">
+<span class="material-symbols-outlined text-secondary text-headline-md">psychology</span>
+<input class="w-full bg-transparent text-on-surface font-headline-sm text-headline-sm focus:outline-none placeholder:text-outline" id="agentQueryInput" placeholder="Command 7 agents (e.g. Find lightweight 4K OLED monitor under ₹40,000)..." type="text" value="Best noise-cancelling headphones under ₹25,000"/>
+</div>
+<div class="flex items-center gap-space-xs w-full md:w-auto shrink-0 justify-end">
+<button class="px-space-sm py-2 rounded-lg bg-surface-container text-on-surface-variant font-code-badge text-code-badge hover:bg-surface-container-high transition-colors" type="button">
+              FILTER PRESETS
+            </button>
+<button class="px-space-md py-2.5 rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-body-md hover:bg-primary transition-all shadow-md flex items-center gap-1.5" type="button">
+<span>Execute Mesh</span>
+<span class="material-symbols-outlined text-body-md">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Preset Chips -->
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mr-1">Active Mesh Directives:</span>
+<button class="px-space-sm py-1 rounded-full bg-surface-container-high text-secondary font-body-sm text-body-sm flex items-center gap-1 hover:bg-surface-variant" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Best noise-cancelling headphones under ₹25,000
+          </button>
+<button class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button">
+            OLED 4K TV under ₹65,000
+          </button>
+<button class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button">
+            Lightweight coding laptop 32GB RAM
+          </button>
+<button class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button">
+            Mechanical Keyboard hot-swap wireless
+          </button>
+</div>
+<!-- 7-Agent Execution Timeline / Mesh Status Grid -->
+<div class="mt-space-sm pt-space-md bg-surface-container-lowest/60 rounded-xl p-space-md shadow-inner">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase text-secondary tracking-wider">7-Agent Swarm Orchestration Stream</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container font-code-badge text-code-badge text-secondary">MESH VERIFIED</span>
+</div>
+<span class="font-code-stream text-code-stream text-on-surface-variant">Sync: 14/14 sources verified</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-space-xs">
+<!-- Agent 1: Search -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-body-md">search</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-secondary">82ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Search Agent</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">14 markets · 48 items</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>COMPLETE</span>
+</div>
+</div>
+<!-- Agent 2: Price Comparison -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-body-md">sell</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-secondary">114ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Price Comparison</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">418 points normalized</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>COMPLETE</span>
+</div>
+</div>
+<!-- Agent 3: Review Analyzer -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-body-md">rate_review</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-tertiary">230ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Review Analyzer</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">3,420 reviews NLP</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-tertiary">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>SYNTHESIZED</span>
+</div>
+</div>
+<!-- Agent 4: Product Spec -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-body-md">straighten</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-secondary">92ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Product Spec</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">ANC dB &amp; drivers ok</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>VERIFIED</span>
+</div>
+</div>
+<!-- Agent 5: Budget Advisor -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-body-md">account_balance_wallet</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-primary">64ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Budget Advisor</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">≤₹25,000 ceiling lock</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>COMPLIANT</span>
+</div>
+</div>
+<!-- Agent 6: Recommendation -->
+<div class="p-space-sm rounded-lg bg-surface-container flex flex-col justify-between gap-2 shadow-sm hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-low flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-body-md">lightbulb</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-secondary">160ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Recommendation</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Utility matrix calculated</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>RANKED</span>
+</div>
+</div>
+<!-- Agent 7: Finalizer -->
+<div class="p-space-sm rounded-lg bg-surface-container-high flex flex-col justify-between gap-2 shadow-sm">
+<div class="flex items-center justify-between">
+<div class="w-7 h-7 rounded bg-surface-container-lowest flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-body-md">verified_user</span>
+</div>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container-lowest text-tertiary">198ms</span>
+</div>
+<div>
+<p class="font-headline-sm text-body-sm text-on-surface leading-tight">Finalizer Agent</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Merchant trust 99.2%</p>
+</div>
+<div class="flex items-center gap-1 font-code-badge text-code-badge text-tertiary">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+<span>AUTHENTIC</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Consensus Verdict Banner -->
+<div class="w-full p-space-md rounded-xl bg-surface-container flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md shadow-sm">
+<div class="flex items-start gap-space-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-secondary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-headline-sm">auto_awesome</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-sm">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Agent Consensus Verdict</span>
+<span class="font-code-badge text-code-badge px-2 py-0.5 rounded bg-surface-container-lowest text-on-surface">Confidence Score 98.4%</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface max-w-4xl">
+<strong class="text-secondary font-headline-sm text-body-md">Sony WH-1000XM5</strong> leads for acoustics, ANC floor attenuation, and spatial realism under ₹25k; <span class="text-on-surface">Bose QC45</span> is top comfort runner-up. 
+            <span class="text-on-surface-variant">94% positive sentiment synthesized across 12,400+ verified customer experiences on Indian e-commerce nodes.</span>
+</p>
+</div>
+</div>
+<div class="flex items-center gap-space-md shrink-0 w-full lg:w-auto justify-end">
+<div class="flex flex-col text-right">
+<span class="font-headline-sm text-body-sm text-secondary">₹10,000 Saved</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">vs. launch MRP</span>
+</div>
+<button class="px-space-md py-2 rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-headline-sm text-body-sm transition-colors flex items-center gap-1" onclick="document.getElementById('fullConsensusModal').classList.toggle('hidden')" type="button">
+<span>Read Mesh Log</span>
+<span class="material-symbols-outlined text-body-sm">unfold_more</span>
+</button>
+</div>
+</div>
+<!-- Main Workspace Split: Filters + Product Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+<!-- Left Filters Sidebar (3 cols on XL) -->
+<div class="xl:col-span-3 flex flex-col gap-space-md">
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-on-surface">Mesh Parameters</span>
+<button class="font-code-badge text-code-badge text-secondary uppercase hover:underline" type="button">Reset</button>
+</div>
+<!-- Budget Range Slider -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex justify-between items-center">
+<span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Budget Max Ceiling</span>
+<span class="font-code-stream text-code-stream text-secondary" id="budgetValue">₹25,000</span>
+</div>
+<input class="w-full accent-primary h-2 bg-surface-container rounded-lg cursor-pointer" max="50000" min="10000" oninput="document.getElementById('budgetValue').innerText = '₹' + Number(this.value).toLocaleString('en-IN')" step="1000" type="range" value="25000"/>
+<div class="flex justify-between text-on-surface-variant font-code-badge text-code-badge">
+<span>₹10,000</span>
+<span>₹30,000</span>
+<span>₹50,000</span>
+</div>
+</div>
+<!-- Marketplaces Checkboxes -->
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Active Crawlers (4/4)</span>
+<div class="flex flex-col gap-2">
+<label class="flex items-center justify-between p-2 rounded bg-surface-container text-body-sm text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded bg-surface-container-lowest text-primary focus:ring-0" type="checkbox"/>
+<span>Amazon India</span>
+</span>
+<span class="font-code-badge text-code-badge text-secondary">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded bg-surface-container text-body-sm text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded bg-surface-container-lowest text-primary focus:ring-0" type="checkbox"/>
+<span>Flipkart Retail</span>
+</span>
+<span class="font-code-badge text-code-badge text-secondary">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded bg-surface-container text-body-sm text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded bg-surface-container-lowest text-primary focus:ring-0" type="checkbox"/>
+<span>Croma Electronics</span>
+</span>
+<span class="font-code-badge text-code-badge text-secondary">ONLINE</span>
+</label>
+<label class="flex items-center justify-between p-2 rounded bg-surface-container text-body-sm text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded bg-surface-container-lowest text-primary focus:ring-0" type="checkbox"/>
+<span>Reliance Digital</span>
+</span>
+<span class="font-code-badge text-code-badge text-secondary">ONLINE</span>
+</label>
+</div>
+</div>
+<!-- Feature Toggles -->
+<div class="flex flex-col gap-2 pt-space-xs">
+<span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Strict Specifications</span>
+<label class="flex items-center justify-between text-body-sm text-on-surface cursor-pointer">
+<span>Active Noise Cancellation (ANC)</span>
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-body-sm text-on-surface cursor-pointer">
+<span>Min Rating 4.0+ Stars</span>
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-body-sm text-on-surface cursor-pointer">
+<span>In Stock Only</span>
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-0" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between text-body-sm text-on-surface cursor-pointer">
+<span>Verified Seller Warranty</span>
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-0" type="checkbox"/>
+</label>
+</div>
+<!-- Watchdog Trigger CTA -->
+<div class="mt-space-sm p-space-sm rounded-lg bg-surface-container flex flex-col gap-2 shadow-sm">
+<div class="flex items-center gap-2 text-secondary">
+<span class="material-symbols-outlined text-body-md">notifications_active</span>
+<span class="font-headline-sm text-body-sm">Price Watchdog</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Notify via Push &amp; Email if any rank drops below target.</p>
+<button class="w-full py-2 rounded bg-surface-container-highest hover:bg-surface-variant text-on-surface font-headline-sm text-body-sm transition-colors" onclick="alert('Price Watchdog active for Target ₹23,500!')" type="button">
+              Arm Alert at ₹23,500
+            </button>
+</div>
+</div>
+<!-- Telemetry Stream Micro-card -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm font-code-stream text-code-stream">
+<div class="flex items-center justify-between">
+<span class="text-on-surface font-headline-sm text-body-sm">Live Agent Log</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<div class="flex flex-col gap-1 text-on-surface-variant max-h-48 overflow-y-auto">
+<div><span class="text-secondary">[12:44:02]</span> SearchAgent::Amazon response HTTP 200 (18ms)</div>
+<div><span class="text-tertiary">[12:44:03]</span> ReviewAgent::NLP tokenized 3,420 sentences</div>
+<div><span class="text-primary">[12:44:03]</span> SpecAgent::Calculated 30dB ANC drop coefficient</div>
+<div><span class="text-secondary">[12:44:04]</span> Ledger::Target matched: Sony WH-1000XM5</div>
+</div>
+</div>
+</div>
+<!-- Right Product Comparison Grid (9 cols on XL) -->
+<div class="xl:col-span-9 flex flex-col gap-space-lg">
+<!-- CARD 1: Rank #1 - Target Match & Best Overall (Featured Bento Hero Card) -->
+<div class="w-full rounded-xl bg-surface-container-low p-space-lg shadow-xl relative overflow-hidden flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="px-space-sm py-1 rounded bg-secondary-container text-on-secondary-container font-headline-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-body-sm">workspace_premium</span>
+                Rank #1 · AI Top Pick
+              </span>
+<span class="px-space-sm py-1 rounded bg-surface-container-highest text-secondary font-code-badge text-code-badge uppercase">Target Match</span>
+<span class="px-space-sm py-1 rounded bg-surface-container-lowest text-secondary font-code-badge text-code-badge flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                98% Mesh Confidence
+              </span>
+</div>
+<div class="font-code-stream text-code-stream text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-body-sm text-secondary">verified</span>
+<span>Merchant Authenticity Verified</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-center">
+<!-- Product Visual Hero -->
+<div class="lg:col-span-4 relative rounded-xl overflow-hidden bg-surface-container-lowest h-64 flex items-center justify-center group">
+<img class="w-full h-full object-contain p-space-md group-hover:scale-105 transition-transform duration-300" data-alt="Futuristic studio product photography of Sony WH-1000XM5 noise cancelling headphones in matte black finish, dramatic soft cyan rim lighting against an abyssal dark tech background with subtle reflective surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmrJV7WBYTWJI-GSEPpS6czaF7qzYeZ2tNVt8XiLTpwnDti9l879JjZYHG-OR9u1jgzNh-OuIqnFmluyLtQh6pJUNABtbTc1rIcX1oPG7qYCJlSd_rSNAoicsZRDBkhgh83yKaNJ8VA_WjQbgmTee_RUuRa876msAnbqtkQzQMWkUZZCwKvhuA3DtHfFKnFNSZ2RmZI783BV1k_LgMxurqXhCCt8ib7VQ-dVQd-6LrgSp6pr_kH7fS"/>
+<span class="absolute bottom-2 left-2 px-space-xs py-0.5 rounded bg-surface-container-lowest/80 text-secondary font-code-badge text-code-badge">
+                30H ANC / LDAC Hi-Res
+              </span>
+</div>
+<!-- Content & Spec Matrix -->
+<div class="lg:col-span-8 flex flex-col gap-space-sm">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface leading-tight">Sony WH-1000XM5 Wireless Noise-Cancelling Headphones</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Industry-leading Auto NC Optimizer with 8 microphones, integrated V1 processor, ultra-comfortable lightweight fit.</p>
+</div>
+<!-- Price & Marketplace Delta Bar -->
+<div class="p-space-sm rounded-lg bg-surface-container-lowest flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-baseline gap-space-sm">
+<span class="font-metric-display text-metric-display text-secondary">₹24,990</span>
+<span class="font-body-md text-body-md line-through text-outline">₹34,990</span>
+<span class="px-space-xs py-0.5 rounded bg-primary-container text-on-primary-container font-code-badge text-code-badge">29% OFF</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-code-badge text-code-badge text-on-surface-variant">BEST PRICE AT:</span>
+<span class="font-headline-sm text-body-sm text-secondary">Amazon India</span>
+</div>
+</div>
+<!-- Live Cross-Store Price Pills -->
+<div class="flex flex-wrap items-center gap-space-xs">
+<div class="px-space-sm py-1 rounded bg-surface-container text-body-sm text-on-surface flex items-center gap-1.5 shadow-sm">
+<span class="font-headline-sm text-body-sm text-secondary">Amazon: ₹24,990</span>
+<span class="font-code-badge text-code-badge px-1 rounded bg-secondary text-on-secondary">LOWEST</span>
+</div>
+<div class="px-space-sm py-1 rounded bg-surface-container text-body-sm text-on-surface flex items-center gap-1.5">
+<span class="font-headline-sm text-body-sm text-on-surface-variant">Flipkart: ₹25,490</span>
+</div>
+<div class="px-space-sm py-1 rounded bg-surface-container text-body-sm text-on-surface flex items-center gap-1.5">
+<span class="font-headline-sm text-body-sm text-on-surface-variant">Croma: ₹26,990</span>
+</div>
+</div>
+<!-- Key Specs Badges -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-space-xs">
+<div class="p-2 rounded bg-surface-container text-center">
+<span class="block font-label-caps text-label-caps text-on-surface-variant">BATTERY</span>
+<span class="font-headline-sm text-body-sm text-on-surface">30 Hours</span>
+</div>
+<div class="p-2 rounded bg-surface-container text-center">
+<span class="block font-label-caps text-label-caps text-on-surface-variant">CODEC</span>
+<span class="font-headline-sm text-body-sm text-on-surface">LDAC / AAC</span>
+</div>
+<div class="p-2 rounded bg-surface-container text-center">
+<span class="block font-label-caps text-label-caps text-on-surface-variant">WEIGHT</span>
+<span class="font-headline-sm text-body-sm text-on-surface">250 grams</span>
+</div>
+<div class="p-2 rounded bg-surface-container text-center">
+<span class="block font-label-caps text-label-caps text-on-surface-variant">ANC SENSORS</span>
+<span class="font-headline-sm text-body-sm text-on-surface">8 Mics Auto</span>
+</div>
+</div>
+<!-- Interactive Actions -->
+<div class="flex flex-wrap items-center gap-space-sm pt-space-sm">
+<a class="px-space-lg py-2.5 rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-body-md hover:bg-primary transition-all flex items-center gap-2 shadow-md" href="https://amazon.in" target="_blank">
+<span>Buy on Amazon (₹24,990)</span>
+<span class="material-symbols-outlined text-body-md">open_in_new</span>
+</a>
+<button class="px-space-md py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors flex items-center gap-1.5" onclick="document.getElementById('priceTrendDrawer').classList.remove('hidden')" type="button">
+<span class="material-symbols-outlined text-body-md text-secondary">show_chart</span>
+<span>90-Day Trend</span>
+</button>
+<button class="px-space-md py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors flex items-center gap-1.5" onclick="document.getElementById('fullConsensusModal').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-body-md text-tertiary">analytics</span>
+<span>Agent Spec Breakdown</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 3-Column Comparison Matrix for Ranks #2, #3, and #4 -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- CARD 2: Rank #2 (Bose QC45) -->
+<div class="rounded-xl bg-surface-container-low p-space-md shadow-md flex flex-col justify-between gap-space-md hover:translate-y-[-2px] transition-transform">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-secondary font-headline-sm text-body-sm">Rank #2</span>
+<span class="font-code-badge text-code-badge text-secondary">94% Confidence</span>
+</div>
+<div class="h-44 rounded-lg bg-surface-container-lowest overflow-hidden flex items-center justify-center p-space-sm">
+<img class="h-full w-full object-contain" data-alt="Crisp studio commercial photography of Bose QuietComfort 45 headphones in smoke white, angled minimalist presentation with subtle cyan reflections on dark matte background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZIbaK1xnScN-LaAn-KWcr7hnffSZmpo0HYIzdM7l4opt4au-To0GF6X3RyUVckj_wFjkT8AjQZJpGPkyp3cxpk9qa_lLz5ij0LFYw48H8WcmVKByGKNUpAOEElGVZz4GLQQ4YE_4e50fXMGlBM23D1e-1hiqeYO571dZirVBoSMrwEtOQ1bvu6gYOGDv1930QTqVzEEU5vt7omngq_gwzhyZdXUMlzRuS6AqBwFYqeev09PT9xVvY"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-surface-container text-secondary font-code-badge text-code-badge uppercase">Within Budget</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mt-1">Bose QuietComfort 45</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Renowned plush ear-cushion architecture and class-leading voice isolation.</p>
+</div>
+<div class="p-2 rounded bg-surface-container-lowest flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-headline-md text-secondary">₹19,990</span>
+<span class="line-through text-outline font-body-sm text-body-sm ml-1">₹29,900</span>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant">Flipkart</span>
+</div>
+<!-- Sentiment Meter -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-code-badge text-code-badge text-on-surface-variant">
+<span>Sentiment Score</span>
+<span class="text-secondary">91% Positive (8.2k)</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 91%"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs pt-space-xs">
+<a class="w-full py-2 rounded bg-surface-container text-center hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors" href="#">
+                Inspect Specs
+              </a>
+<a class="w-full py-2 rounded bg-primary-container text-center text-on-primary-container font-headline-sm text-body-sm hover:bg-primary transition-colors" href="#">
+                Buy ₹19,990
+              </a>
+</div>
+</div>
+<!-- CARD 3: Rank #3 (Sennheiser Momentum 4) -->
+<div class="rounded-xl bg-surface-container-low p-space-md shadow-md flex flex-col justify-between gap-space-md hover:translate-y-[-2px] transition-transform">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface font-headline-sm text-body-sm">Rank #3</span>
+<span class="font-code-badge text-code-badge text-tertiary">Audiophile Pick</span>
+</div>
+<div class="h-44 rounded-lg bg-surface-container-lowest overflow-hidden flex items-center justify-center p-space-sm">
+<img class="h-full w-full object-contain" data-alt="Modern high-resolution product shot of Sennheiser Momentum 4 headphones with fabric wrapped headband and graphite earcups against clean dark ambient shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD99_5jhtYk2Schwfy1vMByTccgsKNi7oGWaArJmhii50LSyageFTHLtnS7vPDZfQ5pJkA62w5Hsa1r2R3LfR2Oi0hdzkr5Ud5vq50V4BYb-wKf-Bea3g1jtgiraAOc_JdN-QesUWTFJJ5V14Q5Oz1WRa9jmICIA7jYTtq3IlPAv-3LqnUZJQgLcVv-P50_3cqxHfKE_jVczzVoCtysVRmxd3jG0ra0FU9NY_-o-UBNom1gMyv0KUVW"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-surface-container text-tertiary font-code-badge text-code-badge uppercase">60H Battery Titan</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mt-1">Sennheiser Momentum 4</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Audiophile-grade 42mm transducer system with massive 60-hour runtime.</p>
+</div>
+<div class="p-2 rounded bg-surface-container-lowest flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-headline-md text-on-surface">₹24,990</span>
+<span class="line-through text-outline font-body-sm text-body-sm ml-1">₹34,990</span>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant">Amazon</span>
+</div>
+<!-- Sentiment Meter -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-code-badge text-code-badge text-on-surface-variant">
+<span>Sentiment Score</span>
+<span class="text-tertiary">89% Positive (4.1k)</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 89%"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs pt-space-xs">
+<a class="w-full py-2 rounded bg-surface-container text-center hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors" href="#">
+                Inspect Specs
+              </a>
+<a class="w-full py-2 rounded bg-primary-container text-center text-on-primary-container font-headline-sm text-body-sm hover:bg-primary transition-colors" href="#">
+                Buy ₹24,990
+              </a>
+</div>
+</div>
+<!-- CARD 4: Rank #4 - Premium Stretch / Out of Budget -->
+<div class="rounded-xl bg-surface-container-low p-space-md shadow-md flex flex-col justify-between gap-space-md opacity-85 hover:opacity-100 transition-opacity">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-outline font-headline-sm text-body-sm">Alternative</span>
+<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container font-code-badge text-code-badge uppercase">Out of Budget</span>
+</div>
+<div class="h-44 rounded-lg bg-surface-container-lowest overflow-hidden flex items-center justify-center p-space-sm">
+<img class="h-full w-full object-contain" data-alt="Apple AirPods Max Space Gray headphones displayed against a high-contrast dark minimal backdrop with subtle metallic reflections on aluminum earcups" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSPmoYJ6IWz4AScYeDxop8jxD2gxNYU0T6brLMlSVBW57VAcOsD163Idt6Kv-mxPuwwbliUrv0bR6rGXBa_7TsYZf7KFDeu-DXOiXS3p-iy_U19q83yeFK4uoZAt1wZli7lckMrhpnFF9YD5m1uc0Q2LUf--wYi2dgSjkz-yn8Hm7K75CBgT8mQvpYh3l6XQ9volB3sFqNgln54HeWZ39VRMbN0Y0f8R6k1Z2B5Ml17hne2X2pjX8n"/>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded bg-surface-container text-error font-code-badge text-code-badge uppercase">+₹29,900 Stretch</span>
+<h4 class="font-headline-sm text-headline-sm text-on-surface mt-1">Apple AirPods Max (USB-C)</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">Anodized aluminum earcups, computational spatial audio with dynamic head tracking.</p>
+</div>
+<div class="p-2 rounded bg-surface-container-lowest flex items-baseline justify-between">
+<div>
+<span class="font-headline-md text-headline-md text-outline">₹54,900</span>
+<span class="line-through text-outline font-body-sm text-body-sm ml-1">₹59,900</span>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant">Croma</span>
+</div>
+<!-- Budget Advisor Note -->
+<div class="p-2 rounded bg-surface-container text-on-surface-variant font-code-stream text-code-stream flex items-start gap-1">
+<span class="material-symbols-outlined text-body-sm text-error shrink-0">info</span>
+<span>Exceeds requested ₹25,000 threshold by 119%. Kept for acoustic comparison.</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs pt-space-xs">
+<a class="w-full py-2 rounded bg-surface-container text-center hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors" href="#">
+                Inspect Specs
+              </a>
+<a class="w-full py-2 rounded bg-surface-container-high text-center text-outline font-headline-sm text-body-sm hover:text-on-surface transition-colors" href="#">
+                View Price
+              </a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Historical Price Chart & Watchdog Modal Drawer (Toggled) -->
+<div class="hidden fixed inset-0 z-50 bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center p-space-md" id="priceTrendDrawer">
+<div class="w-full max-w-2xl bg-surface-container-low rounded-xl p-space-lg shadow-2xl flex flex-col gap-space-md relative">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-headline-md">monitoring</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">90-Day Telemetry Price Index: Sony WH-1000XM5</h3>
+</div>
+<button class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface" onclick="document.getElementById('priceTrendDrawer').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-body-md">close</span>
+</button>
+</div>
+<!-- Inline SVG Price Sparkline Chart -->
+<div class="w-full bg-surface-container-lowest p-space-md rounded-lg flex flex-col gap-2">
+<div class="flex justify-between items-center text-on-surface-variant font-code-badge text-code-badge">
+<span>90 DAYS AGO: ₹29,990</span>
+<span>AVG: ₹26,450</span>
+<span class="text-secondary">TODAY: ₹24,990 (ALL TIME LOW)</span>
+</div>
+<svg class="w-full h-32 overflow-visible" viewbox="0 0 500 120">
+<defs>
+<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#66d3ff" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#66d3ff" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<path d="M 0,20 L 50,30 L 100,25 L 150,45 L 200,40 L 250,60 L 300,55 L 350,75 L 400,70 L 450,95 L 500,105 L 500,120 L 0,120 Z" fill="url(#chartGradient)"></path>
+<path d="M 0,20 L 50,30 L 100,25 L 150,45 L 200,40 L 250,60 L 300,55 L 350,75 L 400,70 L 450,95 L 500,105" fill="none" stroke="#66d3ff" stroke-width="2.5"></path>
+<circle cx="500" cy="105" fill="#66d3ff" r="4"></circle>
+</svg>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-sm text-on-surface">Target Price Watchdog Threshold</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Trigger instant buy notification if price falls under ₹23,500</span>
+</div>
+<button class="px-space-md py-2 rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-body-sm hover:bg-primary transition-colors" onclick="alert('Watchdog alert activated at ₹23,500 on all crawled marketplaces.')" type="button">
+          Confirm Watchdog
+        </button>
+</div>
+</div>
+</div>
+<!-- Agent Full Consensus Log Modal -->
+<div class="hidden fixed inset-0 z-50 bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center p-space-md" id="fullConsensusModal">
+<div class="w-full max-w-3xl bg-surface-container-low rounded-xl p-space-lg shadow-2xl flex flex-col gap-space-md max-h-[870px] overflow-y-auto">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-headline-md">hub</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Mesh Consensus Diagnostic Breakdown</h3>
+</div>
+<button class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface" onclick="document.getElementById('fullConsensusModal').classList.add('hidden')" type="button">
+<span class="material-symbols-outlined text-body-md">close</span>
+</button>
+</div>
+<div class="space-y-space-sm font-code-stream text-code-stream">
+<div class="p-space-sm rounded bg-surface-container">
+<span class="text-secondary font-headline-sm text-body-sm block">1. Search Agent Execution</span>
+<p class="text-on-surface-variant mt-1">Crawled Amazon India, Flipkart, Croma, Reliance Digital. Harvested 48 candidates matching query tokens [noise, cancelling, headphones, 25000].</p>
+</div>
+<div class="p-space-sm rounded bg-surface-container">
+<span class="text-secondary font-headline-sm text-body-sm block">2. Price Normalization</span>
+<p class="text-on-surface-variant mt-1">Stripped affiliate markups, accounted for bank discounts (HDFC/ICICI 10% instant card cut), and extracted net payable price ₹24,990.</p>
+</div>
+<div class="p-space-sm rounded bg-surface-container">
+<span class="text-tertiary font-headline-sm text-body-sm block">3. Review Sentiment Synthesis</span>
+<p class="text-on-surface-variant mt-1">Classified 3,420 user reviews across Reddit (r/headphones), Amazon, and TechRadar. ANC score: 9.6/10. Comfort: 8.9/10. Build quality: 8.8/10.</p>
+</div>
+<div class="p-space-sm rounded bg-surface-container">
+<span class="text-primary font-headline-sm text-body-sm block">4. Final Recommendation Metric</span>
+<p class="text-on-surface-variant mt-1">Utility vector: U = 0.4(Acoustics) + 0.3(ANC) + 0.2(Value) + 0.1(Ecosystem) = 9.84/10. Sony WH-1000XM5 rank affirmed as #1.</p>
+</div>
+</div>
+<div class="flex justify-end">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-highest text-on-surface font-headline-sm text-body-sm" onclick="document.getElementById('fullConsensusModal').classList.add('hidden')" type="button">
+          Close Diagnostic
+        </button>
+</div>
+</div>
+</div>
+<!-- Floating Conversational Assistant Drawer (Bottom Right) -->
+<div class="fixed bottom-space-lg right-space-lg z-40 flex flex-col items-end">
+<div class="hidden mb-space-sm w-80 sm:w-96 rounded-xl bg-surface-container-low shadow-2xl p-space-md flex flex-col gap-space-sm" id="chatDrawerBox">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-headline-sm text-body-sm text-on-surface">Agent Assistant Follow-up</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('chatDrawerBox').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-body-md">close</span>
+</button>
+</div>
+<div class="h-48 overflow-y-auto flex flex-col gap-2 font-body-sm text-body-sm pr-1">
+<div class="p-2 rounded-lg bg-surface-container text-on-surface-variant self-start max-w-[85%]">
+          I've pre-analyzed the Sony WH-1000XM5 and Bose QC45 against your ₹25,000 budget. Ask me anything about battery longevity, warranties, or microphone samples.
+        </div>
+<div class="p-2 rounded-lg bg-primary-container text-on-primary-container self-end max-w-[85%]">
+          Does the Sony WH-1000XM5 come with an official Indian warranty on Amazon?
+        </div>
+<div class="p-2 rounded-lg bg-surface-container text-on-surface-variant self-start max-w-[85%]">
+<span class="text-secondary font-code-badge text-code-badge block">FINALIZER AGENT</span>
+          Yes. The current ₹24,990 listing is fulfilled directly by 'Appario Retail Private Ltd' (Authorized Sony Partner), including 1-Year Sony India Domestic Warranty.
+        </div>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-lowest p-1.5 rounded-lg">
+<input class="w-full bg-transparent px-2 text-on-surface font-body-sm text-body-sm focus:outline-none placeholder:text-outline" placeholder="Ask follow-up query..." type="text"/>
+<button class="p-1 rounded bg-secondary text-on-secondary flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-body-sm">arrow_upward</span>
+</button>
+</div>
+</div>
+<!-- Toggle Action Floating Button -->
+<button class="px-space-md py-3 rounded-full bg-surface-container-high hover:bg-surface-variant text-on-surface shadow-xl flex items-center gap-2 transition-all" onclick="document.getElementById('chatDrawerBox').classList.toggle('hidden')" type="button">
+<span class="material-symbols-outlined text-secondary text-body-lg">chat_spark</span>
+<span class="font-headline-sm text-body-sm">Ask Mesh Agent</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</button>
+</div>
+</div></main></div><script>const toggleBtn=document.getElementById('theme-toggle-btn');const icon=document.getElementById('theme-toggle-icon');if(toggleBtn&&icon){toggleBtn.addEventListener('click',()=>{const isDark=document.documentElement.classList.toggle('dark');document.documentElement.setAttribute('data-theme',isDark?'dark':'light');icon.textContent=isDark?'light_mode':'dark_mode';});}</script></body></html>

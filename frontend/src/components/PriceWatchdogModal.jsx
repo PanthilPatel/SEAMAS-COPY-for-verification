@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, TrendingDown, Bell, Check, Sparkles, AlertCircle, ShieldAlert } from 'lucide-react';
+import { X, TrendingDown, Bell, Check, Sparkles } from 'lucide-react';
 
 export default function PriceWatchdogModal({ product, onClose }) {
     if (!product) return null;

@@ -8,21 +8,27 @@ const toneMap = {
     indigo: 'text-indigo-300 border-indigo-400/25 bg-indigo-400/[0.06]',
 };
 
-function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }) {
-    const [wished, setWished] = useState(false);
+function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, isWishlisted = false, onWishlistToggle }) {
     const [imgError, setImgError] = useState(false);
 
     const title = product.product_name || product.title || '';
-    const subtitle = product.subtitle || (product.is_verified ? 'Verified product listing' : 'Scraped search index');
+    const subtitle = product.subtitle || (product.price_verified ? 'Source price checked' : 'Price and availability unverified');
     const marketplace = product.marketplace || 'Store';
-    const price = product.extracted_price != null ? Number(product.extracted_price) : Number(product.price || 0);
+    const price = product.extracted_price != null ? Number(product.extracted_price) : null;
+    const hasPrice = Number.isFinite(price) && price > 0 && product.price_verified === true;
     const original = product.original_price ? Number(product.original_price) : null;
-    const rating = product.rating || 4.5;
-    const reviews = product.reviews || 1200;
+    const rawRating = product.rating != null ? Number(product.rating) : null;
+    const hasValidRating = rawRating != null && !isNaN(rawRating) && rawRating > 0;
+    const rating = hasValidRating ? Math.min(5, Math.max(1, rawRating)) : null;
+
+    const rawReviews = product.reviews != null ? Number(product.reviews) : null;
+    const hasValidReviews = rawReviews != null && !isNaN(rawReviews) && rawReviews > 0;
+    const reviews = hasValidReviews ? rawReviews : null;
+
     const image = product.image_url || product.image;
     const isLarge = product.span === 'lg';
 
-    const discount = original && original > price ? Math.round(((original - price) / original) * 100) : 0;
+    const discount = hasPrice && original && original > price ? Math.round(((original - price) / original) * 100) : 0;
     const isOverBudget = product.status === 'Out of Budget';
 
     const tone = product.marketplaceTone || (product.is_verified ? 'indigo' : 'cyan');
@@ -49,17 +55,17 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10">
-                        <div className="w-14 h-14 rounded-2xl border border-white/[0.06] bg-white/[0.03] flex items-center justify-center group-hover:border-cyan-500/30 transition-colors">
-                            <Sparkles className="h-6 w-6 text-neutral-600 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 p-4 text-center">
+                        <div className="w-12 h-12 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center group-hover:border-cyan-500/30 transition-colors">
+                            <Sparkles className="h-5 w-5 text-neutral-500 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
                         </div>
-                        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600">No Image</span>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">Image unavailable</span>
                     </div>
                 )}
 
-                <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 backdrop-blur-md transition-transform group-hover:scale-105">
-                    <Store className="h-3 w-3 text-cyan-300" strokeWidth={1.75} />
-                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-100">
+                <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 backdrop-blur-md transition-transform group-hover:scale-105">
+                    <Store className="h-3 w-3 text-cyan-300 shrink-0" strokeWidth={1.75} />
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-100 max-w-[120px] truncate">
                         {marketplace}
                     </span>
                 </div>
@@ -67,13 +73,15 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        setWished(!wished);
+                        if (onWishlistToggle) {
+                            onWishlistToggle(product);
+                        }
                     }}
-                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-all btn-magnetic ${wished ? 'bg-rose-500/20 text-rose-300 scale-110' : 'bg-black/40 text-neutral-200 hover:bg-black/60 hover:scale-105'
+                    className={`absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 backdrop-blur-md transition-all btn-magnetic ${isWishlisted ? 'bg-rose-500/20 text-rose-300 scale-110' : 'bg-black/40 text-neutral-200 hover:bg-black/60 hover:scale-105'
                         }`}
-                    aria-label="Add to wishlist"
+                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                 >
-                    <Heart className={`h-4 w-4 transition-transform duration-300 ${wished ? 'fill-rose-400 text-rose-400 scale-110' : 'group-hover:scale-110'}`} strokeWidth={1.75} />
+                    <Heart className={`h-4 w-4 transition-transform duration-300 ${isWishlisted ? 'fill-rose-400 text-rose-400 scale-110' : 'group-hover:scale-110'}`} strokeWidth={1.75} />
                 </button>
 
                 {isOverBudget ? (
@@ -85,19 +93,22 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                 ) : discount > 0 ? (
                     <div className="absolute bottom-4 left-4 z-10 inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/[0.12] px-2.5 py-1 backdrop-blur-md badge-glow">
                         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-200">
-                            −{discount}% verified
+                            −{discount}% off
                         </span>
                     </div>
                 ) : null}
             </div>
 
-            <div className="flex flex-1 flex-col justify-between gap-4 p-5">
-                <div>
-                    <div className="mb-3 flex flex-wrap gap-1.5">
-                        {(product.tags || ['Verified Store', 'Live Stock']).map((t) => (
+            <div className="flex flex-1 flex-col justify-between gap-4 p-5 min-w-0">
+                <div className="min-w-0">
+                    <div className="mb-3 flex flex-wrap gap-1.5 items-center">
+                        {(product.tags && product.tags.length > 0
+                            ? product.tags
+                            : (product.is_verified ? ['Store Listing', 'Active Offer'] : ['Search Index', 'Snippet Derived'])
+                        ).map((t) => (
                             <span
                                 key={t}
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-transform hover:scale-105 ${toneMap[tone] ?? toneMap.cyan
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-transform hover:scale-105 shrink-0 ${toneMap[tone] ?? toneMap.cyan
                                     }`}
                             >
                                 <BadgeCheck className="h-2.5 w-2.5" strokeWidth={2} />
@@ -106,28 +117,43 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                         ))}
                     </div>
 
-                    <h3 className="font-display text-[17px] font-medium leading-snug tracking-tight text-white line-clamp-2 group-hover:text-cyan-200 transition-colors">
+                    <h3 className="font-display text-[16px] sm:text-[17px] font-medium leading-snug tracking-tight text-white line-clamp-2 break-words group-hover:text-cyan-200 transition-colors" title={title}>
                         {title}
                     </h3>
-                    <p className="mt-1 text-[13px] leading-relaxed text-neutral-500 line-clamp-2">{subtitle}</p>
+                    <p className="mt-1 text-[12px] sm:text-[13px] leading-relaxed text-neutral-400 line-clamp-2 break-words">{subtitle}</p>
 
                     <div className="mt-3 flex items-center gap-2">
-                        <div className="flex items-center gap-0.5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                    key={i}
-                                    className={`h-3 w-3 ${i < Math.round(rating)
-                                            ? 'fill-amber-300 text-amber-300'
-                                            : 'text-neutral-700'
-                                        }`}
-                                    strokeWidth={1.5}
-                                />
-                            ))}
-                        </div>
-                        <span className="font-mono text-[11px] text-neutral-400">
-                            {rating.toFixed(1)}{' '}
-                            <span className="text-neutral-600">· {reviews.toLocaleString()}</span>
-                        </span>
+                        {rating ? (
+                            <>
+                                <div className="flex items-center gap-0.5">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                            key={i}
+                                            className={`h-3 w-3 ${i < Math.round(rating)
+                                                    ? 'fill-amber-300 text-amber-300'
+                                                    : 'text-neutral-700'
+                                                }`}
+                                            strokeWidth={1.5}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="font-mono text-[11px] text-neutral-400">
+                                    {rating.toFixed(1)}{' '}
+                                    <span className="text-neutral-600">
+                                        · {reviews ? `${reviews.toLocaleString()} reviews` : 'Verified listing'}
+                                    </span>
+                                </span>
+                            </>
+                        ) : (
+                            <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
+                                    Unrated
+                                </span>
+                                <span className="font-mono text-[11px] text-neutral-500">
+                                    · No review data
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -135,16 +161,25 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
                     <div>
                         <div className="flex items-baseline gap-2">
                             <span className="font-display text-2xl font-semibold tracking-tight text-white price-pop">
-                                ₹{price.toLocaleString('en-IN')}
+                                {hasPrice ? `₹${price.toLocaleString('en-IN')}` : 'Price unavailable'}
                             </span>
-                            {original && (
+                            {hasPrice && original && (
                                 <span className="text-[13px] text-neutral-500 line-through">
                                     ₹{original.toLocaleString('en-IN')}
                                 </span>
                             )}
                         </div>
-                        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500">
-                            Best price · today
+                        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                            {hasPrice
+                                ? (product.price_verification_method === 'source_page'
+                                    ? 'Live Source Verified'
+                                    : 'Verified Store Offer')
+                                : 'Price not verified'}
+                        </div>
+                        <div className="mt-1 font-mono text-[10px] text-neutral-500">
+                            {product.availability_status === 'in_stock'
+                                ? `In stock${product.quantity == null ? ' · exact quantity not provided' : ` · ${product.quantity} available`}`
+                                : product.availability_status === 'out_of_stock' ? 'Out of stock' : 'Availability unknown'}
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -187,7 +222,7 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false }
     );
 }
 
-export default function ProductGrid({ items = [], query = '', ready = true, onCardClick }) {
+export default function ProductGrid({ items = [], query = '', ready = true, onCardClick, wishlistItems = [], onWishlistToggle }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [watchdogProduct, setWatchdogProduct] = useState(null);
     const ITEMS_PER_PAGE = 9;
@@ -226,6 +261,12 @@ export default function ProductGrid({ items = [], query = '', ready = true, onCa
                 gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
+    };
+
+    const isProductWishlisted = (product) => {
+        const pTitle = product.product_name || product.title;
+        const pUrl = product.url;
+        return wishlistItems.some(w => (w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle);
     };
 
     return (
@@ -270,6 +311,8 @@ export default function ProductGrid({ items = [], query = '', ready = true, onCa
                         priority={idx < 3}
                         onCardClick={onCardClick}
                         onWatchdogClick={(p) => setWatchdogProduct(p)}
+                        isWishlisted={isProductWishlisted(item)}
+                        onWishlistToggle={onWishlistToggle}
                     />
                 ))}
             </div>

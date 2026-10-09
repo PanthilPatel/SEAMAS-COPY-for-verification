@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
@@ -7,21 +8,26 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setTimeout(() => {
-            setUser({
-                id: 'usr_dev_99',
-                email: 'admin@example.com',
-                role: 'admin'
-            });
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
             setLoading(false);
-        }, 500);
+        });
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+            setLoading(false);
+        });
+        return () => subscription.unsubscribe();
     }, []);
 
     const login = async (email, password) => {
-        setUser({ id: 'usr_dev_99', email, role: 'admin' });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        return data.user;
     };
 
     const logout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
         setUser(null);
     };
 

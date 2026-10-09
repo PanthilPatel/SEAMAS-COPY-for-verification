@@ -24,38 +24,44 @@ DIM = "\033[2m"
 RESET = "\033[0m"
 
 AGENT_METADATA = {
-    "search": {
+    "orchestrator": {
         "num": 1,
+        "name": "Orchestrator Agent",
+        "desc": "Extracts intent, category & budget constraints",
+        "tag": "[INTENT]"
+    },
+    "search": {
+        "num": 2,
         "name": "Search Agent",
-        "desc": "Sweeps 14 marketplaces in parallel",
+        "desc": "Normalizes & sweeps marketplaces",
         "tag": "[SEARCH]"
     },
-    "budget": {
-        "num": 2,
-        "name": "Budget Advisor Agent",
-        "desc": "Parses intent, budget & constraints",
-        "tag": "[BUDGET]"
-    },
-    "reviews": {
-        "num": 3,
-        "name": "Review Analyzer Agent",
-        "desc": "Distills 12k+ verified reviews & sentiment",
-        "tag": "[REVIEWS]"
-    },
     "price": {
-        "num": 4,
+        "num": 3,
         "name": "Price Comparison Agent",
         "desc": "Cross-checks history, deals & live prices",
         "tag": "[PRICING]"
     },
-    "recommendation": {
+    "reviews": {
+        "num": 4,
+        "name": "Review Analyzer Agent",
+        "desc": "Distills verified reviews & sentiment",
+        "tag": "[REVIEWS]"
+    },
+    "budget": {
         "num": 5,
+        "name": "Budget Advisor Agent",
+        "desc": "Evaluates hard/approximate ceilings & constraints",
+        "tag": "[BUDGET]"
+    },
+    "recommendation": {
+        "num": 6,
         "name": "Recommendation Agent",
         "desc": "Ranks candidates against user intent",
         "tag": "[RECOMMEND]"
     },
     "finalizer": {
-        "num": 6,
+        "num": 7,
         "name": "Finalizer Agent",
         "desc": "Confirms stock, warranty & compiles report",
         "tag": "[FINALIZER]"
@@ -85,7 +91,7 @@ def log_pipeline_start(query: str, steering_mode: str = "balanced"):
     _safe_print(f"{CYAN}{BOLD}[{_ts()}] >>> SEAMAS MULTI-AGENT PIPELINE INITIALIZED <<<{RESET}")
     _safe_print(f"{CYAN}  ↳ Query:        {BOLD}'{query}'{RESET}")
     _safe_print(f"{CYAN}  ↳ Steering:     {BOLD}{steering_mode.upper()}{RESET}")
-    _safe_print(f"{CYAN}  ↳ Team:         {BOLD}6 Autonomous Specialists In Lockstep{RESET}")
+    _safe_print(f"{CYAN}  ↳ Team:         {BOLD}7 Autonomous Specialists In Lockstep{RESET}")
     _safe_print(f"{CYAN}{BOLD}{border}{RESET}\n")
 
 
@@ -97,7 +103,7 @@ def log_agent_start(agent_id: str, detail: Optional[str] = None):
     action = detail or meta["desc"]
 
     _safe_print(
-        f"{YELLOW}{BOLD}[{_ts()}] [{num}/6 {name.upper()}] ● RUNNING{RESET} {YELLOW}- {action}{RESET}"
+        f"{YELLOW}{BOLD}[{_ts()}] [{num}/7 {name.upper()}] ● RUNNING{RESET} {YELLOW}- {action}{RESET}"
     )
 
 
@@ -115,7 +121,7 @@ def log_agent_complete(agent_id: str, summary: str, duration: float):
     name = meta["name"]
 
     _safe_print(
-        f"{GREEN}{BOLD}[{_ts()}] [{num}/6 {name.upper()}] ✔ COMPLETED ({duration:.2f}s){RESET} {GREEN}- {summary}{RESET}"
+        f"{GREEN}{BOLD}[{_ts()}] [{num}/7 {name.upper()}] ✔ COMPLETED ({duration:.2f}s){RESET} {GREEN}- {summary}{RESET}"
     )
 
 
@@ -126,7 +132,7 @@ def log_agent_error(agent_id: str, error_msg: str, duration: float):
     name = meta["name"]
 
     _safe_print(
-        f"{RED}{BOLD}[{_ts()}] [{num}/6 {name.upper()}] ✖ ERROR ({duration:.2f}s){RESET} {RED}- {error_msg}{RESET}"
+        f"{RED}{BOLD}[{_ts()}] [{num}/7 {name.upper()}] ✖ ERROR ({duration:.2f}s){RESET} {RED}- {error_msg}{RESET}"
     )
 
 
@@ -141,7 +147,7 @@ def log_pipeline_complete(query: str, total_duration: float, result_count: int):
     """Prints a closing banner when all agents finish."""
     border = "=" * 80
     _safe_print(f"\n{GREEN}{BOLD}{border}{RESET}")
-    _safe_print(f"{GREEN}{BOLD}[{_ts()}] >>> PIPELINE COMPLETE | 6/6 AGENTS FINISHED ({total_duration:.2f}s) <<<{RESET}")
+    _safe_print(f"{GREEN}{BOLD}[{_ts()}] >>> PIPELINE COMPLETE | 7/7 AGENTS FINISHED ({total_duration:.2f}s) <<<{RESET}")
     _safe_print(f"{GREEN}  ↳ Query:        '{query}'{RESET}")
     _safe_print(f"{GREEN}  ↳ Output:       {result_count} verified product offers ready{RESET}")
     _safe_print(f"{GREEN}{BOLD}{border}{RESET}\n")

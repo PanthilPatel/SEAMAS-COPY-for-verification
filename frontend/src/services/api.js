@@ -1,14 +1,39 @@
 import axios from 'axios';
-
-const API_BASE_URL = import.meta['env']?.VITE_API_BASE_URL || 'http://localhost:8000';
+import { supabase } from '../lib/supabase';
+import { API_BASE_URL } from '../lib/config';
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 600000, // Generous timeout for local reasoning workflows (10 mins)
+    timeout: 120000,
 });
+
+function apiError(error) {
+    const detail = error?.response?.data?.detail;
+    const creditDiagnostic = typeof detail === 'object'
+        && ['insufficient_credits', 'credits_inconsistent'].includes(detail?.code);
+    const serverMessage = typeof detail === 'string'
+        ? detail
+        : creditDiagnostic
+            ? `${detail.message} Available: ${detail.available_credits}; required: ${detail.required_credits}; account ref: ${detail.user_ref}.`
+            : detail?.message || error?.message || 'An unexpected error occurred.';
+    const message = error?.response?.status
+        ? `${serverMessage} (HTTP ${error.response.status})`
+        : serverMessage;
+    const enriched = new Error(message);
+    enriched.code = typeof detail === 'object' ? detail?.code : undefined;
+    enriched.status = error?.response?.status;
+    enriched.details = typeof detail === 'object' ? detail : undefined;
+    return enriched;
+}
+
+async function authHeaders() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Please sign in to continue.');
+    return { Authorization: `Bearer ${session.access_token}` };
+}
 
 export const apiService = {
     /**
@@ -17,22 +42,23 @@ export const apiService = {
      */
     async sendChatQuery(query, steeringMode = 'balanced') {
         try {
-            const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
             const response = await apiClient.post('/api/chat', { 
                 query, 
-                user_id: session.id,
                 steering_mode: steeringMode 
-            });
+            }, { headers: await authHeaders() });
             return response.data;
         } catch (error) {
-            console.error('API service transaction failed:', error);
+            console.error('API service request failed:', {
+                status: error?.response?.status,
+                code: error?.response?.data?.detail?.code,
+                user_ref: error?.response?.data?.detail?.user_ref
+            });
 
             if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
                 throw new Error('Request timed out. The local reasoning model is processing deep context paths.');
             }
 
-            const serverMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-            throw new Error(serverMessage);
+            throw apiError(error);
         }
     },
 
@@ -44,20 +70,31 @@ export const apiService = {
      */
     async sendChatQueryStream(query, steeringMode = 'balanced', onEvent) {
         try {
-            const session = JSON.parse(localStorage.getItem('seamas_user_session') || '{}');
+            const headers = await authHeaders();
             const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...headers },
                 body: JSON.stringify({ 
                     query, 
-                    user_id: session.id,
                     steering_mode: steeringMode
                 })
             });
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || `Server returned status ${response.status}`);
+                const detail = errData.detail;
+                const creditDiagnostic = typeof detail === 'object'
+                    && ['insufficient_credits', 'credits_inconsistent'].includes(detail?.code);
+                const serverMessage = typeof detail === 'string'
+                    ? detail
+                    : creditDiagnostic
+                        ? `${detail.message} Available: ${detail.available_credits}; required: ${detail.required_credits}; account ref: ${detail.user_ref}.`
+                        : detail?.message || `Server returned status ${response.status}`;
+                const enriched = new Error(`${serverMessage} (HTTP ${response.status})`);
+                enriched.code = typeof detail === 'object' ? detail?.code : undefined;
+                enriched.status = response.status;
+                enriched.details = typeof detail === 'object' ? detail : undefined;
+                throw enriched;
             }
 
             const reader = response.body.getReader();
@@ -77,27 +114,25 @@ export const apiService = {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('data:')) {
                         const jsonStr = trimmed.replace(/^data:\s*/, '');
+                        let event;
                         try {
-                            const event = JSON.parse(jsonStr);
-                            if (event.type === 'result') {
-                                finalPayload = event.payload;
-                            } else if (event.type === 'error') {
-                                throw new Error(event.message);
-                            } else {
-                                if (onEvent) onEvent(event);
-                            }
-                        } catch (e) {
-                            if (e.message && e.message !== 'Unexpected end of JSON input') {
-                                console.error('SSE JSON parse error:', e);
-                            }
+                            event = JSON.parse(jsonStr);
+                        } catch (parseError) {
+                            console.error('SSE JSON parse error:', parseError);
+                            continue;
                         }
+                        if (event.type === 'result') {
+                            finalPayload = event.payload;
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message || 'Product search failed. Please try again.');
+                        } else if (onEvent) onEvent(event);
                     }
                 }
             }
             return finalPayload;
         } catch (error) {
-            console.warn('Streaming failed, falling back to standard chat endpoint:', error);
-            return await this.sendChatQuery(query);
+            console.error('Streaming request failed:', error);
+            throw error;
         }
     },
 
@@ -105,9 +140,9 @@ export const apiService = {
      * Fetches user tier and credits
      * @param {string} userId 
      */
-    async getCredits(userId) {
+    async getCredits() {
         try {
-            const response = await apiClient.get(`/api/credits/${userId}`);
+            const response = await apiClient.get('/api/credits/me', { headers: await authHeaders() });
             return response.data;
         } catch (error) {
             console.error('Failed to fetch credits:', error);

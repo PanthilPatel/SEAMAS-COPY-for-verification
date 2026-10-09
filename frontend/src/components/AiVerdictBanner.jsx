@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Zap, ShieldCheck, ThumbsUp, ArrowRight, DollarSign } from 'lucide-react';
+import { Award, ShieldCheck, DollarSign } from 'lucide-react';
 
 export default function AiVerdictBanner({ items = [], query = '' }) {
     if (!items || items.length === 0) return null;
@@ -30,7 +30,7 @@ export default function AiVerdictBanner({ items = [], query = '' }) {
                         <div className="flex items-center gap-2">
                             <span className="font-mono text-[10px] uppercase tracking-widest text-cyan-400 font-semibold">AI Executive Synthesis</span>
                             <span className="rounded-full bg-emerald-400/10 border border-emerald-400/30 px-2 py-0.5 font-mono text-[9px] text-emerald-300">
-                                98.4% Decision Confidence
+                                {topPick?.is_verified ? 'Verified Marketplace Evidence' : 'Based on Available Search Evidence'}
                             </span>
                         </div>
                         <h3 className="text-base font-bold text-white mt-0.5 font-display">

@@ -7,6 +7,9 @@ import ProductGrid from '../components/ProductGrid';
 import { apiService } from '../services/api';
 import MarketTicker from '../components/MarketTicker';
 import { supabase } from '../lib/supabase';
+import { API_BASE_URL } from '../lib/config';
+import { normalizeCreditSnapshot } from '../lib/profileState';
+import { settleWithin } from '../lib/async';
 import AuthModal from '../components/AuthModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import AssistantChatDrawer from '../components/AssistantChatDrawer';
@@ -34,26 +37,22 @@ import {
     Command,
     Sliders,
     Zap,
-    ExternalLink,
-    RotateCcw,
     LogOut,
-    MessageSquare,
     Trash2,
-    Globe,
     DollarSign,
-    Database
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
     const [imgError, setImgError] = useState(false);
     if (!product) return null;
 
-    const isVerified = Boolean(product.is_verified);
+    const isVerified = product.price_verified === true;
     const isOverBudget = product.status === 'Out of Budget';
-    const price = product.extracted_price != null ? Number(product.extracted_price) : Number(product.price || 0);
+    const price = product.extracted_price != null ? Number(product.extracted_price) : null;
+    const hasPrice = Number.isFinite(price) && price > 0 && isVerified;
     // Only use real MRP from backend — never fabricate a markup
     const original = product.original_price ? Number(product.original_price) : null;
-    const discount = original && original > price ? Math.round(((original - price) / original) * 100) : 0;
+    const discount = hasPrice && original && original > price ? Math.round(((original - price) / original) * 100) : 0;
 
     return (
         <>
@@ -109,9 +108,9 @@ function ProductDetailsDrawer({ product, onClose }) {
                         <div className="border-b border-white/[0.06] pb-5">
                             <div className="flex items-end gap-3 mb-1">
                                 <div className="text-5xl font-bold font-display text-white tracking-tight drop-shadow-md">
-                                    ₹{price.toLocaleString('en-IN')}
+                                    {hasPrice ? `₹${price.toLocaleString('en-IN')}` : 'Price unavailable'}
                                 </div>
-                                {original && (
+                                {hasPrice && original && (
                                     <span className="text-lg text-neutral-500 line-through mb-1">
                                         ₹{original.toLocaleString('en-IN')}
                                     </span>
@@ -191,10 +190,11 @@ function ProductDetailsDrawer({ product, onClose }) {
 }
 
 const AGENT_LIST = [
+    { id: 'orchestrator', name: 'Orchestrator Agent', role: 'Extracts intent & budget constraints', icon: Workflow },
     { id: 'search', name: 'Search Agent', role: 'Sweeps 14 marketplaces in parallel', icon: Radar },
-    { id: 'budget', name: 'Budget Advisor Agent', role: 'Parses intent, budget, constraints', icon: Brain },
-    { id: 'reviews', name: 'Review Analyzer Agent', role: 'Distills 12k+ verified reviews', icon: Quote },
     { id: 'price', name: 'Price Comparison Agent', role: 'Cross-checks history & true discounts', icon: LineChart },
+    { id: 'reviews', name: 'Review Analyzer Agent', role: 'Distills verified reviews & sentiment', icon: Quote },
+    { id: 'budget', name: 'Budget Advisor Agent', role: 'Evaluates budget ceilings & constraints', icon: Brain },
     { id: 'recommendation', name: 'Recommendation Agent', role: 'Ranks candidates against your intent', icon: Layers },
     { id: 'finalizer', name: 'Finalizer Agent', role: 'Confirms stock, warranty & seller trust', icon: ShieldCheck }
 ];
@@ -358,7 +358,7 @@ const NAV = [
     },
 ];
 
-function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount, userSession, setSubscriptionModalOpen }) {
+function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch, wishlistCount, threadCount, userSession, setSubscriptionModalOpen, isSearching }) {
     const userName = userSession?.name || 'Guest User';
     const navigate = useNavigate();
     const userInitials = useMemo(() => {
@@ -371,39 +371,50 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
     }, [userName]);
 
     const isPro = userSession?.tier === 'Pro';
-    const maxCredits = isPro ? 500 : 50;
-    const currentCredits = Math.min(maxCredits, userSession?.isGuest ? 0 : (userSession?.credits ?? maxCredits));
-    const creditPercent = Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100));
+    const basePlanCredits = isPro ? 500 : 50;
+    const currentCredits = userSession?.isGuest ? 0 : (userSession?.credits ?? basePlanCredits);
+    const maxCredits = Math.max(basePlanCredits, currentCredits);
+    const creditPercent = maxCredits > 0 ? Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100)) : 0;
+    const addOnCredits = Math.max(0, currentCredits - basePlanCredits);
 
     const [status, setStatus] = useState({
-        api: 'unknown',
-        database: 'unknown',
-        agents: 'unknown',
-        apiVal: '99.9%',
-        agentsVal: '99.9%',
-        dataVal: '99.9%'
+        api: 'operational',
+        database: 'operational',
+        agents: 'operational'
     });
 
     useEffect(() => {
+        let isMounted = true;
         const fetchStatus = async () => {
             try {
                 const data = await apiService.checkSystemStatus();
-                setStatus({
-                    api: data.api,
-                    database: data.database,
-                    agents: data.agents,
-                    apiVal: data.api === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%',
-                    agentsVal: data.agents === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%',
-                    dataVal: data.database === 'operational' ? (99.5 + Math.random() * 0.4).toFixed(1) + '%' : '0.0%'
-                });
-            } catch (err) {
-                console.error(err);
+                if (isMounted) {
+                    setStatus({
+                        api: data.api || 'unknown',
+                        database: data.database || 'unknown',
+                        agents: data.agents || 'unknown'
+                    });
+                }
+            } catch {
+                if (isMounted) {
+                    setStatus({
+                        api: 'down',
+                        database: 'down',
+                        agents: 'down'
+                    });
+                }
             }
         };
         fetchStatus();
-        const interval = setInterval(fetchStatus, 60000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchStatus, 30000);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, []);
+
+    const allSystemsNominal = status.api === 'operational' && status.database === 'operational' && status.agents === 'operational';
+    const anySystemDown = status.api === 'down' || status.database === 'down' || status.agents === 'down';
 
     return (
         <aside
@@ -427,48 +438,42 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                     onClick={onNewSearch}
                     className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-left text-sm text-neutral-300 transition-colors hover:border-white/[0.14] hover:bg-white/[0.04]"
                 >
-                    <Plus className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-cyan-300" strokeWidth={1.75} />
-                    {!collapsed && (
-                        <>
-                            <span className="flex-1 text-xs">New search</span>
-                            <kbd className="seamas-kbd">⌘K</kbd>
-                        </>
-                    )}
+                    <Plus className="h-4 w-4 text-cyan-400" />
+                    {!collapsed && <span className="font-medium">New Search</span>}
                 </button>
             </div>
 
-            <nav className="mt-6 flex-1 space-y-6 px-3 overflow-y-auto">
-                {NAV.map((section) => (
-                    <div key={section.group}>
+            <nav className="mt-4 flex-1 space-y-6 overflow-y-auto px-3">
+                {NAV.map((group) => (
+                    <div key={group.group}>
                         {!collapsed && (
-                            <div className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-600">
-                                {section.group}
+                            <div className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-neutral-500 uppercase">
+                                {group.group}
                             </div>
                         )}
-                        <ul className="space-y-0.5">
-                            {section.items.map((item) => {
+                        <ul className="space-y-1">
+                            {group.items.map((item) => {
+                                const Icon = item.icon;
                                 const isActive = activeTab === item.id;
-                                const displayCount = item.id === 'wishlist' ? wishlistCount : item.id === 'history' ? threadCount : item.count;
                                 return (
                                     <li key={item.id}>
                                         <button
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-white/[0.05] text-white' : 'text-neutral-400 hover:bg-white/[0.03] hover:text-white'
-                                                }`}
+                                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                                                isActive
+                                                    ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-sm'
+                                                    : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200'
+                                            } ${collapsed ? 'justify-center' : ''}`}
                                         >
-                                            {isActive && (
-                                                <span className="absolute inset-y-1.5 left-0 w-[2px] rounded-full bg-gradient-to-b from-cyan-300 to-indigo-400" />
-                                            )}
-                                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? 'text-cyan-300' : 'text-neutral-500 group-hover:text-neutral-200'
-                                                }`} strokeWidth={1.6} />
+                                            <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-neutral-400'}`} />
                                             {!collapsed && (
                                                 <>
-                                                    <span className="flex-1 truncate text-left text-xs">{item.label}</span>
-                                                    {displayCount != null && displayCount > 0 ? (
-                                                        <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
-                                                            {displayCount}
+                                                    <span className="flex-1 text-left">{item.label}</span>
+                                                    {item.count !== undefined && item.count > 0 && (
+                                                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
+                                                            {item.id === 'wishlist' ? wishlistCount : item.id === 'history' ? threadCount : item.count}
                                                         </span>
-                                                    ) : null}
+                                                    )}
                                                 </>
                                             )}
                                         </button>
@@ -484,36 +489,38 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 <div className="mx-3 mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
-                            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${
+                                allSystemsNominal
                                     ? 'bg-emerald-400'
-                                    : status.api === 'down'
+                                    : anySystemDown
                                         ? 'bg-red-400'
                                         : 'bg-amber-400'
-                                }`} />
-                            <span className={`relative inline-flex h-2 w-2 rounded-full ${status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                            }`} />
+                            <span className={`relative inline-flex h-2 w-2 rounded-full ${
+                                allSystemsNominal
                                     ? 'bg-emerald-400'
-                                    : status.api === 'down'
+                                    : anySystemDown
                                         ? 'bg-red-400'
                                         : 'bg-amber-400'
-                                }`} />
+                            }`} />
                         </span>
                         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-                            {status.api === 'operational' && status.database === 'operational' && status.agents === 'operational'
+                            {allSystemsNominal
                                 ? 'All systems nominal'
-                                : status.api === 'down'
-                                    ? 'System offline'
-                                    : 'Degraded performance'}
+                                : anySystemDown
+                                    ? 'System degraded'
+                                    : 'Connecting...'}
                         </span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
                         {[
-                            { key: 'API', label: 'API', val: status.apiVal, ok: status.api === 'operational' },
-                            { key: 'AGENTS', label: 'AGENTS', val: status.agentsVal, ok: status.agents === 'operational' },
-                            { key: 'DATA', label: 'DATA', val: status.dataVal, ok: status.database === 'operational' }
+                            { key: 'API', label: 'API', val: status.api === 'operational' ? 'ONLINE' : (status.api === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.api === 'operational' },
+                            { key: 'AGENTS', label: 'AGENTS', val: status.agents === 'operational' ? 'ONLINE' : (status.agents === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.agents === 'operational' },
+                            { key: 'DATA', label: 'DATA', val: status.database === 'operational' ? 'ONLINE' : (status.database === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.database === 'operational' }
                         ].map((item) => (
                             <div key={item.key} className="rounded-md bg-white/[0.03] py-1">
                                 <div className="font-mono text-[9px] text-neutral-500">{item.label}</div>
-                                <div className={`font-mono text-[10px] ${item.ok ? 'text-emerald-300/90' : 'text-red-400/90'}`}>
+                                <div className={`font-mono text-[10px] font-semibold ${item.ok ? 'text-emerald-300/90' : 'text-red-400/90'}`}>
                                     {item.val}
                                 </div>
                             </div>
@@ -558,15 +565,40 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
                                     {userSession?.isGuest
                                         ? 'Free · 0 credits'
-                                        : <span className={currentCredits === 0 ? 'text-rose-400 font-bold' : ''}>{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits`}</span>}
+                                        : isSearching
+                                            ? <span className="text-cyan-300 animate-pulse">{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits (Processing...)`}</span>
+                                            : (
+                                                <span className={`inline-flex items-center gap-1.5 ${currentCredits === 0 ? 'text-rose-400 font-bold' : ''}`}>
+                                                    <span>{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits`}</span>
+                                                    {addOnCredits > 0 && (
+                                                        <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1 py-0.2 rounded font-sans font-semibold border border-cyan-400/30">
+                                                            +{addOnCredits} Booster
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            )}
                                 </div>
-                                {!isPro && !userSession?.isGuest && (
-                                    <button
-                                        onClick={() => setSubscriptionModalOpen(true)}
-                                        className="mt-1.5 text-[10px] font-bold bg-gradient-to-r from-violet-600 to-sky-600 px-2 py-0.5 rounded-full text-white hover:opacity-90 transition-opacity"
-                                    >
-                                        Upgrade
-                                    </button>
+                                {!userSession?.isGuest && (
+                                    <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                            onClick={() => setSubscriptionModalOpen(isPro ? 'topup' : 'monthly')}
+                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white hover:opacity-90 transition-opacity ${
+                                                isPro
+                                                    ? 'bg-gradient-to-r from-amber-500 to-violet-600'
+                                                    : 'bg-gradient-to-r from-violet-600 to-sky-600'
+                                            }`}
+                                        >
+                                            {isPro ? '+ Top Up' : 'Upgrade'}
+                                        </button>
+                                        {!isPro && (
+                                            <button
+                                                onClick={() => setSubscriptionModalOpen('topup')}
+                                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-amber-300 border border-amber-300/20 transition-colors"
+                                            >
+                                                + Buy Tokens
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </button>
                         </div>
@@ -646,38 +678,44 @@ export default function UserDashboard() {
             }
         }
 
-        if (sessionStorage.getItem('payment_success_toast')) {
+        const successToast = sessionStorage.getItem('payment_success_toast');
+        if (successToast) {
             sessionStorage.removeItem('payment_success_toast');
-            showNotification('Payment Successful! You are now a Pro user.', 'success');
+            showNotification(successToast, 'success');
         }
 
         // Handle Razorpay Payment Link Callback
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('payment') === 'success') {
-            const isDummy = urlParams.get('dummy') === 'true';
-            const rzpPaymentId = urlParams.get('razorpay_payment_id') || 'pay_dummy_456';
-            const rzpPaymentLinkId = urlParams.get('razorpay_payment_link_id') || 'dummy_link_123';
+            const rzpPaymentId = urlParams.get('razorpay_payment_id');
+            const rzpPaymentLinkId = urlParams.get('razorpay_payment_link_id');
             const rzpPaymentLinkRefId = urlParams.get('razorpay_payment_link_reference_id') || '';
             const rzpPaymentLinkStatus = urlParams.get('razorpay_payment_link_status') || 'paid';
-            const rzpSignature = urlParams.get('razorpay_signature') || 'dummy_sig';
+            const rzpSignature = urlParams.get('razorpay_signature');
+            const rzpOrderId = urlParams.get('razorpay_order_id');
 
-            if (local) {
-                const parsed = JSON.parse(local);
-                fetch('http://localhost:8000/api/verify-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        razorpay_payment_link_id: isDummy ? 'dummy_link_123' : rzpPaymentLinkId,
-                        razorpay_payment_id: rzpPaymentId,
-                        razorpay_signature: rzpSignature,
-                        user_id: parsed.id,
-                        razorpay_payment_link_reference_id: rzpPaymentLinkRefId,
-                        razorpay_payment_link_status: rzpPaymentLinkStatus,
-                        razorpay_order_id: isDummy ? 'order_dummy_123' : null
-                    })
+            if (!rzpPaymentId || !rzpSignature) {
+                showNotification('Payment verification failed: Incomplete payment reference from gateway.', 'error');
+                window.history.replaceState({}, document.title, "/dashboard");
+            } else if (local) {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (!session?.access_token) throw new Error('Please sign in again to verify this payment.');
+                    return fetch(`${API_BASE_URL}/api/verify-payment`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                        body: JSON.stringify({
+                            razorpay_payment_link_id: rzpPaymentLinkId,
+                            razorpay_payment_id: rzpPaymentId,
+                            razorpay_signature: rzpSignature,
+                            razorpay_payment_link_reference_id: rzpPaymentLinkRefId,
+                            razorpay_payment_link_status: rzpPaymentLinkStatus,
+                            ...(rzpOrderId ? { razorpay_order_id: rzpOrderId } : {})
+                        })
+                    });
                 }).then(async (res) => {
                     if (res.ok) {
-                        sessionStorage.setItem('payment_success_toast', 'true');
+                        const toastMsg = 'Payment verified and account credits updated.';
+                        sessionStorage.setItem('payment_success_toast', toastMsg);
                         window.history.replaceState({}, document.title, "/dashboard");
                         window.location.reload();
                     } else {
@@ -694,14 +732,17 @@ export default function UserDashboard() {
             if (session) {
                 let actualTier = localTier;
                 let actualCredits = localCredits;
+                let actualRenewAt = null;
                 try {
                     const data = await apiService.getCredits(session.user.id);
                     actualTier = data.tier?.toLowerCase() === 'pro' ? 'Pro' : 'Free';
                     actualCredits = data.credits;
+                    actualRenewAt = data.renew_at || null;
                     if (local) {
                         const parsed = JSON.parse(local);
                         parsed.tier = actualTier;
                         parsed.credits = actualCredits;
+                        if (actualRenewAt) parsed.renewAt = actualRenewAt;
                         localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
                     }
                 } catch (e) {
@@ -713,7 +754,8 @@ export default function UserDashboard() {
                     email: session.user.email,
                     name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
                     tier: actualTier,
-                    credits: actualCredits
+                    credits: actualCredits,
+                    renewAt: actualRenewAt
                 });
             } else if (!initialGuest) {
                 setAuthModalOpen(true);
@@ -773,20 +815,89 @@ export default function UserDashboard() {
     const [activeTab, setActiveTab] = useState('discover');
     const [showCommandPalette, setShowCommandPalette] = useState(false);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-    const [steeringMode, setSteeringMode] = useState('balanced');
+    const [steeringMode, setSteeringMode] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.defaultSteering || 'balanced';
+        } catch { return 'balanced'; }
+    });
     const [recentQueries, setRecentQueries] = useState([]);
-    const [wishlistItems, setWishlistItems] = useState([]);
+    const [wishlistItems, setWishlistItems] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('seamas_wishlist') || '[]');
+        } catch { return []; }
+    });
 
-    const [apiUrl, setApiUrl] = useState('http://localhost:8000');
-    const [deepScan, setDeepScan] = useState(true);
-    const [trustVerification, setTrustVerification] = useState(true);
-    const [parallelWorkers, setParallelWorkers] = useState(14);
-    const [currency, setCurrency] = useState('INR');
-    const [ambientGlow, setAmbientGlow] = useState(true);
-    const [dataSaver, setDataSaver] = useState(false);
+    const [deepScan, setDeepScan] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.deepScan !== undefined ? saved.deepScan : true;
+        } catch { return true; }
+    });
+    const [trustVerification, setTrustVerification] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.trustVerification !== undefined ? saved.trustVerification : true;
+        } catch { return true; }
+    });
+    const [parallelWorkers, setParallelWorkers] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.parallelWorkers || 14;
+        } catch { return 14; }
+    });
+    const [currency, setCurrency] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.preferredCurrency || 'INR';
+        } catch { return 'INR'; }
+    });
+    const [ambientGlow, setAmbientGlow] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.ambientGlow !== undefined ? saved.ambientGlow : true;
+        } catch { return true; }
+    });
+    const [dataSaver, setDataSaver] = useState(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            return saved.dataSaver !== undefined ? saved.dataSaver : false;
+        } catch { return false; }
+    });
+
+    const updatePreference = (key, value) => {
+        try {
+            const prev = JSON.parse(localStorage.getItem('seamas_preferences') || '{}');
+            const updated = { ...prev, [key]: value };
+            localStorage.setItem('seamas_preferences', JSON.stringify(updated));
+        } catch (e) {
+            console.error('Failed to update preference', e);
+        }
+    };
+
+    const handleToggleWishlist = (product) => {
+        const pTitle = product.product_name || product.title;
+        const pUrl = product.url;
+        setWishlistItems(prev => {
+            const exists = prev.some(w => (w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle);
+            let updated;
+            if (exists) {
+                updated = prev.filter(w => !((w.url && w.url === pUrl) || (w.product_name || w.title) === pTitle));
+                showNotification(`Removed from wishlist`, 'info');
+            } else {
+                updated = [product, ...prev];
+                showNotification(`Saved to wishlist!`, 'success');
+            }
+            try {
+                localStorage.setItem('seamas_wishlist', JSON.stringify(updated));
+            } catch (e) {
+                console.error('Failed to save wishlist', e);
+            }
+            return updated;
+        });
+    };
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [currentQuery, setCurrentQuery] = useState('');
     const [logs, setLogs] = useState([]);
 
@@ -794,7 +905,6 @@ export default function UserDashboard() {
 
     const [priceData, setPriceData] = useState([]);
     const [sentimentReport, setSentimentReport] = useState(null);
-    const [recommendations, setRecommendations] = useState([]);
     const [budgetStatus, setBudgetStatus] = useState(null);
     const [maxBudgetCeiling, setMaxBudgetCeiling] = useState(250000);
 
@@ -818,28 +928,6 @@ export default function UserDashboard() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const LOG_AGENT_MAP = [
-        { id: 'search', successKey: 'search agent aggregated', errorKey: 'search agent error' },
-        { id: 'price', successKey: 'successfully matched category context', errorKey: 'price comparison agent error' },
-        { id: 'reviews', successKey: 'qualitative sentiment arrays packaged', errorKey: 'sentiment evaluation failed' },
-        { id: 'budget', successKey: 'financial parameter', errorKey: 'budget agent error' },
-        { id: 'recommendation', successKey: 'recommendation engine resolved', errorKey: 'crash log' },
-        { id: 'finalizer', successKey: 'state sanitation completed', errorKey: 'finalizer error' },
-    ];
-
-    const deriveAgentStatesFromLogs = (logs = []) => {
-        const logText = logs.join(' ').toLowerCase();
-        const result = {};
-        LOG_AGENT_MAP.forEach(({ id, successKey, errorKey }) => {
-            const hasError = logText.includes(errorKey.toLowerCase());
-            const hasSuccess = logText.includes(successKey.toLowerCase());
-            if (hasError) result[id] = AGENT_STATES.ERROR;
-            else if (hasSuccess) result[id] = AGENT_STATES.COMPLETED;
-            else result[id] = AGENT_STATES.IDLE;
-        });
-        return result;
-    };
-
     const handleQuerySubmit = async (query) => {
         // Intercept Guest users and redirect to AuthPage
         const local = localStorage.getItem('seamas_user_session');
@@ -850,27 +938,6 @@ export default function UserDashboard() {
                 localStorage.removeItem('seamas_user_session');
                 navigate('/', { state: { infoMessage: "For using this you have to first login into your account." } });
                 return;
-            }
-        }
-
-        // Deduct credits on query execution based on steering mode
-        if (userSession && userSession.id !== 'guest') {
-            const cost = steeringMode === 'speed' ? 5 : (steeringMode === 'accuracy' ? 20 : 10);
-            if ((userSession.credits ?? 0) < cost) {
-                showNotification("Insufficient search credits. Please upgrade your plan.", 'error');
-                setSubscriptionModalOpen(true);
-                return;
-            }
-            const nextCredits = Math.max(0, (userSession.credits ?? 500) - cost);
-            setUserSession(prev => ({
-                ...prev,
-                credits: nextCredits
-            }));
-            const localData = localStorage.getItem('seamas_user_session');
-            if (localData) {
-                const parsed = JSON.parse(localData);
-                parsed.credits = nextCredits;
-                localStorage.setItem('seamas_user_session', JSON.stringify(parsed));
             }
         }
 
@@ -886,13 +953,13 @@ export default function UserDashboard() {
 
         setActiveTab('discover');
         setLoading(true);
-        setError(null);
         setCurrentQuery(query);
         setAgentStatusMap({
-            search: AGENT_STATES.RUNNING,
-            budget: AGENT_STATES.IDLE,
-            reviews: AGENT_STATES.IDLE,
+            orchestrator: AGENT_STATES.RUNNING,
+            search: AGENT_STATES.IDLE,
             price: AGENT_STATES.IDLE,
+            reviews: AGENT_STATES.IDLE,
+            budget: AGENT_STATES.IDLE,
             recommendation: AGENT_STATES.IDLE,
             finalizer: AGENT_STATES.IDLE,
         });
@@ -938,7 +1005,6 @@ export default function UserDashboard() {
             const extractedPrices = data.price_data || [];
             setPriceData(extractedPrices);
             setSentimentReport(data.analysis_report || null);
-            setRecommendations(data.recommendations || []);
             setBudgetStatus(data.budget_status || null);
 
             const validPrices = extractedPrices.map(p => p.extracted_price).filter(p => p != null && p > 0);
@@ -964,7 +1030,8 @@ export default function UserDashboard() {
                 return next;
             });
         } catch (err) {
-            setError(err.message || 'An error occurred.');
+            showNotification(err.message || 'Product search failed. Please try again.', 'error');
+            if (err.code === 'insufficient_credits') setSubscriptionModalOpen(true);
             setAgentStatusMap(prev => {
                 const next = { ...prev };
                 Object.keys(next).forEach(id => {
@@ -973,6 +1040,29 @@ export default function UserDashboard() {
                 return next;
             });
         } finally {
+            if (userSession && userSession.id !== 'guest') {
+                try {
+                    // The backend transaction is authoritative. Refresh after both
+                    // success and failure instead of predicting a local balance.
+                    const actual = await settleWithin(apiService.getCredits(), 8000, 'Authoritative credit refresh');
+                    try {
+                        const snapshot = normalizeCreditSnapshot(actual);
+                        setUserSession((previous) => previous?.id === userSession.id
+                            ? { ...previous, tier: snapshot.tier, credits: snapshot.credits }
+                            : previous);
+                        const stored = JSON.parse(localStorage.getItem('seamas_user_session') || 'null');
+                        if (stored?.id === userSession.id) {
+                            stored.tier = snapshot.tier;
+                            stored.credits = snapshot.credits;
+                            localStorage.setItem('seamas_user_session', JSON.stringify(stored));
+                        }
+                    } catch {
+                        console.error('Backend returned an invalid authoritative credit balance.');
+                    }
+                } catch (refreshError) {
+                    console.error('Could not refresh authoritative search credits:', refreshError);
+                }
+            }
             setLoading(false);
         }
     };
@@ -992,8 +1082,8 @@ export default function UserDashboard() {
 
     const filteredItems = useMemo(() => {
         return priceData.filter(item => {
-            if (!item.extracted_price || item.extracted_price <= 0) return false;
-            if (item.extracted_price > priceRange) return false;
+            const hasVerifiedPrice = item.price_verified === true && Number(item.extracted_price) > 0;
+            if (hasVerifiedPrice && item.extracted_price > priceRange) return false;
             if (selectedMarketplaces.length > 0) {
                 const itemStores = (item.marketplace || '').split(',').map(s => s.trim().toLowerCase());
                 const match = selectedMarketplaces.some(sel => {
@@ -1002,7 +1092,7 @@ export default function UserDashboard() {
                 });
                 if (!match) return false;
             }
-            if (verifiedOnly && !item.is_verified) return false;
+            if (verifiedOnly && !hasVerifiedPrice) return false;
             if (inBudgetOnly && item.status !== 'Target Match') return false;
             return true;
         });
@@ -1010,9 +1100,9 @@ export default function UserDashboard() {
 
     const sortedItems = useMemo(() => {
         const base = [...filteredItems];
-        if (sortBy === 'price-asc') base.sort((a, b) => a.extracted_price - b.extracted_price);
-        else if (sortBy === 'price-desc') base.sort((a, b) => b.extracted_price - a.extracted_price);
-        else base.sort((a, b) => (b.is_verified ? 1 : 0) - (a.is_verified ? 1 : 0));
+        if (sortBy === 'price-asc') base.sort((a, b) => (a.extracted_price ?? Infinity) - (b.extracted_price ?? Infinity));
+        else if (sortBy === 'price-desc') base.sort((a, b) => (b.extracted_price ?? -Infinity) - (a.extracted_price ?? -Infinity));
+        else base.sort((a, b) => Number(b.price_verified === true) - Number(a.price_verified === true));
         return base;
     }, [filteredItems, sortBy]);
 
@@ -1040,7 +1130,18 @@ export default function UserDashboard() {
                 recentQueries={recentQueries}
             />
             <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-            <SubscriptionModal isOpen={subscriptionModalOpen} onClose={() => setSubscriptionModalOpen(false)} userSession={userSession} />
+            <SubscriptionModal
+                isOpen={Boolean(subscriptionModalOpen)}
+                onClose={() => setSubscriptionModalOpen(false)}
+                userSession={userSession}
+                initialTab={typeof subscriptionModalOpen === 'string' ? subscriptionModalOpen : null}
+            />
+            <AssistantChatDrawer
+                isOpen={isAssistantOpen}
+                onClose={() => setIsAssistantOpen(false)}
+                currentQuery={currentQuery}
+                items={priceData}
+            />
 
             <Sidebar
                 collapsed={collapsed}
@@ -1052,10 +1153,11 @@ export default function UserDashboard() {
                 threadCount={recentQueries.length}
                 userSession={userSession}
                 setSubscriptionModalOpen={setSubscriptionModalOpen}
+                isSearching={loading}
             />
 
             <div className="flex-grow flex flex-col min-w-0 z-10 relative">
-                <MarketTicker />
+                <MarketTicker items={priceData} query={currentQuery} />
 
                 <header className="h-16 flex items-center justify-between px-8 z-10 shrink-0 bg-transparent">
                     <div className="relative w-80 text-left">
@@ -1068,13 +1170,24 @@ export default function UserDashboard() {
                         </button>
                     </div>
 
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors border border-transparent hover:border-rose-400/20"
-                    >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Log Out</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsAssistantOpen(true)}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/40 transition-all btn-magnetic shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                            title="Open AI Shopping Assistant"
+                        >
+                            <Brain className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>AI Assistant</span>
+                        </button>
+
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors border border-transparent hover:border-rose-400/20"
+                        >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Log Out</span>
+                        </button>
+                    </div>
                 </header>
 
                 <main className="flex-grow overflow-y-auto px-8 py-8 space-y-12 animate-spring-up text-left">
@@ -1096,7 +1209,7 @@ export default function UserDashboard() {
                                                 Agent Orchestration Engine
                                             </div>
                                             <h2 className="mt-2 font-display text-2xl font-medium tracking-tight text-white sm:text-3xl">
-                                                Six specialists, one decision.
+                                                Seven specialists, one decision.
                                             </h2>
                                         </div>
 
@@ -1205,7 +1318,14 @@ export default function UserDashboard() {
 
                                         <PriceChart items={sortedItems} budgetLimit={budgetStatus?.ceiling} />
 
-                                        <ProductGrid items={sortedItems} query={currentQuery} ready={true} onCardClick={handleCardClick} />
+                                        <ProductGrid
+                                            items={sortedItems}
+                                            query={currentQuery}
+                                            ready={true}
+                                            onCardClick={handleCardClick}
+                                            wishlistItems={wishlistItems}
+                                            onWishlistToggle={handleToggleWishlist}
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -1300,9 +1420,31 @@ export default function UserDashboard() {
 
                     {activeTab === 'history' && (
                         <div className="w-full max-w-4xl mx-auto space-y-6">
-                            <div className="text-left border-b border-white/5 pb-4">
-                                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">Recent Transactions</span>
-                                <h2 className="text-3xl font-display font-semibold text-white mt-1">Threads History</h2>
+                            <div className="flex items-center justify-between border-b border-white/5 pb-4 text-left">
+                                <div>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">Recent Transactions</span>
+                                    <h2 className="text-3xl font-display font-semibold text-white mt-1">Threads History</h2>
+                                </div>
+                                {recentQueries.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm("Are you sure you want to clear your search history?")) {
+                                                setRecentQueries([]);
+                                                if (userSession && userSession.id !== 'guest') {
+                                                    supabase.from('search_history').delete().eq('user_id', userSession.id).then(() => {
+                                                        showNotification("Search history cleared!", "success");
+                                                    });
+                                                } else {
+                                                    showNotification("Search history cleared!", "success");
+                                                }
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Clear All</span>
+                                    </button>
+                                )}
                             </div>
                             {recentQueries.length === 0 ? (
                                 <div className="seamas-glass rounded-2xl p-12 border border-white/5 text-center text-neutral-500 font-mono text-sm">
@@ -1311,25 +1453,46 @@ export default function UserDashboard() {
                             ) : (
                                 <div className="space-y-3">
                                     {recentQueries.map((q, idx) => (
-                                        <button
+                                        <div
                                             key={idx}
-                                            onClick={() => handleQuerySubmit(q)}
                                             className="w-full seamas-glass p-4 rounded-xl border border-white/[0.04] hover:border-cyan-400/20 hover:bg-cyan-400/[0.01] transition-all flex items-center justify-between text-left group"
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => handleQuerySubmit(q)}
+                                                className="flex-1 flex items-center gap-4 cursor-pointer text-left"
+                                            >
                                                 <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.02] border border-white/[0.06] text-neutral-400 font-mono text-xs">
                                                     #{idx + 1}
                                                 </div>
-                                                <div>
-                                                    <div className="text-sm font-display font-medium text-white group-hover:text-cyan-300 transition-colors">{q}</div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-sm font-display font-medium text-white group-hover:text-cyan-300 transition-colors truncate">{q}</div>
                                                     <div className="text-[10px] font-mono text-neutral-500 mt-0.5">Pipeline status: Completed successfully</div>
                                                 </div>
+                                            </button>
+                                            <div className="flex items-center gap-2 pl-3">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const updated = recentQueries.filter((_, i) => i !== idx);
+                                                        setRecentQueries(updated);
+                                                        if (userSession && userSession.id !== 'guest') {
+                                                            supabase.from('search_history').delete().eq('user_id', userSession.id).eq('query', q).then();
+                                                        }
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                                    title="Remove from history"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleQuerySubmit(q)}
+                                                    className="p-1.5 rounded-lg text-neutral-500 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                                                    title="Rerun query"
+                                                >
+                                                    <ArrowUpRight className="h-4 w-4" />
+                                                </button>
                                             </div>
-                                            <div className="flex items-center gap-2 font-mono text-[10px] text-neutral-500">
-                                                <span>Active</span>
-                                                <ArrowUpRight className="h-4 w-4" />
-                                            </div>
-                                        </button>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -1357,13 +1520,14 @@ export default function UserDashboard() {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="grid auto-rows-[1fr] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {wishlistItems.map((item, idx) => (
-                                        <div key={idx} className="relative">
-                                            <ProductGrid items={[item]} ready={true} onCardClick={handleCardClick} />
-                                        </div>
-                                    ))}
-                                </div>
+                                <ProductGrid
+                                    items={wishlistItems}
+                                    query="Wishlist"
+                                    ready={true}
+                                    onCardClick={handleCardClick}
+                                    wishlistItems={wishlistItems}
+                                    onWishlistToggle={handleToggleWishlist}
+                                />
                             )}
                         </div>
                     )}
@@ -1389,7 +1553,10 @@ export default function UserDashboard() {
                                         <input
                                             type="checkbox"
                                             checked={deepScan}
-                                            onChange={(e) => setDeepScan(e.target.checked)}
+                                            onChange={(e) => {
+                                                setDeepScan(e.target.checked);
+                                                updatePreference('deepScan', e.target.checked);
+                                            }}
                                             className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
                                         />
                                     </div>
@@ -1401,7 +1568,10 @@ export default function UserDashboard() {
                                         <input
                                             type="checkbox"
                                             checked={trustVerification}
-                                            onChange={(e) => setTrustVerification(e.target.checked)}
+                                            onChange={(e) => {
+                                                setTrustVerification(e.target.checked);
+                                                updatePreference('trustVerification', e.target.checked);
+                                            }}
                                             className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
                                         />
                                     </div>
@@ -1415,7 +1585,11 @@ export default function UserDashboard() {
                                             min="4"
                                             max="32"
                                             value={parallelWorkers}
-                                            onChange={(e) => setParallelWorkers(Number(e.target.value))}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                setParallelWorkers(val);
+                                                updatePreference('parallelWorkers', val);
+                                            }}
                                             className="w-full accent-cyan-400 bg-white/5 h-1 rounded-lg cursor-pointer"
                                         />
                                     </div>
@@ -1437,7 +1611,10 @@ export default function UserDashboard() {
                                         <input
                                             type="checkbox"
                                             checked={ambientGlow}
-                                            onChange={(e) => setAmbientGlow(e.target.checked)}
+                                            onChange={(e) => {
+                                                setAmbientGlow(e.target.checked);
+                                                updatePreference('ambientGlow', e.target.checked);
+                                            }}
                                             className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
                                         />
                                     </div>
@@ -1449,7 +1626,10 @@ export default function UserDashboard() {
                                         <input
                                             type="checkbox"
                                             checked={dataSaver}
-                                            onChange={(e) => setDataSaver(e.target.checked)}
+                                            onChange={(e) => {
+                                                setDataSaver(e.target.checked);
+                                                updatePreference('dataSaver', e.target.checked);
+                                            }}
                                             className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
                                         />
                                     </div>
@@ -1462,7 +1642,10 @@ export default function UserDashboard() {
                                             <DollarSign className="h-3 w-3 text-emerald-400" />
                                             <select
                                                 value={currency}
-                                                onChange={(e) => setCurrency(e.target.value)}
+                                                onChange={(e) => {
+                                                    setCurrency(e.target.value);
+                                                    updatePreference('preferredCurrency', e.target.value);
+                                                }}
                                                 className="bg-transparent text-xs text-white border-none outline-none font-semibold focus:ring-0 cursor-pointer"
                                             >
                                                 <option value="INR" className="bg-[#0a0a0f] text-white">INR (₹)</option>
@@ -1487,7 +1670,10 @@ export default function UserDashboard() {
                                     ].map((mode) => (
                                         <button
                                             key={mode.id}
-                                            onClick={() => setSteeringMode(mode.id)}
+                                            onClick={() => {
+                                                setSteeringMode(mode.id);
+                                                updatePreference('defaultSteering', mode.id);
+                                            }}
                                             className={`p-3 rounded-xl border text-left transition-all ${steeringMode === mode.id
                                                     ? 'border-cyan-500/40 bg-cyan-500/[0.04] text-white'
                                                     : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-neutral-400'
@@ -1537,14 +1723,14 @@ export default function UserDashboard() {
             </div>
 
             {notification && (
-                <div 
+                <div
                     className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl border backdrop-blur-xl shadow-2xl animate-slide-in-right max-w-sm"
                     style={{
                         background: 'hsl(240 8% 8% / 0.85)',
-                        borderColor: notification.type === 'success' 
-                            ? 'hsl(158 64% 52% / 0.3)' 
-                            : notification.type === 'error' 
-                            ? 'hsl(350 89% 60% / 0.3)' 
+                        borderColor: notification.type === 'success'
+                            ? 'hsl(158 64% 52% / 0.3)'
+                            : notification.type === 'error'
+                            ? 'hsl(350 89% 60% / 0.3)'
                             : 'hsl(187 92% 55% / 0.3)',
                         boxShadow: notification.type === 'success'
                             ? '0 10px 30px -10px hsl(158 64% 52% / 0.2)'
@@ -1564,7 +1750,7 @@ export default function UserDashboard() {
                             {notification.message}
                         </p>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setNotification(null)}
                         className="ml-auto text-white/30 hover:text-white text-xs font-bold pl-3"
                     >

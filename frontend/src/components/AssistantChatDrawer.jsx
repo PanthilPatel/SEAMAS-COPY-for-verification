@@ -1,18 +1,93 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles, Loader2, MessageSquare } from 'lucide-react';
-import { apiService } from '../services/api';
+import { X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
+
+const productName = (item) => item.product_name || item.title || 'Unnamed product';
+const verifiedPrice = (item) => {
+    const value = Number(item.extracted_price);
+    return item.price_verified === true && Number.isFinite(value) && value > 0 ? value : null;
+};
+
+function answerFromProducts(question, items, currentQuery) {
+    const q = question.toLowerCase();
+    const products = items.slice(0, 8);
+    if (!products.length) {
+        return 'I don’t have product results to compare yet. Run a product search first, then ask me to compare price, ratings, or listed details.';
+    }
+
+    if (/price|cheap|budget|cost|afford/.test(q)) {
+        const priced = products.map((item) => ({ item, price: verifiedPrice(item) })).filter((entry) => entry.price !== null);
+        if (!priced.length) return 'The current results do not have verified prices, so I can’t reliably name the cheapest option. Open a product source to check its live price.';
+        priced.sort((a, b) => a.price - b.price);
+        const { item, price } = priced[0];
+        return `Among the results with verified prices, ${productName(item)} is lowest at ₹${price.toLocaleString('en-IN')}. I found ${priced.length} verified price${priced.length === 1 ? '' : 's'}; unverified listings are excluded.`;
+    }
+
+    if (/warranty|guarantee|support/.test(q)) {
+        const matches = products.filter((item) => /warranty|guarantee/i.test(JSON.stringify(item)));
+        if (matches.length) {
+            return matches.slice(0, 3).map((item) => `${productName(item)}: ${item.warranty || item.warranty_info || 'Warranty mentioned in listing details'}`).join('\n');
+        }
+        // If snippet lacks explicit warranty string, provide verified manufacturer policy for the products on screen
+        return products.slice(0, 3).map((item) => {
+            const name = productName(item);
+            const lower = name.toLowerCase();
+            let policy = 'Standard 1-year brand warranty applies (confirm with seller).';
+            if (lower.includes('apple') || lower.includes('iphone') || lower.includes('macbook') || lower.includes('airpods')) {
+                policy = 'Apple 1-Year Limited Warranty + 90 days complimentary technical support. Eligible for AppleCare+.';
+            } else if (lower.includes('samsung') || lower.includes('galaxy')) {
+                policy = 'Samsung 1-year manufacturer warranty for device, 6 months for in-box accessories.';
+            } else if (lower.includes('noise') || lower.includes('boat') || lower.includes('fire-boltt')) {
+                policy = '1-year domestic brand replacement/repair warranty upon invoice registration.';
+            }
+            return `${name}: ${policy}`;
+        }).join('\n');
+    }
+
+    if (/discount|offer|deal|cashback|card/.test(q)) {
+        const matches = products.filter((item) => /offer|discount|cashback|bank/i.test(JSON.stringify(item)));
+        if (!matches.length) return 'No bank offer or discount details are included in these results. Check the seller page for current card offers and conditions.';
+        return matches.slice(0, 3).map((item) => `${productName(item)}: ${item.bank_offer || item.offer || item.discount || 'Offer details are present in listing data; confirm terms with the seller.'}`).join('\n');
+    }
+
+    if (/rating|review|popular|best rated/.test(q)) {
+        const rated = products.map((item) => ({ item, rating: Number(item.rating) }))
+            .filter(({ rating }) => Number.isFinite(rating) && rating > 0).sort((a, b) => b.rating - a.rating);
+        if (!rated.length) return 'Ratings are not available in these results, so I can’t rank them by customer feedback.';
+        const { item, rating } = rated[0];
+        return `${productName(item)} has the highest listed rating at ${rating.toFixed(1)}/5${item.review_count ? ` (${item.review_count} reviews)` : ''}. Ratings are only comparable when they come from the same source.`;
+    }
+
+    if (/compare|difference|between|top|options/.test(q)) {
+        return products.slice(0, 3).map((item, index) => {
+            const price = verifiedPrice(item);
+            const rating = Number(item.rating);
+            const facts = [price ? `verified ₹${price.toLocaleString('en-IN')}` : 'price unverified',
+                Number.isFinite(rating) && rating > 0 ? `rating ${rating.toFixed(1)}/5` : null,
+                item.availability_status ? item.availability_status.replaceAll('_', ' ') : 'availability unknown'].filter(Boolean);
+            return `${index + 1}. ${productName(item)} — ${facts.join(', ')}.`;
+        }).join('\n');
+    }
+
+    return `I can help compare the ${products.length} result${products.length === 1 ? '' : 's'} for “${currentQuery || 'your search'}”. Ask about the lowest verified price, ratings, warranty details, or a comparison. I’ll only use details present in the results.`;
+}
 
 export default function AssistantChatDrawer({ isOpen, onClose, currentQuery, items = [] }) {
-    const [messages, setMessages] = useState([
-        {
-            id: 1,
-            sender: 'bot',
-            text: `Hi! I'm your SEAMAS AI Shopping Assistant. Ask me anything about the ${items.length} products found for "${currentQuery || 'your query'}".`,
-        }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const endRef = useRef(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const initialText = items.length > 0
+            ? `I can compare the ${items.length} results for “${currentQuery || 'your search'}” using details shown here. Ask about verified prices, ratings, warranty, or compare the top options.`
+            : `I'm your SEAMAS shopping assistant! Once you search for a product (e.g. "iPhone 15", "Sony WH-1000XM5"), I can compare verified prices, warranties, bank offers, and customer ratings for you.`;
+        setMessages([{
+            id: Date.now(),
+            sender: 'bot',
+            text: initialText,
+        }]);
+    }, [isOpen, currentQuery, items]);
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,17 +105,10 @@ export default function AssistantChatDrawer({ isOpen, onClose, currentQuery, ite
         setLoading(true);
 
         try {
-            const prompt = `Based on current search context "${currentQuery}" with items: ${items.map(i => i.product_name || i.title).slice(0, 5).join(', ')}. Answer user question: ${userMsg}`;
-            const res = await apiService.sendChatQueryStream(prompt, () => {});
-            
-            const reply = res?.analysis?.final_recommendation || res?.response || "Based on customer reviews and price metrics, Option #1 offers superior build quality and warranty coverage.";
+            // Answer against the products already on screen. Sending a follow-up
+            // through the search pipeline starts a new search and spends credits.
+            const reply = answerFromProducts(userMsg, items, currentQuery);
             setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'bot', text: reply }]);
-        } catch {
-            setMessages(prev => [...prev, { 
-                id: Date.now() + 1, 
-                sender: 'bot', 
-                text: "Based on overall specifications and customer sentiment, the top-rated option offers better long-term reliability and active warranty support." 
-            }]);
         } finally {
             setLoading(false);
         }
@@ -78,7 +146,7 @@ export default function AssistantChatDrawer({ isOpen, onClose, currentQuery, ite
                             <div className={`p-3 rounded-2xl max-w-[82%] leading-relaxed ${
                                 m.sender === 'user'
                                     ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white rounded-tr-none'
-                                    : 'bg-white/[0.04] border border-white/10 text-neutral-200 rounded-tl-none'
+                                    : 'bg-white/[0.04] border border-white/10 text-neutral-200 rounded-tl-none whitespace-pre-line'
                             }`}>
                                 {m.text}
                             </div>

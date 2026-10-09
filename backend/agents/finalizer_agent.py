@@ -1,7 +1,7 @@
 import os
 import re
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from ollama import AsyncClient
 
 
@@ -13,9 +13,10 @@ def _build_markdown_report(
     verified_prices: List[Dict[str, Any]],
     unverified_prices: List[Dict[str, Any]],
     unpriced: List[Dict[str, Any]],
-    ai_verdict: str = ""
+    ai_verdict: str = "",
+    eval_map: Optional[Dict[str, Any]] = None
 ) -> str:
-    """Builds structured markdown report with optional AI executive verdict."""
+    """Builds structured markdown report with executive verdict."""
     markdown_output = []
     markdown_output.append(f"# SEAMAS Product Evaluation Report: {query.title()}\n")
 
@@ -27,7 +28,9 @@ def _build_markdown_report(
 
     if isinstance(analysis_report, dict) and analysis_report:
         sentiment_summary = analysis_report.get("summary") or analysis_report.get("sentiment_summary", "Neutral")
-        markdown_output.append(f"### Market Sentiment\n- **Summary:** {sentiment_summary}")
+        avg_rating = analysis_report.get("average_rating")
+        rating_str = f" ({avg_rating}★ / 5)" if avg_rating else ""
+        markdown_output.append(f"### Market Sentiment\n- **Summary:** {sentiment_summary}{rating_str}")
         if analysis_report.get("pros"):
             pros = analysis_report["pros"]
             pros_str = ", ".join(str(p) for p in pros) if isinstance(pros, list) else str(pros)
@@ -43,13 +46,15 @@ def _build_markdown_report(
         if verified_prices:
             markdown_output.append("### Verified Marketplace Offers")
             for p in verified_prices:
-                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **Rs. {p.get('extracted_price')}** ({p.get('status')})"
+                eval_item = (eval_map or {}).get(p.get("url") or p.get("product_name"), {})
+                status_label = eval_item.get("status", p.get('status', 'Target Match'))
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **₹{p.get('extracted_price'):,}** ({status_label})"
                 url = p.get("url")
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
         if unverified_prices:
             for p in unverified_prices:
-                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **~Rs. {p.get('extracted_price')}** (approximate)"
+                label = f"**[{p.get('marketplace', 'Web')}]** {p.get('product_name')} -> **~₹{p.get('extracted_price'):,}** (approximate)"
                 url = p.get("url")
                 markdown_output.append(f"- [{label}]({url})" if url else f"- {label}")
 
@@ -95,41 +100,23 @@ async def finalizer_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     verified_prices = [p for p in priced if p.get("is_verified")]
     unverified_prices = [p for p in priced if not p.get("is_verified")]
 
-    # Synthesize AI Executive Verdict using Ollama
+    budget_evaluations = state.get("budget_evaluations", [])
+    eval_map = {e.get("url") or e.get("product_name"): e for e in budget_evaluations}
+
+    # Deterministic Executive Verdict: Finalizer is synthesis-only (0 external LLM/network calls)
+    # Synthesizes the verdict purely from existing recommendation insights, ratings, and top offer.
     ai_verdict = ""
-    top_deal = verified_prices[0] if verified_prices else (priced[0] if priced else None)
+    top_deal = verified_prices[0] if verified_prices else None
     
     if top_deal:
-        deal_summary = f"{top_deal.get('product_name')} at Rs. {top_deal.get('extracted_price')} on {top_deal.get('marketplace')}"
-        prompt = f"""You are the SEAMAS Finalizer & Buyer Trust AI Agent.
-Context Query: "{query}"
-Top Verified Deal: {deal_summary}
-Review Sentiment: {analysis_report.get('summary', 'Positive')}
-
-Provide a concise 2-sentence executive verdict for the shopper:
-1. State whether this deal represents authentic value and reliable marketplace fulfillment.
-2. Provide a clear go/no-go recommendation with return or warranty confidence."""
-
-        try:
-            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-            client = AsyncClient(host=ollama_host)
-            response = await asyncio.wait_for(
-                client.chat(
-                    model="qwen2.5",
-                    messages=[{"role": "user", "content": prompt}],
-                    options={
-                        "temperature": 0.2,
-                        "num_ctx": 2048,
-                        "num_predict": 120,
-                    }
-                ),
-                timeout=15.0
-            )
-            raw = response["message"]["content"].strip()
-            ai_verdict = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-        except Exception as e:
-            print(f"[FinalizerAgent] AI verdict fallback: {e}")
-            ai_verdict = f"Authenticity verified across primary storefronts. Recommended deal confirmed on {top_deal.get('marketplace', 'selected store')}."
+        top_rec = recommendations[0] if recommendations else "The source page price was checked during this search."
+        ai_verdict = (
+            f"Source-page price checked. Recommended option: "
+            f"**{top_deal.get('product_name')}** at **₹{top_deal.get('extracted_price'):,}** on "
+            f"**{top_deal.get('marketplace')}**. {top_rec}"
+        )
+    elif unpriced:
+        ai_verdict = "Current source-page prices could not be verified. Listings are shown without price claims."
 
     final_report = _build_markdown_report(
         query,
@@ -139,10 +126,11 @@ Provide a concise 2-sentence executive verdict for the shopper:
         verified_prices,
         unverified_prices,
         unpriced,
-        ai_verdict
+        ai_verdict,
+        eval_map
     )
 
     return {
         "final_output": final_report,
-        "logs": ["Executive trust report synthesized and finalized."]
+        "logs": ["Finalizer Agent: Executive trust report and markdown summary synthesized."]
     }

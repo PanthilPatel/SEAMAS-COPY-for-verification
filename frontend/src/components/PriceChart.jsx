@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Info, HelpCircle } from 'lucide-react';
 
 export default function PriceChart({ items = [], budgetLimit = null }) {
     const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -19,7 +18,6 @@ export default function PriceChart({ items = [], budgetLimit = null }) {
 
     const prices = chartItems.map(item => Number(item.extracted_price));
     const maxPrice = Math.max(...prices, budgetLimit || 0);
-    const minPrice = Math.min(...prices, budgetLimit || 0);
     
     // Nice rounded scale ceiling
     const yCeiling = Math.ceil(maxPrice * 1.15 / 1000) * 1000;

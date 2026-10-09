@@ -1,13 +1,18 @@
 import json
 import re
 import os
+import asyncio
+import ipaddress
+import socket
 from typing import Dict, Any, List, Optional
 from ollama import AsyncClient
 from pydantic import BaseModel, Field
 import httpx
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-from tools.search_tools import _domain_to_store
+from tools.search_tools import _domain_to_store, NON_SHOPPING_DOMAINS
+from core.config import resolve_ollama_model, settings
 
 class PriceItem(BaseModel):
     record_id: Optional[int] = Field(default=None, description="The integer index [i] of the source record this product was extracted from.")
@@ -24,7 +29,7 @@ class PriceItem(BaseModel):
     image_url: Optional[str] = Field(default="", description="Clean, direct image asset link of the actual product.")
     url: Optional[str] = Field(default="", description="Direct target URL page to purchase the product.")
     status: str = Field(default="Target Match")
-    
+
 class PriceComparisonResponse(BaseModel):
     prices: List[PriceItem]
     detected_category: str = Field(description="Broad classification segment: 'clothing', 'electronics', or 'general'.")
@@ -36,12 +41,15 @@ def clean_price(value: Any) -> int:
         return 0
     text = str(value).strip().lower()
 
-    if any(w in text for w in ["/month", "per month", "p.m.", "emi", "cashback", "off"]):
-        if any(w in text for w in ["/month", "per month", "p.m.", "emi"]):
-            prices = prices_mentioned_in(text)
-            if prices:
-                return max(prices)
-            return 0
+    # Reject EMI, monthly installment rates, or cashbacks pretending to be sale price
+    if any(w in text for w in ["/month", "per month", "p.m.", "emi"]):
+        full_price_match = re.search(r"(?:full\s*price|mrp|total\s*cost)\s*[:\-]?\s*(?:₹|rs\.?|inr)?\s*([\d,]+)", text)
+        if full_price_match:
+            try:
+                return int(full_price_match.group(1).replace(",", ""))
+            except Exception:
+                pass
+        return 0
 
     try:
         if "k" in text and re.search(r"(\d+(?:\.\d+)?)\s*k\b", text):
@@ -124,10 +132,11 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
     for m in re.finditer(r"(?:₹|rs\.?|\$|inr|usd)\s*([\d,]+(?:\.\d+)?)", text_clean, re.IGNORECASE):
         symbol = m.group(0).lower()
         prec = text_clean[max(0, m.start() - 20):m.start()].lower()
-        foll = text_clean[m.end():min(len(text_clean), m.end() + 20)].lower()
-        if any(u in foll for u in ["per g", "/g", "/kg", "/month", "emi", "% off", "off", "cashback"]):
+        immediate_foll = text_clean[m.end():min(len(text_clean), m.end() + 10)].lower().strip()
+        if any(immediate_foll.startswith(u) for u in ["/month", "per month", "/m", "/g", "per g", "/kg", "per kg"]):
             continue
-        if any(u in prec for u in ["save", "cashback", "flat", "upto", "off"]):
+        # If the prefix indicates a discount amount or EMI rate, skip it
+        if any(u in prec for u in ["save ", "cashback ", "flat ", "upto ", "emi of ", "emi from ", "emi starting "]):
             continue
         try:
             raw_v = float(m.group(1).replace(",", ""))
@@ -183,11 +192,22 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
     res_data = {"price": None, "original_price": None, "image": None}
     if not url:
         return res_data
-    
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "https" or not parsed_url.hostname or parsed_url.username or parsed_url.password:
+        return res_data
+    if parsed_url.hostname.lower() in {"localhost", "127.0.0.1", "::1"}:
+        return res_data
+    try:
+        addresses = await asyncio.get_running_loop().getaddrinfo(parsed_url.hostname, parsed_url.port or 443, type=socket.SOCK_STREAM)
+        if not addresses or any(not ipaddress.ip_address(info[4][0]).is_global for info in addresses):
+            return res_data
+    except (OSError, ValueError):
+        return res_data
+
     # Do not try to scrape non-product page patterns
     if not is_specific_product_page(url):
         return res_data
-        
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept-Language": "en-IN,en;q=0.9",
@@ -195,38 +215,18 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
         "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
         "sec-ch-ua-platform": '"Windows"',
     }
-    
+
     html_content = ""
     try:
-        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=4.0) as client:
+        async with httpx.AsyncClient(headers=headers, follow_redirects=False, timeout=3.0) as client:
             response = await client.get(url)
             if response.status_code == 200:
                 html_content = response.text
     except Exception:
         pass
 
-    # Fallback to system curl if httpx was blocked by WAF, CAPTCHA, or returned empty HTML
-    if not html_content or len(html_content) < 500 or "captcha" in html_content.lower():
-        try:
-            import subprocess
-            cmd = [
-                "curl", "-s", "-L",
-                "-H", "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "-H", "Accept-Language: en-IN,en;q=0.9",
-                "-H", "sec-ch-ua: \"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"",
-                "-H", "sec-ch-ua-platform: \"Windows\"",
-                url
-            ]
-            def _run():
-                return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=4)
-            proc = await asyncio.to_thread(_run)
-            if proc.stdout and len(proc.stdout) > 500:
-                html_content = proc.stdout
-        except Exception:
-            pass
-
-    if not html_content or len(html_content) < 300:
+    # Reject empty responses, challenge blocks, and CAPTCHAs without attempting unsafe curl execution
+    if not html_content or len(html_content) < 300 or "captcha" in html_content.lower():
         return res_data
 
     soup = BeautifulSoup(html_content, "html.parser")
@@ -377,7 +377,7 @@ def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower().replace("www.", "")
-            
+
             store_map = {
                 "amazon.": "Amazon",
                 "flipkart.": "Flipkart",
@@ -407,7 +407,7 @@ def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
             for key, clean in store_map.items():
                 if key in domain:
                     return clean
-                    
+
             domain_parts = domain.split(".")
             main_name = domain_parts[-2] if len(domain_parts) >= 2 and domain_parts[-2] not in {"co", "com", "org", "gov", "net"} else domain_parts[0]
             if main_name and len(main_name) > 2:
@@ -417,7 +417,7 @@ def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
 
     if not raw_marketplace:
         return "Web"
-        
+
     first_store = re.split(r"[,/|]", raw_marketplace)[0].strip()
     first_lower = first_store.lower()
 
@@ -451,12 +451,12 @@ def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
 def find_source_record(search_results: List[Dict[str, Any]], marketplace: str, price: int, product_name: str = "") -> Dict[str, Any]:
     if not search_results:
         return {}
-        
+
     m_clean = re.sub(r"\s+", "", marketplace.lower())
     m_clean = re.sub(r"(india|official|store|online|shop|corporation|inc|co|ltd)$", "", m_clean)
-    
+
     stop_words = {
-        "with", "from", "inch", "full", "brand", "official", "store", "buy", "online", "india", 
+        "with", "from", "inch", "full", "brand", "official", "store", "buy", "online", "india",
         "price", "best", "and", "for", "the", "pro", "max", "plus",
         "bottle", "water", "steel", "stainless", "pack", "piece", "set", "insulated", "flask"
     }
@@ -503,12 +503,22 @@ def is_specific_product_page(url: str) -> bool:
     parsed = urlparse(url)
     path = parsed.path.lower()
     domain = parsed.netloc.lower()
-    
+    if domain.startswith("www."):
+        domain = domain[4:]
+
+    # Never treat non-shopping domains, blogs, news, or vehicle portals as product pages
+    if any(ns in domain for ns in NON_SHOPPING_DOMAINS):
+        return False
+
     known_domains = [
-        "amazon.in", "amazon.com", "flipkart.com", "croma.com", "reliancedigital.in", 
-        "vijaysales.com", "tatacliq.com", "snapdeal.com", "myntra.com", "meesho.com", 
-        "paytmmall.com", "nykaa.com", "shopsy.in", "jiomart.com", "samsung.com", 
-        "apple.com", "mi.com", "oneplus.com", "realme.com", "asus.com", "lg.com", "sony.com"
+        "amazon.in", "amazon.com", "flipkart.com", "croma.com", "reliancedigital.in",
+        "vijaysales.com", "tatacliq.com", "luxury.tatacliq.com", "snapdeal.com", "myntra.com",
+        "meesho.com", "paytmmall.com", "nykaa.com", "nykaaman.com", "shopsy.in", "jiomart.com",
+        "poorvika.com", "sangeethamobil.com", "samsung.com", "apple.com", "mi.com", "oneplus.com",
+        "oneplus.in", "realme.com", "asus.com", "lenovo.com", "hp.com", "dell.com", "acer.com",
+        "lg.com", "sony.co.in", "sony.com", "boseindia.com", "jbl.com", "boat-lifestyle.com",
+        "gonoise.com", "fireboltt.com", "titan.co.in", "fastrack.in", "fossil.com", "casioindiashop.com",
+        "timexindia.com", "helioswatchstore.com", "garmin.co.in", "amazfit.co.in", "ajio.com", "bewakoof.com"
     ]
     is_known_store = any(kd in domain for kd in known_domains)
 
@@ -518,28 +528,32 @@ def is_specific_product_page(url: str) -> bool:
             return True
 
     category_keywords = [
-        "/category", "/categories", "/product-category", "/brands", "/shop-by", 
-        "/catalog", "search", "impcat", "/list-of-", "buying-guide", "product-reviews", 
+        "/category", "/categories", "/product-category", "/brands", "/shop-by",
+        "/catalog", "search", "impcat", "/list-of-", "buying-guide", "product-reviews",
         "/reviews", "employee-review", "mutual-funds", "/s?", "search?", "query=",
         "/collections/", "/collection/", "/all-products/", "/products-list/", "/browse/"
     ]
     if any(kw in path for kw in category_keywords) or any(kw in parsed.query for kw in ["k=", "q=", "search"]):
         return False
 
+    known_product_markers = ["/dp/", "/gp/product/", "/p/", "/product/", "/products/", "/buy/", "/item/", "/pd/"]
     if is_known_store:
         clean_path = path.strip("/")
         if clean_path and "/" in clean_path:
             last_segment = clean_path.split("/")[-1]
             generic_categories = {
-                "watches", "shoes", "laptops", "mobiles", "phones", "tvs", "televisions", 
-                "monitors", "headphones", "accessories", "bags", "shirts", "tshirts", 
+                "watches", "shoes", "laptops", "mobiles", "phones", "tvs", "televisions",
+                "monitors", "headphones", "accessories", "bags", "shirts", "tshirts",
                 "jeans", "dresses", "kurtas", "clothing", "electronics", "appliances",
                 "search", "catalog", "category", "categories", "brands", "brand"
             }
             if last_segment not in generic_categories:
                 return True
+        elif any(marker in path for marker in known_product_markers):
+            return True
+        return False
 
-    return True
+    return any(marker in path for marker in known_product_markers)
 
 def _is_store_logo(url: str) -> bool:
     if not url:
@@ -551,7 +565,8 @@ def _is_store_logo(url: str) -> bool:
         "media-amazon.com/images/", "ssl-images-amazon.com/images/",
         "flixcart.com/image/", "myntassets.com", "croma.com/medias/",
         "reliancedigital.in/medias/", "meesho.com", "tatacliq.com",
-        "tavily", "searxng", "unsplash.com", "images.unsplash.com"
+        "tavily", "searxng", "unsplash.com", "images.unsplash.com",
+        "encrypted-tbn0.gstatic.com", "gstatic.com/images"
     ]
     if any(cdn in u for cdn in product_cdn_whitelist):
         if any(logo in u for logo in ["amazon-logo", "flipkart-logo", "myntra-logo", "croma-logo", "favicon", "site-logo"]):
@@ -607,13 +622,12 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
 
         if prod_words:
             brand_word = prod_words[0]
-            required_matches = max(2, min(3, len(prod_words)))
-
             for r in all_records:
                 thumb = (
                     r.get("thumbnail")
                     or r.get("img_src")
                     or r.get("thumbnail_src")
+                    or r.get("image")
                     or ""
                 )
                 if not thumb or _is_store_logo(str(thumb)):
@@ -622,90 +636,33 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
                     continue
 
                 title_lower = r.get("title", "").lower()
-                if brand_word not in title_lower:
-                    continue
-                match_count = sum(1 for w in prod_words if w in title_lower)
-                if match_count >= required_matches:
+                if brand_word in title_lower:
                     return thumb
 
-    # ── Category-specific Unsplash fallback pools ────────────────────────────
-    prod_name_lower = product_name.lower()
-    idx = abs(hash(product_name + str(matched_rec.get('url', ''))))
-
-    phone_pool = [
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80",
-        "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&q=80",
-        "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&q=80",
-        "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=400&q=80",
-        "https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?w=400&q=80",
-        "https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&q=80"
-    ]
-    laptop_pool = [
-        "https://images.unsplash.com/photo-1496181130204-755241544e35?w=400&q=80",
-        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80",
-        "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400&q=80",
-        "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?w=400&q=80"
-    ]
-    shoe_pool = [
-        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80",
-        "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&q=80",
-        "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80"
-    ]
-
-    if any(k in prod_name_lower for k in ["powerbank", "power bank", "mah", "charger", "battery pack", "power bank 45w", "powerbank 45w"]):
-        return "https://images.unsplash.com/photo-1608503396060-36c8d9e0d7d5?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "clog", "puma", "adidas", "nike", "reebok", "under armour", "asics", "skechers", "crocs"]):
-        return shoe_pool[idx % len(shoe_pool)]
-    elif any(k in prod_name_lower for k in ["laptop stand", "laptop riser", "laptop mount", "notebook stand", "desk stand", "adjustable stand", "ergonomic stand"]):
-        return "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["cooler", "cooling fan", "cpu fan", "phone cooler", "mobile cooler", "cooling pad", "laptop cooler"]):
-        return "https://images.unsplash.com/photo-1587202372634-32705e3bf49c?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["headphone", "earbud", "pods", "audio", "soundbar", "earphones", "headset", "tws", "airpods"]):
-        return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80"
-    elif "watch" in prod_name_lower:
-        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["keyboard", "mechanical keyboard", "gaming keyboard"]):
-        return "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["mouse", "gaming mouse", "wireless mouse"]):
-        return "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["laptop", "notebook", "macbook", "computer", "pc", "asus", "hp", "dell", "lenovo", "acer", "msi", "strix", "thinkpad", "ideapad", "predator", "inspiron", "latitude", "zenbook", "vivobook", "ryzen", "intel core", "g16", "g15", "rog"]):
-        return laptop_pool[idx % len(laptop_pool)]
-    elif any(k in prod_name_lower for k in ["phone", "iphone", "mobile", "samsung", "pixel", "oneplus", "smartphone", "galaxy", "redmi", "realme", "xiaomi", "vivo", "oppo", "motorola", "moto", "infinix", "tecno", "x300", "x30"]):
-        return phone_pool[idx % len(phone_pool)]
-    elif any(k in prod_name_lower for k in ["monitor", "tv", "display", "screen", "led", "ips", "panel", "backlit"]):
-        return "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["headphone", "earbud", "pods", "audio", "soundbar", "earphones", "headset", "tws", "airpods"]):
-        return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["bag", "backpack", "case", "cover", "sleeve", "pouch"]):
-        return "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80"
-    elif any(k in prod_name_lower for k in ["cable", "charger", "adapter", "hub", "usb", "type-c", "power bank"]):
-        return "https://images.unsplash.com/photo-1608503396060-36c8d9e0d7d5?w=400&q=80"
-        
-    return "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400&q=80"
+    # If no genuine product image or storefront thumbnail is found, return empty string
+    # to indicate neutral image-missing state (preventing fake or stock product images).
+    return ""
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
     query = state.get("query", "")
-    budget = state.get("budget_status", {}).get("ceiling")
+    budget = state.get("budget_status", {}).get("ceiling") or state.get("budget")
     if not budget:
-        from agents.budget_advisor_agent import _extract_budget
-        budget = _extract_budget(query)
+        try:
+            from agents.budget_advisor_agent import _extract_budget
+            budget = _extract_budget(query)
+        except Exception:
+            budget = None
 
     print("\n--- OLLAMA INTENT-CLASSIFYING PRICE COMPARISON INITIATED ---")
     if not search_results:
         print("[PriceAgent] No search_results received — nothing to extract from.")
-        return {"price_data": [], "category": "general", "logs": ["No search results found."]}
+        return {"price_data": [], "logs": ["No search results found."]}
 
     cleaned_records = []
-    ignored_domains = [
-        "wikipedia.org", "youtube.com", "facebook.com", "instagram.com",
-        "canva.com", "canva.cn", "canva.in", "dominos.com", "doordash.com", 
-        "allevents.in", "livemint.com", "foursquare.com", "reddit.com", 
-        "pinterest.com", "twitter.com", "x.com", "linkedin.com", "hdfcsec.com"
-    ]
     for r in search_results:
         url = (r.get("url") or "").lower()
-        if any(ignored in url for ignored in ignored_domains):
+        if any(ignored in url for ignored in NON_SHOPPING_DOMAINS):
             continue
         if any(ext in url for ext in [".pdf", ".doc", ".docx", ".ppt"]):
             continue
@@ -713,13 +670,19 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             continue
         cleaned_records.append(r)
 
-    filtered_records = cleaned_records if cleaned_records else search_results
+    filtered_records = cleaned_records
     if not filtered_records:
-        return {"price_data": [], "category": "general", "logs": ["All structural noise filtered out."]}
+        return {"price_data": [], "logs": ["All non-shopping records filtered out."]}
 
     product_pages = [r for r in filtered_records if is_specific_product_page(r.get("url", ""))]
-    other_pages = [r for r in filtered_records if r not in product_pages]
-    prioritized_records = (product_pages if len(product_pages) >= 4 else (product_pages + other_pages))[:10]
+    other_pages = [
+        r for r in filtered_records
+        if r not in product_pages
+        and not any(p in (r.get("url") or "").lower() for p in ["/articles/", "/article/", "/knowledgebase/", "/gallery/", "/news/", "/blog/", "/blogs/"])
+        and not any(ns in (r.get("url") or "").lower() for ns in NON_SHOPPING_DOMAINS)
+    ]
+    # Dynamically include all bona-fide product pages and qualified shopping candidates (do not truncate to 10)
+    prioritized_records = (product_pages + other_pages) if product_pages else other_pages
 
     try:
         # ── Batch Processing Configuration ───────────────────────────────────────
@@ -746,10 +709,14 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             f"Number of batches created: {num_batches}",
         ]
 
-        client = AsyncClient(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
+        model_name = resolve_ollama_model()
+        client = AsyncClient(host=settings.OLLAMA_HOST) if model_name and settings.OLLAMA_HOST else None
 
         for batch_idx, batch_records in enumerate(batches, start=1):
             print(f"\n[PriceAgent] ---> Processing Batch {batch_idx}/{num_batches} ({len(batch_records)} records)...")
+            if client is None:
+                batch_logs.append(f"Batch {batch_idx}/{num_batches}: Ollama is not configured; deterministic extraction will be used.")
+                continue
             context_list = []
             for i, r in enumerate(batch_records, start=1):
                 snippet = (r.get("content") or r.get("snippet") or "")[:280]
@@ -789,12 +756,12 @@ Records:
                 import asyncio
                 response = await asyncio.wait_for(
                     client.chat(
-                        model="qwen2.5:latest",
+                        model=model_name,
                         messages=[{"role": "user", "content": prompt}],
                         format="json",
-                        options={"temperature": 0.1, "num_ctx": 2048, "num_predict": 500},
+                        options={"temperature": 0.1, "num_ctx": 2048, "num_predict": 350},
                     ),
-                    timeout=25.0
+                    timeout=90.0
                 )
 
                 raw_content = response["message"]["content"].strip()
@@ -836,10 +803,22 @@ Records:
                 batch_logs.append(err_msg)
 
         # Comprehensive Product Harvest:
-        # Augment LLM extractions with ALL candidate records that contain authentic snippet pricing
+        # Augment LLM extractions with candidate records that contain authentic snippet pricing
+        is_electronics_query = any(
+            k in query.lower() for k in [
+                "watch", "smartwatch", "phone", "mobile", "smartphone", "laptop",
+                "earphone", "headphone", "earbuds", "tv", "audio", "wearable"
+            ]
+        )
+        auto_words_check = ["scooter", "bike", "motorcycle", "car", "vehicle"]
+
         for i, r in enumerate(filtered_records, start=1):
             url = (r.get("url") or "").lower()
             if any(bad in url for bad in ["/blog/", "/news/", "/article/", "wikipedia.org", "youtube.com", "youtu.be", "buying-guide", "price-list", "pricelist"]):
+                continue
+            if any(ns in url for ns in NON_SHOPPING_DOMAINS):
+                continue
+            if is_electronics_query and any(re.search(rf"\b{aw}\b", (r.get("title", "") + " " + url).lower()) for aw in auto_words_check):
                 continue
             s_text = ((r.get("content") or "") + " " + (r.get("title") or ""))
             s_pricing = parse_snippet_pricing(s_text)
@@ -848,6 +827,8 @@ Records:
                 r_url = r.get("url", "")
                 if not any(row.get("_source_record") == r or (row.get("url") and row.get("url") == r_url) for row in all_raw_extracted_rows):
                     store = clean_marketplace_name(r.get("engine", ""), r_url)
+                    if store.lower() in ("web", "india") or any(ns in r_url.lower() for ns in NON_SHOPPING_DOMAINS):
+                        continue
                     all_raw_extracted_rows.append({
                         "record_id": i,
                         "product_name": r.get("title", ""),
@@ -923,20 +904,43 @@ Records:
             if clean_store.lower() in {"usados", "usado", "mercadolivre", "olx.br", "olx.pt"}:
                 continue
 
-            # Flagship phone/laptop anomaly guard (prevents $1,098 USD being misparsed as ₹1,098 INR)
-            flagship_keywords = ["iphone 17 pro", "iphone 16 pro", "iphone 15 pro", "galaxy s24 ultra", "galaxy s25 ultra", "macbook pro", "ipad pro"]
-            if any(fk in prod_name_lower for fk in flagship_keywords):
-                if not any(acc in prod_name_lower for acc in ["case", "cover", "skin", "protector", "glass", "film", "strap", "stand", "pouch", "bag"]):
-                    if price < 25000:
-                        continue
+            # Flagship phone/laptop anomaly guard (prevents $582 USD or accessories being misparsed as ₹5,829 INR)
+            flagship_keywords = ["iphone 17", "iphone 16", "iphone 15", "galaxy s24", "galaxy s25", "macbook", "ipad", "laptop"]
+            if any(fk in prod_name_lower for fk in flagship_keywords) or any(fk in query.lower() for fk in ["macbook", "laptop", "iphone"]):
+                if not any(acc in prod_name_lower for acc in ["case", "cover", "skin", "protector", "glass", "film", "strap", "stand", "pouch", "bag", "sleeve", "adapter"]):
+                    # Genuine MacBook in India is never below ₹45,000 INR
+                    if "macbook" in prod_name_lower or "macbook" in query.lower():
+                        if price < 45000:
+                            continue
+                    elif "iphone" in prod_name_lower and any(num in prod_name_lower for num in ["14", "15", "16", "17"]):
+                        if price < 25000:
+                            continue
+                    elif "laptop" in prod_name_lower or "laptop" in query.lower():
+                        if price < 15000:
+                            continue
 
             if any(hk in query.lower() for hk in ["headphone", "earphone", "earbud", "tws", "neckband", "headset"]):
-                if price > 50000:
+                # Allow premium flagship headphones/AirPods (e.g. AirPods Max up to ₹70,000)
+                if price > 80000:
+                    continue
+
+            # Cross-category automotive collision guard
+            is_electronics_wearable = any(
+                k in query.lower() for k in [
+                    "watch", "smartwatch", "phone", "mobile", "smartphone", "laptop",
+                    "earphone", "headphone", "earbuds", "tv", "audio", "wearable"
+                ]
+            )
+            if is_electronics_wearable:
+                auto_terms = ["scooter", "bike", "motorcycle", "car", "vehicle", "electric bike", "electric scooter", "activa", "jupiter", "ather", "ola s1"]
+                if any(re.search(rf"\b{term}\b", prod_name_lower) for term in auto_terms):
+                    continue
+                if any(re.search(rf"\b{term}\b", target_url.lower()) for term in auto_terms):
                     continue
 
             known_brands = [
-                "noise", "samsung", "apple", "iphone", "macbook", "sony", "jbl", "boat", "bose", 
-                "realme", "oneplus", "xiaomi", "redmi", "puma", "adidas", "nike", "asus", 
+                "noise", "samsung", "apple", "iphone", "macbook", "sony", "jbl", "boat", "bose",
+                "realme", "oneplus", "xiaomi", "redmi", "puma", "adidas", "nike", "asus",
                 "lenovo", "dell", "hp", "acer", "msi", "crocs", "fossil", "titan", "casio"
             ]
             q_lower = query.lower()
@@ -944,55 +948,96 @@ Records:
             if target_brands and not any(tb in prod_name_lower for tb in target_brands):
                 continue
 
+            # Semantic Product & Generation Recognition:
+            # When query specifically requests AirPods Pro 2 (or 2nd gen Pro):
+            if any(p2 in q_lower for p2 in ["pro 2", "2nd gen", "pro 2nd", "generation 2"]):
+                if "airpods" in q_lower:
+                    # 1. Must be a Pro model (reject standard AirPods 2 / AirPods 2nd Gen non-Pro)
+                    if "pro" not in prod_name_lower:
+                        continue
+                    # 2. Reject explicit conflict generations (1st gen, 3rd gen, 4th gen, Pro 3)
+                    if any(bad_gen in prod_name_lower for bad_gen in [
+                        "1st gen", "generation 1", "gen 1", "1st generation",
+                        "3rd gen", "generation 3", "gen 3", "3rd generation", "pro 3",
+                        "4th gen", "generation 4", "gen 4", "4th generation"
+                    ]):
+                        continue
+                    # 3. Accept semantic 2nd gen equivalents:
+                    # ("2", "2nd", "second", "gen 2", "gen-2", "2nd generation")
+                    has_gen2_semantic = any(g2 in prod_name_lower for g2 in [
+                        " 2", " 2nd", "second", "gen 2", "gen-2", "generation 2", "(2nd", "( 2nd", "2022"
+                    ])
+                    if not has_gen2_semantic:
+                        continue
+
             if prod_name_lower in ["fossil watches", "fossil watches for women", "fossil watches for men", "watches"]:
                 continue
 
             bad_name_keywords = [
-                "eligible for", "pay on delivery", "how to", "reliable", "faq", 
-                "terms of", "privacy policy", "about us", "contact us", "refund", 
-                "shipping", "delivery charges", "customer care", "help center", 
+                "eligible for", "pay on delivery", "how to", "reliable", "faq",
+                "terms of", "privacy policy", "about us", "contact us", "refund",
+                "shipping", "delivery charges", "customer care", "help center",
                 "sign in", "login", "register", "cart", "wishlist", "checkout", "search",
                 "store page", "asus store", "official store",
+                # Counterfeit / clone / replica exclusions
+                "cloned", "clone", "replica", "first copy", "1st copy", "mastercopy", "fake", "dupe",
+                # Unrelated accessories & parts
                 "ear pad", "ear cushion", "replacement cushion", "replacement pad",
                 "headphone case", "carrying case", "protective case", "silicone cover",
-                "headband cover", "audio cable", "aux cable",
-                "top 10", "top 5", "buying guide", "best gaming monitors"
+                "headband cover", "audio cable", "aux cable", "ear tips", "anti-lost strap",
+                "press stud", "tws skin", "ear hooks", "earbuds case", "case for", "cover for", "skin for",
+                "top 10", "top 5", "buying guide", "best gaming monitors",
+                "bikes in india", "scooters in india", "top under", "best under"
             ]
             if any(bw in prod_name_lower for bw in bad_name_keywords):
                 continue
 
-            if any(kw in target_url for kw in ["/blog/", "/news/", "/article/", "top-10", "top-5", "-vs-", "guide"]):
+            # Reject generic documentation/news/aggregator/stock-photo domains pretending to be storefronts
+            if any(ns in target_url.lower() for ns in [
+                "docs.", "historiadenia.", "ndtvprofit.", "techlusive.", "notebookcheck.",
+                "indiatoday.", "buyhatke.", "fundacionsierrablanca.", "pricehistory.app",
+                "pexels.com", "pixabay.com", "freepik.com", "unsplash.com", "shutterstock.com",
+                "deshgujarat.com", "mymobileindia.com",
+                "/news/", "/article/", "/articles/", "/blog/", "/unboxed/", "-vs-", "vs-",
+                "compare", "launch", "announced", "rumor", "/search/"
+            ]):
                 continue
-            if len(prod_name) < 6 or prod_name_lower in ["shop", "buy", "online", "product", "item", "cables", "cable", "usb"]:
+
+            if clean_store.lower() in ("web", "india", "historiadenia", "techlusive", "ndtvprofit", "notebookcheck", "indiatoday", "buyhatke", "fundacionsierrablanca", "pricehistory", "pexels", "pixabay", "freepik", "unsplash", "deshgujarat", "mymobileindia"):
+                continue
+            t_url_lower = target_url.lower()
+            if any(tld in t_url_lower for tld in [".gov", ".edu", ".mil", ".ac.in"]):
+                continue
+            generic_cat_names = [
+                "shop", "buy", "online", "product", "item", "cables", "cable", "usb",
+                "watches", "all smartwatches", "smart watches", "smartwatches", "smartphones",
+                "all laptops", "all phones", "all products"
+            ]
+            if len(prod_name) < 6 or prod_name_lower in generic_cat_names:
                 continue
 
             image_url = select_real_product_image(matched_rec, prod_name, filtered_records)
-            status = "Target Match" if not budget or price <= budget else "Out of Budget"
-            
-            is_verified = snippet_verified
-            if "unsplash.com" in image_url or "photo-" in image_url or not is_product_page:
-                is_verified = False
-
-            # Set original MRP from verified snippet if available, else from candidate row
-            original_price = None
-            if snippet_mrp and snippet_mrp > price:
-                original_price = snippet_mrp
-            else:
-                raw_original = row.get("original_price")
-                if raw_original:
-                    op = clean_price(raw_original)
-                    if op > price:
-                        original_price = op
+            status = "Price unavailable"
 
             results.append({
                 "product_name": prod_name,
                 "marketplace": clean_store,
-                "extracted_price": price,
-                "original_price": original_price,
+                "extracted_price": None,
+                "original_price": None,
                 "status": status,
                 "url": target_url,
-                "is_verified": is_verified,
+                "is_verified": False,
+                "price_verified": False,
+                "price_verified_at": None,
+                "price_verification_method": None,
+                "currency": "INR",
+                "availability_status": "unknown",
+                "quantity": None,
+                "quantity_source": None,
+                "quantity_checked_at": None,
                 "_snippet_verified": snippet_verified,
+                "_snippet_price": price if price >= min_price_floor else None,
+                "_snippet_mrp": snippet_mrp if snippet_mrp and snippet_mrp > price else None,
                 "image_url": image_url,
                 "color": row.get("color"),
                 "size": row.get("size"),
@@ -1012,20 +1057,32 @@ Records:
             else:
                 key = (m_key, p_key, px_key)
 
-            if key not in best_by_key or r["extracted_price"] < best_by_key[key]["extracted_price"]:
+            if key not in best_by_key:
                 best_by_key[key] = r
+            else:
+                existing_px = best_by_key[key].get("extracted_price")
+                current_px = r.get("extracted_price")
+                if current_px is not None and (existing_px is None or current_px < existing_px):
+                    best_by_key[key] = r
         results = list(best_by_key.values())
 
         # Stage: Live Web Scraping for accurate prices
         import asyncio
         scrape_tasks = []
         scrape_indices = []
-        for idx, r in enumerate(results[:8]):
+        verify_limit = max(1, int(os.getenv("MAX_PRODUCTS_TO_VERIFY", "20")))
+        semaphore = asyncio.Semaphore(max(1, int(os.getenv("PRICE_VERIFICATION_CONCURRENCY", "4"))))
+
+        async def bounded_scrape(target_url):
+            async with semaphore:
+                return await scrape_live_price(target_url)
+
+        for idx, r in enumerate(results[:verify_limit]):
             url = r.get("url")
-            if url and url.startswith("http") and is_specific_product_page(url):
-                scrape_tasks.append(scrape_live_price(url))
+            if url and url.startswith("https://") and is_specific_product_page(url):
+                scrape_tasks.append(bounded_scrape(url))
                 scrape_indices.append(idx)
-        
+
         if scrape_tasks:
             scraped_data_list = await asyncio.gather(*scrape_tasks)
             for idx, live_data in zip(scrape_indices, scraped_data_list):
@@ -1033,7 +1090,7 @@ Records:
                 live_price = live_data.get("price")
                 live_mrp = live_data.get("original_price")
                 live_image = live_data.get("image")
-                
+
                 if live_price and live_price >= min_price_floor:
                     # Apply flagship anomaly guard to live price
                     prod_name_lower = r.get("product_name", "").lower()
@@ -1054,7 +1111,7 @@ Records:
                         r["_is_live_verified"] = True
                         if live_mrp and live_mrp > live_price:
                             r["original_price"] = live_mrp
-                    
+
                 if live_image:
                     clean_name = str(r.get('product_name', '')).encode('ascii', 'ignore').decode()
                     print(f"[PriceAgent] Live image match success! Updated {clean_name} image: {r['image_url']} -> {live_image}")
@@ -1062,30 +1119,70 @@ Records:
 
         verified_results = []
         for r in results:
-            # STRICT VERIFICATION POLICY:
-            # An item is ONLY retained if verified by live web scrape OR verified by authentic snippet pricing!
-            if r.get("_is_live_verified") or r.get("_snippet_verified"):
-                r.pop("_snippet_verified", None)
-                r.pop("_is_live_verified", None)
+            snippet_price = r.pop("_snippet_price", None)
+            snippet_mrp = r.pop("_snippet_mrp", None)
+            snippet_verified = r.pop("_snippet_verified", False)
+            is_live = r.pop("_is_live_verified", False)
+
+            if is_live and r.get("extracted_price"):
+                # Tier 1: Authoritative Live Page Verified
+                r["is_verified"] = True
+                r["price_verified"] = True
+                r["price_verified_at"] = datetime.now(timezone.utc).isoformat()
+                r["price_verification_method"] = "source_page"
+                r["tags"] = ["Store Listing", "Live Verified"]
+                verified_results.append(r)
+            elif (snippet_verified or snippet_price) and snippet_price and snippet_price >= min_price_floor:
+                # Tier 2: Search Index Verified (from authentic e-commerce product index/snippet)
+                r["extracted_price"] = snippet_price
+                if snippet_mrp and snippet_mrp > snippet_price:
+                    r["original_price"] = snippet_mrp
+                r["is_verified"] = True
+                r["price_verified"] = True
+                r["price_verified_at"] = datetime.now(timezone.utc).isoformat()
+                r["price_verification_method"] = "store_index"
+                r["status"] = "Target Match" if not budget or snippet_price <= budget else "Out of Budget"
+                r["tags"] = ["Store Listing", "Indexed Offer"]
                 verified_results.append(r)
             else:
-                clean_name = str(r.get('product_name', '')).encode('ascii', 'ignore').decode()
-                clean_market = str(r.get('marketplace', '')).encode('ascii', 'ignore').decode()
-                print(f"[PriceAgent] Discarding unverified listing: '{clean_name}' at {clean_market} (Price: {r.get('extracted_price')}) - No authentic storefront/snippet price match.")
+                r["extracted_price"] = None
+                r["original_price"] = None
+                r["is_verified"] = False
+                r["price_verified"] = False
+                r["status"] = "Price unavailable"
+                r["tags"] = ["Search Index", "Price Pending"]
+                verified_results.append(r)
 
-        results = verified_results
+        # Sort prioritizing premier national marketplaces (Amazon, Flipkart, Croma, Reliance, etc.) first,
+        # then regional retailers, with available prices preceding unavailable ones.
+        PREMIER_MARKETPLACES = [
+            "amazon", "flipkart", "croma", "reliance digital", "tata cliq", 
+            "vijay sales", "apple", "samsung", "myntra", "poorvika"
+        ]
 
-        results.sort(key=lambda x: x.get("extracted_price") or float('inf'))
+        def marketplace_priority_key(x):
+            # Has price? 0 if yes, 1 if not
+            has_px = 0 if (x.get("extracted_price") and x.get("extracted_price") > 0) else 1
+            m = str(x.get("marketplace", "")).lower()
+            # Find store tier
+            tier = 99
+            for idx, pm in enumerate(PREMIER_MARKETPLACES):
+                if pm in m:
+                    tier = idx
+                    break
+            px = x.get("extracted_price") or float('inf')
+            return (has_px, tier, px)
+
+        results.sort(key=marketplace_priority_key)
 
         print(f"[PriceAgent] Final price_data count after product-level validation & deduplication: {len(results)}")
         batch_logs.append(f"Final price_data count: {len(results)}")
 
         return {
-            "price_data": results, 
-            "category": detected_category, 
+            "price_data": results,
             "logs": batch_logs
         }
 
     except Exception as e:
         print(f"Price comparison classification agent execution error: {e}")
-        return {"price_data": [], "category": "general", "logs": [f"Price comparison agent error: {str(e)}"]}
+        return {"price_data": [], "logs": [f"Price comparison agent error: {str(e)}"]}

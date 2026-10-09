@@ -12,6 +12,9 @@ repomix-output.xml
 .env.development.local
 .env.test.local
 .env.production.local
+.env.qa
+.env.qa.local
+.env.*.qa
 
 # Dependency directories
 node_modules/
@@ -21,6 +24,11 @@ venv/
 env/
 __pycache__/
 *.pyc
+.pytest_cache/
+dist/
+backend/scratch/
+backend/debug_records.py
+backend/test_live_*.py
 
 # IDEs and editors
 .vscode/

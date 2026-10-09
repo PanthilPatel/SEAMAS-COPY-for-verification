@@ -33,7 +33,7 @@ export default function ChatInterface({ onQuerySubmit, loading, isGuest = false,
     // Rotate suggestions every 6 seconds
     useEffect(() => {
         const interval = setInterval(() => {
-            setCurrentSuggestions(prev => {
+            setCurrentSuggestions(() => {
                 const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
                 return shuffled.slice(0, 3);
             });
