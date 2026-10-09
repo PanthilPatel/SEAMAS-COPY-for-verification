@@ -78,14 +78,20 @@ def compute_relevance_score(title: str, snippet: str, query_tokens: Set[str], ca
     if not query_tokens:
         return 0.5
 
-    matched = sum(1 for token in query_tokens if token in text)
-    score = matched / len(query_tokens)
+    matched = 0
+    for token in query_tokens:
+        tok_clean = token.lower()
+        if tok_clean in text or (len(tok_clean) > 3 and tok_clean.rstrip("s") in text):
+            matched += 1
+
+    denom = min(len(query_tokens), 4)
+    score = (matched / denom) if denom > 0 else 0.5
 
     # Category bonus if category matches
     if category and category != "general" and category.lower() in text:
         score = min(1.0, score + 0.15)
 
-    return round(score, 3)
+    return round(min(1.0, score), 3)
 
 
 async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -114,12 +120,20 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
     # Primary commerce query searched across true pagination pages 1 to max_search_pages
     # With targeted commerce channel qualifiers for verified shopping platforms
-    store_coverage_qualifiers = [
-        "price buy online amazon flipkart",  # Page 1: Core ecommerce portals
-        "croma reliance digital",  # Page 2: Top consumer electronics chains
-        "tatacliq vijaysales",  # Page 3: Official storefronts
-        "buy online india"  # Page 4: Broad commerce coverage fallback
-    ]
+    if category in ("electronics", "smartphones", "laptops"):
+        store_coverage_qualifiers = [
+            "price buy online amazon flipkart",  # Page 1: Core ecommerce portals
+            "croma reliance digital",  # Page 2: Top consumer electronics chains
+            "tatacliq vijaysales",  # Page 3: Official storefronts
+            "buy online india"  # Page 4: Broad commerce coverage fallback
+        ]
+    else:
+        store_coverage_qualifiers = [
+            "price buy online amazon flipkart",  # Page 1: Core ecommerce portals
+            "buy online shopping india",  # Page 2: National retail coverage
+            "best price buy online store",  # Page 3: General retail portals
+            "online store buy india"  # Page 4: Broad commerce coverage fallback
+        ]
 
     sentiment_queries = [
         f"{query} review rating user feedback india",
@@ -131,18 +145,21 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     page_logs: List[str] = []
     page_raw_counts: Dict[int, int] = {}
 
+    clean_q_words = [w for w in re.findall(r"\b\w+\b", query) if w.lower() not in {"under", "best", "for", "with", "and", "the", "in", "a", "of", "to", "price", "buy", "online"}]
+    core_terms = " ".join(clean_q_words[:4]) if len(clean_q_words) > 4 else query
+
     # Prepare concurrent fetch tasks across pages 1 to max_search_pages
     shopping_tasks = []
     for current_page in range(1, max_search_pages + 1):
         qualifier = store_coverage_qualifiers[(current_page - 1) % len(store_coverage_qualifiers)]
-        # If the user query already includes commerce words, don't over-append
-        q_lower = query.lower()
-        if any(cw in q_lower for cw in ["buy", "price", "flipkart", "amazon", "croma"]):
-            shop_q = query
+        q_to_use = core_terms if current_page >= 3 and core_terms != query else query
+        q_lower = q_to_use.lower()
+        if any(cw in q_lower for cw in ["buy", "price", "flipkart", "amazon"]):
+            shop_q = q_to_use
         else:
-            shop_q = f"{query} {qualifier}".strip() if qualifier else query
+            shop_q = f"{q_to_use} {qualifier}".strip() if qualifier else q_to_use
         shopping_tasks.append(
-            web_search_tool(shop_q, max_results=20, augment_query=False, page=current_page)
+            web_search_tool(shop_q, max_results=25, augment_query=False, page=current_page)
         )
 
     # Sentiment tasks (fetch 2 diverse sentiment pages)
@@ -252,7 +269,7 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
         # Relevance scoring
         score = compute_relevance_score(title, content, query_tokens, category)
-        if score < 0.15 and query_tokens:
+        if score == 0.0 and query_tokens:
             count_non_product += 1
             continue
 

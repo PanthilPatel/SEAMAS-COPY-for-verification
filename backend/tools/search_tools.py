@@ -272,12 +272,15 @@ async def web_search_tool(
                                 relevant_count += 1
 
                         relevance_ratio = (relevant_count / len(records)) if records else 0.0
-                        if relevance_ratio >= 0.25 and len(records) >= 3:
+                        if relevance_ratio >= 0.15 and len(records) >= 2:
                             print(f"[SearchTool] SearXNG page {page} SUCCESS: {len(records)} relevant records collected (relevance ratio {relevance_ratio:.2f}).")
                             return records
+                        elif records:
+                            print(f"[SearchTool] SearXNG page {page} collected {len(records)} records (relevance ratio {relevance_ratio:.2f}).")
+                            return records
                         else:
-                            print(f"[SearchTool] SearXNG page {page} returned low relevance ({relevance_ratio:.2f}). Switching to Tavily backup...")
-                            break  # No retry for low-relevance; go to Tavily
+                            print(f"[SearchTool] SearXNG page {page} returned 0 matching records. Switching to Tavily backup...")
+                            break
                     else:
                         print(f"[SearchTool] SearXNG page {page} returned 0 results. Retrying..." if attempt == 0 else f"[SearchTool] SearXNG page {page} returned 0 results after retry. Switching to Tavily backup...")
                 else:

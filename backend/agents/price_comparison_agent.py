@@ -814,7 +814,7 @@ Records:
                         model=model_name,
                         messages=[{"role": "user", "content": prompt}],
                         format="json",
-                        options={"temperature": 0.1, "num_ctx": 2048, "num_predict": 350},
+                        options={"temperature": 0.1, "num_ctx": 4096, "num_predict": 1800},
                     ),
                     timeout=90.0
                 )
@@ -878,8 +878,9 @@ Records:
             s_text = ((r.get("content") or "") + " " + (r.get("title") or ""))
             s_pricing = parse_snippet_pricing(s_text)
             curr = s_pricing.get("current_price")
-            if curr and curr >= 50:
-                r_url = r.get("url", "")
+            r_url = r.get("url", "")
+            is_prod = is_specific_product_page(r_url)
+            if (curr and curr >= 50) or is_prod:
                 if not any(row.get("_source_record") == r or (row.get("url") and row.get("url") == r_url) for row in all_raw_extracted_rows):
                     store = clean_marketplace_name(r.get("engine", ""), r_url)
                     if store.lower() in ("web", "india") or any(ns in r_url.lower() for ns in NON_SHOPPING_DOMAINS):
@@ -888,7 +889,7 @@ Records:
                         "record_id": i,
                         "product_name": r.get("title", ""),
                         "marketplace": store,
-                        "extracted_price": curr,
+                        "extracted_price": curr if (curr and curr >= 50) else None,
                         "original_price": s_pricing.get("original_price"),
                         "url": r_url,
                         "_source_record": r,
@@ -905,14 +906,9 @@ Records:
         min_price_floor = 99 if detected_category == "electronics" else 49
 
         for row in all_raw_extracted_rows:
-            price = clean_price(row.get("extracted_price") or row.get("Price") or row.get("price"))
+            raw_p = row.get("extracted_price") or row.get("Price") or row.get("price")
+            price = clean_price(raw_p) if raw_p is not None else 0
             marketplace = str(row.get("marketplace") or row.get("Store") or row.get("store") or "").strip()
-
-            if price < min_price_floor:
-                continue
-
-            if price == 0 or marketplace.lower() in {"", "india"}:
-                continue
 
             prod_name = str(row.get("product_name") or row.get("Title") or row.get("title") or "").strip()
             prod_name_lower = prod_name.lower()
@@ -921,9 +917,16 @@ Records:
             if not matched_rec:
                 matched_rec = find_source_record(filtered_records, marketplace, price, prod_name)
 
-            target_url = (matched_rec.get("url") or "").strip() if matched_rec else ""
-            clean_store = clean_marketplace_name(marketplace or (matched_rec.get("engine") if matched_rec else ""), target_url)
+            target_url = (matched_rec.get("url") or row.get("url") or "").strip() if matched_rec else row.get("url", "").strip()
             is_product_page = is_specific_product_page(target_url)
+
+            if price < min_price_floor and not is_product_page:
+                continue
+
+            if (price == 0 and not is_product_page) or marketplace.lower() in {"", "india"}:
+                continue
+
+            clean_store = clean_marketplace_name(marketplace or (matched_rec.get("engine") if matched_rec else ""), target_url)
 
             # Check if source record has a cleaner, genuine title from the store
             src_title = (matched_rec.get("title") or "").strip() if matched_rec else ""
@@ -950,7 +953,7 @@ Records:
             elif price in snippet_prices:
                 snippet_verified = True
 
-            if price < min_price_floor:
+            if price < min_price_floor and not is_product_page:
                 continue
 
             if any(tld in target_url for tld in [".cz/", ".sk/", ".pl/", ".de/", ".eu/", ".nl/", ".fr/", ".it/", ".es/", ".br/", ".pt/", ".mx/", ".ar/", ".cl/"]):
