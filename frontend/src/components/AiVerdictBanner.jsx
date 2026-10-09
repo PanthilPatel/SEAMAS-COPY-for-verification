@@ -1,12 +1,21 @@
-import React from 'react';
-import { Award, ShieldCheck, DollarSign } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, ShieldCheck, DollarSign, ThumbsUp, ThumbsDown, Check, Sparkles } from 'lucide-react';
+import { apiService } from '../services/api';
+
+const POSITIVE_REASONS = ['Accurate Prices', 'Top Recommendations', 'Good Budget Fit', 'Helpful Comparison'];
+const NEGATIVE_REASONS = ['Price Mismatch', 'Irrelevant Results', 'Exceeded Budget', 'Missing Stores'];
 
 export default function AiVerdictBanner({ items = [], query = '' }) {
+    const [rating, setRating] = useState(null);
+    const [selectedReason, setSelectedReason] = useState(null);
+    const [submitted, setSubmitted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
     if (!items || items.length === 0) return null;
 
     // Find top match (highest rating or first verified item)
     const topPick = items.find(i => i.is_verified) || items[0];
-    
+
     // Find best budget pick (lowest price among valid items)
     const budgetPick = [...items].sort((a, b) => {
         const pA = Number(a.extracted_price || a.price || 0);
@@ -17,8 +26,47 @@ export default function AiVerdictBanner({ items = [], query = '' }) {
     const topPrice = topPick ? Number(topPick.extracted_price || topPick.price || 0) : 0;
     const budgetPrice = budgetPick ? Number(budgetPick.extracted_price || budgetPick.price || 0) : 0;
 
+    const handleRate = async (newRating) => {
+        setRating(newRating);
+        setSelectedReason(null);
+    };
+
+    const handleReasonClick = async (reason) => {
+        setSelectedReason(reason);
+        setSubmitting(true);
+        try {
+            await apiService.sendFeedback({
+                query: query || 'current query',
+                rating: rating || 'up',
+                reason,
+            });
+            setSubmitted(true);
+        } catch (err) {
+            console.warn('Feedback submit failed:', err);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleQuickSubmit = async () => {
+        if (!rating) return;
+        setSubmitting(true);
+        try {
+            await apiService.sendFeedback({
+                query: query || 'current query',
+                rating,
+                reason: selectedReason || 'Direct rating',
+            });
+            setSubmitted(true);
+        } catch (err) {
+            console.warn('Feedback submit failed:', err);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
-        <div className="w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-purple-950/40 p-6 backdrop-blur-xl shadow-[0_0_50px_-12px_rgba(6,182,212,0.15)] text-left relative overflow-hidden my-6">
+        <div className="w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-purple-950/40 p-6 backdrop-blur-xl shadow-[0_0_50px_-12px_rgba(6,182,212,0.15)] text-left relative overflow-hidden my-6 font-sans">
             <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-4 mb-4">
@@ -92,6 +140,75 @@ export default function AiVerdictBanner({ items = [], query = '' }) {
                     </div>
                 )}
             </div>
+
+            {/* Interactive User Evaluation Feedback Bar */}
+            <div className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-xs font-mono text-neutral-300">Were these recommendations helpful?</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {submitted ? (
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono text-[11px]">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Feedback recorded! Thank you.</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => (rating === 'up' ? handleQuickSubmit() : handleRate('up'))}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition-all border ${
+                                    rating === 'up'
+                                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                                        : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                                }`}
+                                title="Accurate & helpful"
+                            >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                                <span>Yes</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleRate('down')}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition-all border ${
+                                    rating === 'down'
+                                        ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                                        : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+                                }`}
+                                title="Needs improvement"
+                            >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                                <span>No</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Quick Reason Selector */}
+            {rating && !submitted && (
+                <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-2 animate-fade-in">
+                    <span className="text-[10px] font-mono text-neutral-400 mr-1">Tell us why:</span>
+                    {(rating === 'up' ? POSITIVE_REASONS : NEGATIVE_REASONS).map((reason) => (
+                        <button
+                            key={reason}
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => handleReasonClick(reason)}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all border ${
+                                selectedReason === reason
+                                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                                    : 'bg-white/[0.04] border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                            {reason}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

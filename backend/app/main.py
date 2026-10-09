@@ -22,7 +22,7 @@ sys.path.append(os.path.dirname(backend_root))
 from agents.orchestrator import stream_orchestrator_pipeline
 from core.config import settings, validate_production_config
 from graph.graph import seamas_graph
-from schemas.request_models import ChatRequest
+from schemas.request_models import ChatRequest, FeedbackRequest
 from utils.credits_db import CreditServiceUnavailable, deduct_credit, refund_credit, get_credits
 from utils.rate_limiter import RateLimitUnavailable, check_rate_limit
 from utils.supabase_client import supabase
@@ -107,6 +107,15 @@ async def current_user(request: Request, authorization: str | None = Header(defa
     except httpx.HTTPError:
         logger.exception("Supabase auth request failed")
         raise HTTPException(status_code=503, detail="Authentication service is temporarily unavailable.")
+
+
+async def optional_current_user(request: Request, authorization: str | None = Header(default=None)) -> dict | None:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        return await current_user(request, authorization)
+    except Exception:
+        return None
 
 
 def create_initial_state(payload: ChatRequest) -> dict:
@@ -573,6 +582,34 @@ async def razorpay_webhook(request: Request):
     except Exception as exc:
         logger.exception("Error processing Razorpay webhook: %s", exc)
         raise HTTPException(status_code=500, detail="Webhook processing failed.")
+
+
+@app.post("/api/feedback")
+async def feedback_endpoint(
+    payload: FeedbackRequest,
+    request: Request,
+    user: dict | None = Depends(optional_current_user),
+):
+    """
+    Collect user feedback (thumbs up/down + rationale) for recommendation evaluation.
+    Persists to Supabase table 'recommendation_feedback' if available, and logs structured telemetry.
+    """
+    user_id = str(user["id"]) if user else None
+    logger.info(
+        "User recommendation feedback received: rating=%s query=%s user_id=%s reason=%s",
+        payload.rating, payload.query, user_id, payload.reason,
+    )
+    if supabase:
+        try:
+            supabase.table("recommendation_feedback").insert({
+                "user_id": user_id,
+                "query": payload.query,
+                "rating": payload.rating,
+                "reason": payload.reason,
+            }).execute()
+        except Exception as exc:
+            logger.warning("Failed to persist feedback to database: %s", exc)
+    return {"status": "ok", "message": "Feedback recorded. Thank you!"}
 
 
 if __name__ == "__main__":

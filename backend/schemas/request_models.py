@@ -15,3 +15,9 @@ class ChatRequest(BaseModel):
         if not cleaned:
             raise ValueError("Query string cannot be empty or purely composed of whitespaces.")
         return cleaned
+
+
+class FeedbackRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    rating: Literal["up", "down"]
+    reason: Optional[str] = Field(None, max_length=500)

@@ -323,4 +323,65 @@ $$;
 REVOKE ALL ON FUNCTION public.seamas_schema_is_ready() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.seamas_schema_is_ready() TO service_role;
 
+-- ============================================================================
+-- PRICE ALERTS (WATCHDOG) TABLE & POLICIES
+-- ============================================================================
+create table if not exists public.price_alerts (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.profiles(id) on delete cascade not null,
+    product_name text not null,
+    product_url text not null,
+    current_price numeric not null,
+    target_price numeric not null,
+    status text default 'active' check (status in ('active', 'triggered', 'cancelled')),
+    created_at timestamptz default timezone('utc'::text, now()) not null,
+    triggered_at timestamptz,
+    unique(user_id, product_url, target_price)
+);
+
+alter table public.price_alerts enable row level security;
+
+create policy "Users can view own price alerts"
+    on public.price_alerts for select
+    using (auth.uid() = user_id);
+
+create policy "Users can create own price alerts"
+    on public.price_alerts for insert
+    with check (auth.uid() = user_id);
+
+create policy "Users can update own price alerts"
+    on public.price_alerts for update
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+create policy "Users can delete own price alerts"
+    on public.price_alerts for delete
+    using (auth.uid() = user_id);
+
+create index if not exists price_alerts_user_idx on public.price_alerts(user_id, created_at desc);
+
+-- ============================================================================
+-- RECOMMENDATION FEEDBACK TABLE & POLICIES
+-- ============================================================================
+create table if not exists public.recommendation_feedback (
+    id uuid default gen_random_uuid() primary key,
+    user_id uuid references public.profiles(id) on delete set null,
+    query text not null,
+    rating text not null check (rating in ('up', 'down')),
+    reason text,
+    created_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+alter table public.recommendation_feedback enable row level security;
+
+create policy "Anyone can submit recommendation feedback"
+    on public.recommendation_feedback for insert
+    with check (true);
+
+create policy "Users can view own recommendation feedback"
+    on public.recommendation_feedback for select
+    using (auth.uid() = user_id);
+
+create index if not exists rec_feedback_query_idx on public.recommendation_feedback(query, rating);
+
 COMMIT;

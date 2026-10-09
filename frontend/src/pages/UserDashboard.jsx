@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChatInterface from '../components/ChatInterface';
 import SentimentBanner from '../components/SentimentBanner';
+import AiVerdictBanner from '../components/AiVerdictBanner';
 import FilterSidebar from '../components/FilterSidebar';
 import ProductGrid from '../components/ProductGrid';
 import { apiService } from '../services/api';
@@ -1390,6 +1391,8 @@ export default function UserDashboard() {
                                     </div>
 
                                     <div className="lg:col-span-3 space-y-6">
+                                        <AiVerdictBanner items={sortedItems} query={currentQuery} />
+
                                         <SentimentBanner report={sentimentReport} />
 
                                         <PriceChart items={sortedItems} budgetLimit={budgetStatus?.ceiling} />

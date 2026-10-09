@@ -13,15 +13,25 @@ def extract_intent_and_constraints(query: str, explicit_budget: Optional[float] 
     q = query.lower()
 
     # 1. Category Classification
-    if any(k in q for k in ["laptop", "notebook", "macbook", "thinkpad", "ideapad", "zenbook", "gaming laptop", "pc", "chromebook"]):
-        category = "laptops"
-    elif any(k in q for k in ["phone", "smartphone", "iphone", "galaxy", "redmi", "oneplus", "realme", "pixel", "poco", "vivo", "oppo", "moto", "motorola"]):
-        category = "smartphones"
-    elif any(k in q for k in ["headphone", "earphone", "earbuds", "tws", "airpods", "neckband", "soundbar", "speaker"]):
+    if any(k in q for k in ["headphone", "earphone", "earbuds", "tws", "airpods", "neckband", "soundbar", "speaker"]):
         category = "audio"
     elif any(k in q for k in ["watch", "smartwatch", "fitness band", "band", "tracker"]):
         category = "wearables"
-    elif any(k in q for k in ["tv", "television", "oled", "qled", "monitor"]):
+    elif any(k in q for k in ["laptop", "notebook", "macbook", "thinkpad", "ideapad", "zenbook", "zephyrus", "gaming laptop", "chromebook", "dell xps", "rog"]):
+        category = "laptops"
+    elif any(k in q for k in ["smartphone", "iphone", "redmi", "oneplus", "realme", "pixel", "poco", "vivo", "oppo", "moto", "motorola", "xiaomi"]) or ("phone" in q and "headphone" not in q and "earphone" not in q) or ("galaxy" in q and "watch" not in q):
+        category = "smartphones"
+    elif any(k in q for k in ["camera", "dslr", "mirrorless", "vlogging", "full frame", "sony a7"]):
+        category = "cameras"
+    elif any(k in q for k in ["playstation", "ps5", "xbox", "nintendo", "gaming keyboard", "gaming monitor"]):
+        category = "gaming"
+    elif any(k in q for k in ["purifier", "vacuum", "cooker", "coffee machine", "espresso"]):
+        category = "appliances"
+    elif any(k in q for k in ["kindle", "ipad", "tablet", "e-reader"]):
+        category = "tablets"
+    elif any(k in q for k in ["keyboard", "mouse", "ssd", "power bank", "docking"]):
+        category = "accessories"
+    elif any(k in q for k in ["tv", "television"]):
         category = "televisions"
     else:
         category = "general"

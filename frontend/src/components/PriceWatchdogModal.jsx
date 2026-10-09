@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, TrendingDown, Bell, Check, Sparkles } from 'lucide-react';
+import { X, TrendingDown, Bell, Check, Sparkles, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function PriceWatchdogModal({ product, onClose }) {
     if (!product) return null;
@@ -8,6 +9,7 @@ export default function PriceWatchdogModal({ product, onClose }) {
         Math.round((Number(product.extracted_price || product.price || 0)) * 0.9)
     );
     const [alertSet, setAlertSet] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const price = Number(product.extracted_price || product.price || 0);
 
@@ -19,13 +21,44 @@ export default function PriceWatchdogModal({ product, onClose }) {
         { label: 'Today', price: price },
     ];
 
-    const handleSetAlert = (e) => {
+    const handleSetAlert = async (e) => {
         e.preventDefault();
-        setAlertSet(true);
-        setTimeout(() => {
-            setAlertSet(false);
-            onClose();
-        }, 1800);
+        setIsSaving(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const productUrl = product.product_url || product.url || product.link || '';
+            const productName = product.product_name || product.title || 'Product';
+
+            if (session?.user) {
+                await supabase.from('price_alerts').upsert({
+                    user_id: session.user.id,
+                    product_name: productName,
+                    product_url: productUrl,
+                    current_price: price,
+                    target_price: targetPrice,
+                    status: 'active',
+                }, { onConflict: 'user_id,product_url,target_price' });
+            } else {
+                const stored = JSON.parse(localStorage.getItem('seamas_price_alerts') || '[]');
+                stored.push({
+                    product_name: productName,
+                    product_url: productUrl,
+                    current_price: price,
+                    target_price: targetPrice,
+                    created_at: new Date().toISOString()
+                });
+                localStorage.setItem('seamas_price_alerts', JSON.stringify(stored.slice(-20)));
+            }
+        } catch (err) {
+            console.warn('Failed to persist price alert:', err);
+        } finally {
+            setIsSaving(false);
+            setAlertSet(true);
+            setTimeout(() => {
+                setAlertSet(false);
+                onClose();
+            }, 1800);
+        }
     };
 
     return (
@@ -110,14 +143,18 @@ export default function PriceWatchdogModal({ product, onClose }) {
 
                     <button
                         type="submit"
-                        disabled={alertSet}
+                        disabled={alertSet || isSaving}
                         className={`w-full py-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 transition-all ${
                             alertSet
                                 ? 'bg-emerald-500 text-black font-semibold'
                                 : 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white hover:from-cyan-400 hover:to-indigo-500 shadow-lg shadow-cyan-500/20'
                         }`}
                     >
-                        {alertSet ? (
+                        {isSaving ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" /> Saving Alert...
+                            </>
+                        ) : alertSet ? (
                             <>
                                 <Check className="w-4 h-4" /> Price Alert Active!
                             </>

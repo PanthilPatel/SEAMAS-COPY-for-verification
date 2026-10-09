@@ -165,5 +165,29 @@ export const apiService = {
                 agents: 'down'
             };
         }
+    },
+
+    /**
+     * Submits user evaluation feedback (thumbs up/down + reason)
+     */
+    async sendFeedback({ query, rating, reason }) {
+        try {
+            let headers = {};
+            try {
+                headers = await authHeaders();
+            } catch {
+                // Anonymous feedback is permitted
+            }
+            const response = await apiClient.post('/api/feedback', {
+                query,
+                rating,
+                reason,
+            }, { headers });
+            return response.data;
+        } catch (error) {
+            console.warn('Failed to submit feedback:', error);
+            return { status: 'error' };
+        }
     }
 };
+
