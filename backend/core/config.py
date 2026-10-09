@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     # Payments (authoritative configuration source)
     RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "")
     RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "")
+    RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+
+    # LLM Provider selection ("ollama" | "openai" | "fallback")
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "")
+
+    # Observability
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
     # Orchestration Mode: "graph" (LangGraph is single source of truth)
     AGENT_MODE: str = os.getenv("AGENT_MODE", "graph")

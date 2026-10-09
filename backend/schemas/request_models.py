@@ -6,6 +6,7 @@ class ChatRequest(BaseModel):
     max_price: Optional[int] = Field(None, gt=0, le=100000000, description="Optional upper boundary price target limit")
     user_id: Optional[str] = Field(None, max_length=128, description="Deprecated UI compatibility field; ignored by the API")
     steering_mode: Literal["balanced", "speed", "accuracy"] = Field("balanced", description="AI Steering Mode")
+    bypass_cache: bool = Field(False, description="Bypass read-through cache")
 
     @field_validator("query")
     @classmethod

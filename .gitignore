@@ -39,6 +39,12 @@ backend/test_live_*.py
 *.sln
 *.sw?
 
+# Testing & build artifacts
+frontend/test-results/
+frontend/dist/
+coverage/
+.playwright/
+
 # OS files
 Thumbs.db
 Desktop.ini

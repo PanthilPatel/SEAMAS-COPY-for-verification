@@ -203,9 +203,37 @@ BEGIN
   RETURN new_balance;
 END;
 $$;
+CREATE OR REPLACE FUNCTION public.refund_credits(p_user_id uuid, p_amount integer, p_reference_id text DEFAULT NULL)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE new_balance integer; existing_ref uuid;
+BEGIN
+  IF p_amount <= 0 THEN RAISE EXCEPTION 'amount_must_be_positive'; END IF;
+  -- Idempotency check: if reference_id is provided, verify it has not been refunded already
+  IF p_reference_id IS NOT NULL THEN
+    SELECT id INTO existing_ref FROM public.credit_transactions
+      WHERE user_id = p_user_id AND type = 'refund' AND reference_id = p_reference_id LIMIT 1;
+    IF existing_ref IS NOT NULL THEN
+      SELECT credits INTO new_balance FROM public.profiles WHERE id = p_user_id;
+      RETURN new_balance;
+    END IF;
+  END IF;
+
+  UPDATE public.profiles SET credits = credits + p_amount
+    WHERE id = p_user_id RETURNING credits INTO new_balance;
+  IF NOT FOUND THEN RAISE EXCEPTION 'profile_not_found'; END IF;
+
+  INSERT INTO public.credit_transactions(user_id, type, amount, balance_after, reference_id, metadata)
+    VALUES (p_user_id, 'refund', p_amount, new_balance, p_reference_id,
+      jsonb_build_object('reason', 'pipeline_failure_or_disconnect'));
+  RETURN new_balance;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.deduct_credits(uuid,integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.refund_credits(uuid,integer,text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_payment_and_credit(uuid,uuid,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.deduct_credits(uuid,integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.refund_credits(uuid,integer,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_payment_and_credit(uuid,uuid,text) TO service_role;
 
 -- The readiness RPC checks capabilities the API actually uses, not table existence alone.

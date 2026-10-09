@@ -277,3 +277,19 @@ async def test_blocked_source_does_not_fall_back_to_snippet_price():
         assert price_data[0]["original_price"] is None
         assert price_data[0]["is_verified"] is False
 
+
+@pytest.mark.asyncio
+async def test_scraper_ssrf_guard_blocks_internal_and_private_destinations():
+    """Validates that scrape_live_price blocks localhost, metadata services, and non-HTTPS targets."""
+    from agents.price_comparison_agent import scrape_live_price
+
+    # 1. Non-HTTPS
+    assert (await scrape_live_price("http://www.amazon.in/dp/B0CQG3QW2J"))["price"] is None
+    # 2. Localhost
+    assert (await scrape_live_price("https://localhost/dp/B0CQG3QW2J"))["price"] is None
+    assert (await scrape_live_price("https://127.0.0.1/dp/B0CQG3QW2J"))["price"] is None
+    # 3. AWS / cloud metadata IP
+    assert (await scrape_live_price("https://169.254.169.254/latest/meta-data/"))["price"] is None
+    # 4. Non-product page
+    assert (await scrape_live_price("https://www.amazon.in/gp/help/customer/display.html"))["price"] is None
+

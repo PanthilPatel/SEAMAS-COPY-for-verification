@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app, charge_search_credits, fetch_my_credits, search_cost
-from utils.credits_db import CreditServiceUnavailable, deduct_credit, get_credits
+from utils.credits_db import CreditServiceUnavailable, deduct_credit, get_credits, refund_credit
 
 
 def test_search_costs_are_server_owned():
@@ -130,3 +130,76 @@ async def test_credit_endpoint_reads_authenticated_profile_row(authenticated_use
         result = await fetch_my_credits(authenticated_user)
     assert result == {"tier": "pro", "credits": 1470}
     read.assert_called_once_with(authenticated_user["id"])
+
+
+def test_refund_credit_calls_rpc_with_reference_id(monkeypatch):
+    class Result:
+        data = 100
+
+    class DB:
+        def __init__(self):
+            self.last_call = None
+
+        def rpc(self, func, params):
+            self.last_call = (func, params)
+            return self
+
+        def execute(self):
+            return Result()
+
+    db = DB()
+    monkeypatch.setattr("utils.credits_db.supabase", db)
+
+    new_balance = refund_credit("user-123", 10, reference_id="chat_req_abc")
+    assert new_balance == 100
+    assert db.last_call == ("refund_credits", {
+        "p_user_id": "user-123",
+        "p_amount": 10,
+        "p_reference_id": "chat_req_abc",
+    })
+
+
+def test_refund_credit_rejects_non_positive_amount():
+    with pytest.raises(ValueError):
+        refund_credit("user-123", 0)
+    with pytest.raises(ValueError):
+        refund_credit("user-123", -5)
+
+
+def test_refund_credit_handles_storage_failure(monkeypatch):
+    class DB:
+        def rpc(self, *_args, **_kwargs):
+            raise RuntimeError("DB unreachable")
+
+    monkeypatch.setattr("utils.credits_db.supabase", DB())
+    with pytest.raises(CreditServiceUnavailable):
+        refund_credit("user-123", 10, reference_id="chat_fail")
+
+
+def test_refund_credit_idempotency_simulation(monkeypatch):
+    # Simulate DB where first refund increases balance to 110, second refund with same ref is idempotent and returns 110
+    call_count = 0
+
+    class Result:
+        def __init__(self, val):
+            self.data = val
+
+    class DB:
+        def rpc(self, func, params):
+            nonlocal call_count
+            call_count += 1
+            return self
+
+        def execute(self):
+            # Same balance returned on duplicate reference_id
+            return Result(110)
+
+    db = DB()
+    monkeypatch.setattr("utils.credits_db.supabase", db)
+
+    res1 = refund_credit("user-123", 10, reference_id="idem_key_1")
+    res2 = refund_credit("user-123", 10, reference_id="idem_key_1")
+    assert res1 == 110
+    assert res2 == 110
+    assert call_count == 2
+

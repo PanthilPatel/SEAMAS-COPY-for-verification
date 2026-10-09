@@ -23,7 +23,7 @@ from agents.orchestrator import stream_orchestrator_pipeline
 from core.config import settings, validate_production_config
 from graph.graph import seamas_graph
 from schemas.request_models import ChatRequest
-from utils.credits_db import CreditServiceUnavailable, deduct_credit, get_credits
+from utils.credits_db import CreditServiceUnavailable, deduct_credit, refund_credit, get_credits
 from utils.rate_limiter import RateLimitUnavailable, check_rate_limit
 from utils.supabase_client import supabase
 
@@ -172,50 +172,127 @@ def charge_search_credits(user: dict, amount: int) -> None:
     })
 
 
+def _cache_key(query: str, steering_mode: str, max_price: int | None) -> str:
+    norm_q = query.lower().strip()
+    return f"{norm_q}:{steering_mode}:{max_price or 'none'}"
+
+
 @app.post("/api/chat")
 async def chat_endpoint(payload: ChatRequest, user: dict = Depends(current_user)):
-    await enforce_rate_limit("chat", str(user["id"]), 10, 60)
+    user_id = str(user["id"])
+    await enforce_rate_limit("chat", user_id, 10, 60)
     cost = search_cost(payload.steering_mode or "balanced")
+    c_key = _cache_key(payload.query, payload.steering_mode, payload.max_price)
+
+    # 1. Read-through cache check (unless explicitly bypassed)
+    if not payload.bypass_cache and supabase:
+        try:
+            cache_row = supabase.table("cached_results").select("*").eq("query", c_key).limit(1).execute().data
+            if cache_row:
+                cached = cache_row[0]
+                result = cached.get("result_payload", {})
+                result["cached_at"] = cached.get("created_at")
+                result["from_cache"] = True
+                # Cache hits are free (or 0 cost); no credit charged
+                return result
+        except Exception:
+            logger.warning("Cache lookup failed; proceeding to live pipeline")
+
+    # 2. Charge credits before pipeline runs
     charge_search_credits(user, cost)
+    charge_ref = f"chat_{str(uuid4())[:12]}"
+
     try:
         state = await seamas_graph.ainvoke(create_initial_state(payload))
         if supabase:
             try:
+                from datetime import datetime, timezone
                 supabase.table("cached_results").upsert({
-                    "query": payload.query.lower().strip(), "result_payload": state,
+                    "query": c_key,
+                    "result_payload": state,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 }).execute()
             except Exception:
                 logger.exception("Cache write failed")
         return state
     except Exception:
-        logger.exception("Chat pipeline failed request_id=%s", getattr(user, "request_id", "unknown"))
+        # Guarantee single refund on pipeline failure
+        logger.exception("Chat pipeline failed request_id=%s; issuing single refund", getattr(user, "request_id", "unknown"))
+        try:
+            refund_credit(user_id, cost, reference_id=charge_ref)
+        except Exception as ref_err:
+            logger.error("Failed to refund credits user_id=%s ref=%s: %s", user_id, charge_ref, ref_err)
         raise HTTPException(status_code=502, detail="Product search failed. Please try again.")
 
 
 @app.post("/api/chat/stream")
 async def chat_stream_endpoint(payload: ChatRequest, request: Request, user: dict = Depends(current_user)):
-    await enforce_rate_limit("chat-stream", str(user["id"]), 10, 60)
-    charge_search_credits(user, search_cost(payload.steering_mode or "balanced"))
+    user_id = str(user["id"])
+    await enforce_rate_limit("chat-stream", user_id, 10, 60)
+    cost = search_cost(payload.steering_mode or "balanced")
+    c_key = _cache_key(payload.query, payload.steering_mode, payload.max_price)
+
+    # Read-through cache check
+    if not payload.bypass_cache and supabase:
+        try:
+            cache_row = supabase.table("cached_results").select("*").eq("query", c_key).limit(1).execute().data
+            if cache_row:
+                cached = cache_row[0]
+                result = cached.get("result_payload", {})
+                result["cached_at"] = cached.get("created_at")
+                result["from_cache"] = True
+
+                async def cached_stream():
+                    yield f"data: {json.dumps({'type': 'node_start', 'agent_id': 'cache', 'message': 'Loaded from cache'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'result', 'payload': result})}\n\n"
+
+                return StreamingResponse(cached_stream(), media_type="text/event-stream", headers={
+                    "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no",
+                })
+        except Exception:
+            logger.warning("Stream cache lookup failed; proceeding to live pipeline")
+
+    charge_search_credits(user, cost)
+    charge_ref = f"stream_{str(uuid4())[:12]}"
 
     async def event_generator():
+        pipeline_succeeded = False
         try:
-            async for event in stream_orchestrator_pipeline(create_initial_state(payload)):
-                if await request.is_disconnected():
-                    break
-                yield f"data: {json.dumps(event, default=str)}\n\n"
-                if event.get("type") == "result" and supabase:
-                    try:
-                        supabase.table("cached_results").upsert({
-                            "query": payload.query.lower().strip(),
-                            "result_payload": event.get("payload", {}),
-                        }).execute()
-                    except Exception:
-                        logger.exception("Stream cache write failed")
+            # Bound stream duration to prevent unbounded hanging
+            async with asyncio.timeout(120.0):
+                async for event in stream_orchestrator_pipeline(create_initial_state(payload)):
+                    if await request.is_disconnected():
+                        logger.info("Client disconnected before stream complete user_id=%s", user_id)
+                        break
+                    yield f"data: {json.dumps(event, default=str)}\n\n"
+                    if event.get("type") == "result":
+                        pipeline_succeeded = True
+                        if supabase:
+                            try:
+                                from datetime import datetime, timezone
+                                supabase.table("cached_results").upsert({
+                                    "query": c_key,
+                                    "result_payload": event.get("payload", {}),
+                                    "created_at": datetime.now(timezone.utc).isoformat(),
+                                }).execute()
+                            except Exception:
+                                logger.exception("Stream cache write failed")
+        except asyncio.TimeoutError:
+            logger.error("Stream exceeded 120s timeout cap user_id=%s", user_id)
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Search timed out. Your credits have been refunded.'})}\n\n"
         except asyncio.CancelledError:
             raise
         except Exception:
             logger.exception("Stream pipeline failed")
             yield f"data: {json.dumps({'type': 'error', 'message': 'Product search failed. Please try again.'})}\n\n"
+        finally:
+            if not pipeline_succeeded:
+                # Refund exactly once with idempotency key
+                try:
+                    refund_credit(user_id, cost, reference_id=charge_ref)
+                    logger.info("Refunded %d credits to user_id=%s ref=%s", cost, user_id, charge_ref)
+                except Exception as r_err:
+                    logger.error("Failed to refund stream credits user_id=%s ref=%s: %s", user_id, charge_ref, r_err)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream", headers={
         "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no",
@@ -228,16 +305,80 @@ async def health():
 
 
 @app.get("/ready")
-async def ready():
+async def ready(details: bool = False):
+    """
+    Comprehensive dependency readiness check:
+    - Supabase database schema capability
+    - Shared Upstash Redis rate limiter reachability
+    - SearXNG search engine connectivity
+    - Ollama LLM / algorithmic fallback availability
+    """
+    checks = {}
+    is_ready = True
+
+    # 1. Supabase check
     if not supabase:
-        raise HTTPException(status_code=503, detail="Database is not configured.")
+        checks["database"] = {"status": "unconfigured"}
+        is_ready = False
+    else:
+        try:
+            res = supabase.rpc("seamas_schema_is_ready", {}).execute()
+            if res.data is True:
+                checks["database"] = {"status": "ready"}
+            else:
+                checks["database"] = {"status": "schema_not_ready"}
+                is_ready = False
+        except Exception as e:
+            checks["database"] = {"status": "error", "error": str(e)}
+            is_ready = False
+
+    # 2. Redis check
+    if settings.UPSTASH_REDIS_REST_URL and settings.UPSTASH_REDIS_REST_TOKEN:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                r = await client.get(
+                    f"{settings.UPSTASH_REDIS_REST_URL.rstrip('/')}/ping",
+                    headers={"Authorization": f"Bearer {settings.UPSTASH_REDIS_REST_TOKEN}"}
+                )
+                checks["redis"] = {"status": "ready" if r.status_code == 200 else "degraded"}
+        except Exception:
+            checks["redis"] = {"status": "unreachable"}
+    else:
+        checks["redis"] = {"status": "local_fallback"}
+
+    # 3. SearXNG check
     try:
-        result = supabase.rpc("seamas_schema_is_ready", {}).execute()
-        if result.data is not True:
-            raise RuntimeError("Schema capability check returned false")
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get(settings.SEARXNG_BASE_URL)
+            checks["searxng"] = {"status": "ready" if r.status_code in (200, 302, 303) else "unhealthy"}
     except Exception:
-        raise HTTPException(status_code=503, detail="Database schema is not ready. Apply the required migration.")
+        checks["searxng"] = {"status": "unreachable", "fallback": "tavily"}
+
+    # 4. Ollama check
+    from core.config import resolve_ollama_model
+    m = resolve_ollama_model()
+    checks["llm"] = {"status": "ready" if m else "heuristic_fallback", "model": m}
+
+    if not is_ready:
+        raise HTTPException(status_code=503, detail={"status": "not_ready", "checks": checks})
+    if details:
+        return {"status": "ready", "checks": checks}
     return {"status": "ready"}
+
+
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus-compatible plain text metrics."""
+    from utils.agent_tracker import _ACTIVE_SESSIONS
+    lines = [
+        "# HELP seamas_api_active_sessions Number of active chat sessions",
+        "# TYPE seamas_api_active_sessions gauge",
+        f"seamas_api_active_sessions {len(_ACTIVE_SESSIONS)}",
+        "# HELP seamas_api_up Service liveness indicator",
+        "# TYPE seamas_api_up gauge",
+        "seamas_api_up 1",
+    ]
+    return StreamingResponse(iter([("\n".join(lines) + "\n")]), media_type="text/plain")
 
 
 @app.get("/api/status")
@@ -374,6 +515,64 @@ async def verify_payment(payload: PaymentVerification, user: dict = Depends(curr
     except Exception:
         logger.exception("Payment verification failed user_id=%s", user["id"])
         raise HTTPException(status_code=502, detail="Payment verification could not be processed.")
+
+
+@app.post("/api/webhooks/razorpay")
+async def razorpay_webhook(request: Request):
+    """
+    Authoritative server-side Razorpay webhook handler.
+    Verifies signature using RAZORPAY_WEBHOOK_SECRET and idempotently credits user.
+    """
+    webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+    if not webhook_secret:
+        raise HTTPException(status_code=503, detail="Webhook handling not configured.")
+
+    body_bytes = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+
+    try:
+        client = get_razorpay_client()
+        client.utility.verify_webhook_signature(body_bytes.decode("utf-8"), signature, webhook_secret)
+    except Exception as e:
+        logger.warning("Invalid Razorpay webhook signature: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
+
+    try:
+        data = json.loads(body_bytes)
+        event = data.get("event")
+
+        if event in ("payment_link.paid", "payment.captured"):
+            payload = data.get("payload", {})
+            entity = payload.get("payment_link", {}).get("entity") or payload.get("payment", {}).get("entity", {})
+            link_id = entity.get("id") or entity.get("payment_link_id")
+            payment_id = entity.get("payment_id") or entity.get("id")
+            reference_id = entity.get("reference_id")
+
+            if not supabase:
+                raise HTTPException(status_code=503, detail="Database unavailable")
+
+            # Look up transaction by payment_link_id or reference_id
+            query = supabase.table("payment_transactions").select("*")
+            if link_id:
+                query = query.eq("razorpay_payment_link_id", link_id)
+            elif reference_id:
+                query = query.eq("id", reference_id)
+            rows = query.limit(1).execute().data
+
+            if rows:
+                tx = rows[0]
+                if tx.get("status") != "completed":
+                    supabase.rpc("complete_payment_and_credit", {
+                        "p_transaction_id": tx["id"],
+                        "p_user_id": tx["user_id"],
+                        "p_payment_id": payment_id or "webhook_verified",
+                    }).execute()
+                    logger.info("Webhook successfully credited transaction_id=%s user_id=%s", tx["id"], tx["user_id"])
+
+        return {"status": "ok"}
+    except Exception as exc:
+        logger.exception("Error processing Razorpay webhook: %s", exc)
+        raise HTTPException(status_code=500, detail="Webhook processing failed.")
 
 
 if __name__ == "__main__":
