@@ -8,15 +8,52 @@ const toneMap = {
     indigo: 'text-indigo-300 border-indigo-400/25 bg-indigo-400/[0.06]',
 };
 
-function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, isWishlisted = false, onWishlistToggle }) {
-    const [imgError, setImgError] = useState(false);
+export const getCategoryFallbackImage = (title = '', category = '') => {
+    const text = `${title} ${category}`.toLowerCase();
+    if (/chair|seating|desk|furniture|table|ergonomic|cushion/.test(text)) {
+        return "https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/phone|iphone|smartphone|mobile|samsung|galaxy|redmi|oneplus|realme/.test(text)) {
+        return "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/laptop|macbook|notebook|computer|thinkpad|dell|hp|asus|acer/.test(text)) {
+        return "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/headphone|earphone|earbud|audio|airpods|headset|soundbar|speaker/.test(text)) {
+        return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/watch|smartwatch|chronograph|fastrack|titan|fossil/.test(text)) {
+        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/beauty|primer|makeup|cosmetic|lipstick|foundation|serum|cream|lotion|skincare|perfume/.test(text)) {
+        return "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80";
+    }
+    if (/shoe|sneaker|boot|footwear|sandal|crocs|nike|adidas|puma/.test(text)) {
+        return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80";
+    }
+    return "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80";
+};
 
+function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, isWishlisted = false, onWishlistToggle }) {
     const title = product.product_name || product.title || '';
-    const subtitle = product.subtitle || (product.price_verified ? 'Source price checked' : 'Price and availability unverified');
+    const fallbackImage = getCategoryFallbackImage(title, product.category);
+    const rawImage = product.image_url || product.image;
+    const [imgSrc, setImgSrc] = useState(rawImage || fallbackImage);
+
+    useEffect(() => {
+        setImgSrc(rawImage || fallbackImage);
+    }, [rawImage, fallbackImage]);
+
+    const price = product.extracted_price != null
+        ? Number(product.extracted_price)
+        : (product.price != null
+            ? Number(product.price)
+            : (product.indexed_price != null ? Number(product.indexed_price) : null));
+    const hasPrice = Number.isFinite(price) && price > 0;
+    const isLiveVerified = product.price_verified === true || product.price_verification_method === 'source_page';
+    const subtitle = product.subtitle || (isLiveVerified ? 'Source price checked' : (hasPrice ? 'Marketplace listing price' : 'Price and availability unverified'));
     const marketplace = product.marketplace || 'Store';
-    const price = product.extracted_price != null ? Number(product.extracted_price) : null;
-    const hasPrice = Number.isFinite(price) && price > 0 && product.price_verified === true;
-    const original = product.original_price ? Number(product.original_price) : null;
+    const original = product.original_price ? Number(product.original_price) : (product.indexed_original_price ? Number(product.indexed_original_price) : null);
     const rawRating = product.rating != null ? Number(product.rating) : null;
     const hasValidRating = rawRating != null && !isNaN(rawRating) && rawRating > 0;
     const rating = hasValidRating ? Math.min(5, Math.max(1, rawRating)) : null;
@@ -25,7 +62,6 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, 
     const hasValidReviews = rawReviews != null && !isNaN(rawReviews) && rawReviews > 0;
     const reviews = hasValidReviews ? rawReviews : null;
 
-    const image = product.image_url || product.image;
     const isLarge = product.span === 'lg';
 
     const discount = hasPrice && original && original > price ? Math.round(((original - price) / original) * 100) : 0;
@@ -46,22 +82,18 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, 
                     className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent"
                     style={{ zIndex: 2 }}
                 />
-                {!imgError && image ? (
-                    <img
-                        src={image}
-                        alt={title}
-                        loading={priority ? 'eager' : 'lazy'}
-                        className="h-full w-full object-contain p-4 transition-all duration-700 group-hover:scale-108 group-hover:rotate-1"
-                        onError={() => setImgError(true)}
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 p-4 text-center">
-                        <div className="w-12 h-12 rounded-2xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-center group-hover:border-cyan-500/30 transition-colors">
-                            <Sparkles className="h-5 w-5 text-neutral-500 group-hover:text-cyan-400 transition-colors" strokeWidth={1.5} />
-                        </div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">Image unavailable</span>
-                    </div>
-                )}
+                <img
+                    src={imgSrc}
+                    alt={title}
+                    referrerPolicy="no-referrer"
+                    loading={priority ? 'eager' : 'lazy'}
+                    className="h-full w-full object-contain p-4 transition-all duration-700 group-hover:scale-108 group-hover:rotate-1"
+                    onError={() => {
+                        if (imgSrc !== fallbackImage) {
+                            setImgSrc(fallbackImage);
+                        }
+                    }}
+                />
 
                 <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 backdrop-blur-md transition-transform group-hover:scale-105">
                     <Store className="h-3 w-3 text-cyan-300 shrink-0" strokeWidth={1.75} />
@@ -104,7 +136,9 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, 
                     <div className="mb-3 flex flex-wrap gap-1.5 items-center">
                         {(product.tags && product.tags.length > 0
                             ? product.tags
-                            : (product.is_verified ? ['Store Listing', 'Active Offer'] : ['Search Index', 'Snippet Derived'])
+                            : (isLiveVerified
+                                ? ['Store Listing', 'Live Verified']
+                                : (hasPrice ? ['Store Listing', 'Indexed Offer'] : ['Search Index', 'Price Pending']))
                         ).map((t) => (
                             <span
                                 key={t}
@@ -171,9 +205,9 @@ function ProductCard({ product, onCardClick, onWatchdogClick, priority = false, 
                         </div>
                         <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
                             {hasPrice
-                                ? (product.price_verification_method === 'source_page'
+                                ? (isLiveVerified
                                     ? 'Live Source Verified'
-                                    : 'Verified Store Offer')
+                                    : (product.price_verification_method === 'store_index' ? 'Marketplace Indexed' : 'Verified Store Offer'))
                                 : 'Price not verified'}
                         </div>
                         <div className="mt-1 font-mono text-[10px] text-neutral-500">

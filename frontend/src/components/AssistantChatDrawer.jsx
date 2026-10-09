@@ -3,8 +3,10 @@ import { X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
 
 const productName = (item) => item.product_name || item.title || 'Unnamed product';
 const verifiedPrice = (item) => {
-    const value = Number(item.extracted_price);
-    return item.price_verified === true && Number.isFinite(value) && value > 0 ? value : null;
+    const value = item.extracted_price != null
+        ? Number(item.extracted_price)
+        : (item.price != null ? Number(item.price) : (item.indexed_price != null ? Number(item.indexed_price) : null));
+    return Number.isFinite(value) && value > 0 ? value : null;
 };
 
 function answerFromProducts(question, items, currentQuery) {

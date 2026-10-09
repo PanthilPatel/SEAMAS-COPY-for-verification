@@ -247,13 +247,19 @@ async def web_search_tool(
                             if any(nsd in url_lower for nsd in NON_SHOPPING_DOMAINS):
                                 continue
                             seen_urls.add(url)
-                            store_label = _domain_to_store(url)
+                            raw_thumb = r.get("thumbnail") or r.get("img_src") or r.get("image") or ""
+                            if raw_thumb and ("/image_proxy" in raw_thumb or "url=" in raw_thumb):
+                                from urllib.parse import unquote
+                                m_url = re.search(r"url=([^&]+)", raw_thumb)
+                                if m_url:
+                                    raw_thumb = unquote(m_url.group(1))
+
                             records.append({
                                 "engine": store_label,
                                 "title": r.get("title", ""),
                                 "content": r.get("content", r.get("snippet", "")),
                                 "url": url,
-                                "thumbnail": r.get("thumbnail") or r.get("img_src") or r.get("image") or "",
+                                "thumbnail": raw_thumb,
                             })
                             if len(records) >= max_results:
                                 break

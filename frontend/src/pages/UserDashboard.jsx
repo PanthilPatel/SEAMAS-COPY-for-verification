@@ -4,7 +4,7 @@ import ChatInterface from '../components/ChatInterface';
 import SentimentBanner from '../components/SentimentBanner';
 import AiVerdictBanner from '../components/AiVerdictBanner';
 import FilterSidebar from '../components/FilterSidebar';
-import ProductGrid from '../components/ProductGrid';
+import ProductGrid, { getCategoryFallbackImage } from '../components/ProductGrid';
 import { apiService } from '../services/api';
 import MarketTicker from '../components/MarketTicker';
 import { supabase } from '../lib/supabase';
@@ -44,15 +44,27 @@ import {
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
-    const [imgError, setImgError] = useState(false);
     if (!product) return null;
 
-    const isVerified = product.price_verified === true;
+    const title = product.product_name || product.title || '';
+    const fallbackImage = getCategoryFallbackImage(title, product.category);
+    const rawImage = product.image_url || product.image;
+    const [imgSrc, setImgSrc] = useState(rawImage || fallbackImage);
+
+    useEffect(() => {
+        setImgSrc(rawImage || fallbackImage);
+    }, [rawImage, fallbackImage]);
+
+    const isLiveVerified = product.price_verified === true || product.price_verification_method === 'source_page';
     const isOverBudget = product.status === 'Out of Budget';
-    const price = product.extracted_price != null ? Number(product.extracted_price) : null;
-    const hasPrice = Number.isFinite(price) && price > 0 && isVerified;
+    const price = product.extracted_price != null
+        ? Number(product.extracted_price)
+        : (product.price != null
+            ? Number(product.price)
+            : (product.indexed_price != null ? Number(product.indexed_price) : null));
+    const hasPrice = Number.isFinite(price) && price > 0;
     // Only use real MRP from backend — never fabricate a markup
-    const original = product.original_price ? Number(product.original_price) : null;
+    const original = product.original_price ? Number(product.original_price) : (product.indexed_original_price ? Number(product.indexed_original_price) : null);
     const discount = hasPrice && original && original > price ? Math.round(((original - price) / original) * 100) : 0;
 
     return (
@@ -69,7 +81,7 @@ function ProductDetailsDrawer({ product, onClose }) {
                     <div className="flex flex-col text-left">
                         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">Product Analysis</span>
                         <h3 className="text-sm font-bold font-display text-white mt-1 line-clamp-1">
-                            {product.product_name || product.title}
+                            {title}
                         </h3>
                     </div>
                     <button onClick={onClose} className="text-white/40 hover:text-white p-1.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all btn-magnetic">
@@ -81,16 +93,17 @@ function ProductDetailsDrawer({ product, onClose }) {
 
                     <div className="w-full h-72 rounded-3xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/[0.08] flex items-center justify-center overflow-hidden relative group shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md p-6">
                         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] opacity-50" />
-                        {!imgError ? (
-                            <img
-                                src={product.image_url || product.image}
-                                alt=""
-                                className="object-contain w-full h-full drop-shadow-2xl transition-all duration-700 group-hover:scale-105 group-hover:-translate-y-2 relative z-10"
-                                onError={() => setImgError(true)}
-                            />
-                        ) : (
-                            <span className="text-xs text-neutral-500 font-mono relative z-10">Image details unavailable</span>
-                        )}
+                        <img
+                            src={imgSrc}
+                            alt={title}
+                            referrerPolicy="no-referrer"
+                            className="object-contain w-full h-full drop-shadow-2xl transition-all duration-700 group-hover:scale-105 group-hover:-translate-y-2 relative z-10"
+                            onError={() => {
+                                if (imgSrc !== fallbackImage) {
+                                    setImgSrc(fallbackImage);
+                                }
+                            }}
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#070d19] via-transparent to-transparent opacity-80 pointer-events-none" />
                     </div>
 
@@ -99,11 +112,15 @@ function ProductDetailsDrawer({ product, onClose }) {
                             <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-neutral-200 shadow-sm backdrop-blur-sm">
                                 {product.marketplace}
                             </span>
-                            {isVerified && (
+                            {isLiveVerified ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.15)]">
-                                    ✓ Verified Deal
+                                    ✓ Live Verified
                                 </span>
-                            )}
+                            ) : hasPrice ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+                                    ✓ Indexed Offer
+                                </span>
+                            ) : null}
                         </div>
 
                         <div className="border-b border-white/[0.06] pb-5">
@@ -1159,8 +1176,11 @@ export default function UserDashboard() {
 
     const filteredItems = useMemo(() => {
         return priceData.filter(item => {
-            const hasVerifiedPrice = item.price_verified === true && Number(item.extracted_price) > 0;
-            if (hasVerifiedPrice && item.extracted_price > priceRange) return false;
+            const effectivePrice = item.extracted_price != null
+                ? Number(item.extracted_price)
+                : (item.price != null ? Number(item.price) : (item.indexed_price != null ? Number(item.indexed_price) : null));
+            const hasValidPrice = Number.isFinite(effectivePrice) && effectivePrice > 0;
+            if (hasValidPrice && effectivePrice > priceRange) return false;
             if (selectedMarketplaces.length > 0) {
                 const itemStores = (item.marketplace || '').split(',').map(s => s.trim().toLowerCase());
                 const match = selectedMarketplaces.some(sel => {
@@ -1169,17 +1189,25 @@ export default function UserDashboard() {
                 });
                 if (!match) return false;
             }
-            if (verifiedOnly && !hasVerifiedPrice) return false;
+            if (verifiedOnly && !hasValidPrice) return false;
             if (inBudgetOnly && item.status !== 'Target Match') return false;
             return true;
         });
     }, [priceData, selectedMarketplaces, priceRange, verifiedOnly, inBudgetOnly]);
 
     const sortedItems = useMemo(() => {
+        const getItemPrice = (x) => {
+            const p = x.extracted_price != null ? Number(x.extracted_price) : (x.price != null ? Number(x.price) : (x.indexed_price != null ? Number(x.indexed_price) : null));
+            return Number.isFinite(p) && p > 0 ? p : null;
+        };
         const base = [...filteredItems];
-        if (sortBy === 'price-asc') base.sort((a, b) => (a.extracted_price ?? Infinity) - (b.extracted_price ?? Infinity));
-        else if (sortBy === 'price-desc') base.sort((a, b) => (b.extracted_price ?? -Infinity) - (a.extracted_price ?? -Infinity));
-        else base.sort((a, b) => Number(b.price_verified === true) - Number(a.price_verified === true));
+        if (sortBy === 'price-asc') base.sort((a, b) => (getItemPrice(a) ?? Infinity) - (getItemPrice(b) ?? Infinity));
+        else if (sortBy === 'price-desc') base.sort((a, b) => (getItemPrice(b) ?? -Infinity) - (getItemPrice(a) ?? -Infinity));
+        else base.sort((a, b) => {
+            const aVerified = a.price_verified === true || a.price_verification_method === 'source_page';
+            const bVerified = b.price_verified === true || b.price_verification_method === 'source_page';
+            return Number(bVerified) - Number(aVerified);
+        });
         return base;
     }, [filteredItems, sortBy]);
 

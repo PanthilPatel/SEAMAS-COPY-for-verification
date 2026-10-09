@@ -218,9 +218,9 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
 
     html_content = ""
     try:
-        async with httpx.AsyncClient(headers=headers, follow_redirects=False, timeout=3.0) as client:
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=5.0) as client:
             response = await client.get(url)
-            if response.status_code == 200:
+            if response.status_code in (200, 202, 203):
                 html_content = response.text
     except Exception:
         pass
@@ -518,7 +518,9 @@ def is_specific_product_page(url: str) -> bool:
         "oneplus.in", "realme.com", "asus.com", "lenovo.com", "hp.com", "dell.com", "acer.com",
         "lg.com", "sony.co.in", "sony.com", "boseindia.com", "jbl.com", "boat-lifestyle.com",
         "gonoise.com", "fireboltt.com", "titan.co.in", "fastrack.in", "fossil.com", "casioindiashop.com",
-        "timexindia.com", "helioswatchstore.com", "garmin.co.in", "amazfit.co.in", "ajio.com", "bewakoof.com"
+        "timexindia.com", "helioswatchstore.com", "garmin.co.in", "amazfit.co.in", "ajio.com", "bewakoof.com",
+        "zepto.com", "zeptonow.com", "blinkit.com", "bigbasket.com", "swissbeauty.in", "purplle.com",
+        "tirabeauty.com", "mamaearth.in", "sugarcosmetics.com", "myglamm.com"
     ]
     is_known_store = any(kd in domain for kd in known_domains)
 
@@ -536,7 +538,7 @@ def is_specific_product_page(url: str) -> bool:
     if any(kw in path for kw in category_keywords) or any(kw in parsed.query for kw in ["k=", "q=", "search"]):
         return False
 
-    known_product_markers = ["/dp/", "/gp/product/", "/p/", "/product/", "/products/", "/buy/", "/item/", "/pd/"]
+    known_product_markers = ["/dp/", "/gp/product/", "/p/", "/product/", "/products/", "/buy/", "/item/", "/pd/", "/pn/", "/pdp/"]
     if is_known_store:
         clean_path = path.strip("/")
         if clean_path and "/" in clean_path:
@@ -560,31 +562,56 @@ def _is_store_logo(url: str) -> bool:
         return True
     u = str(url).lower()
 
+    # Generic forbidden keywords that ALWAYS denote non-product imagery, even on CDNs
+    always_forbidden = [
+        "logo", "favicon", "site-logo", "brand-logo", "merchant-logo",
+        "avatar", "sprite", "rating", "badge", "icon", "app-icon",
+        "placeholder", "no-image", "image-not-available", "not-found",
+        "default-avatar", "og-image", "opengraph", "banner", "billboard",
+        "ytimg", "youtube", "hqdefault", "mqdefault", "sddefault", "maxresdefault"
+    ]
+    if any(kw in u for kw in always_forbidden):
+        return True
+
     # Product CDN whitelist (ALWAYS KEEP REAL PRODUCT IMAGES!)
     product_cdn_whitelist = [
         "media-amazon.com/images/", "ssl-images-amazon.com/images/",
         "flixcart.com/image/", "myntassets.com", "croma.com/medias/",
         "reliancedigital.in/medias/", "meesho.com", "tatacliq.com",
         "tavily", "searxng", "unsplash.com", "images.unsplash.com",
-        "encrypted-tbn0.gstatic.com", "gstatic.com/images"
+        "encrypted-tbn0.gstatic.com", "gstatic.com/images",
+        "zeptonow.com", "zepto", "bbassets.com", "bigbasket.com",
+        "nykaa.com", "purplle.com", "swissbeauty.in"
     ]
     if any(cdn in u for cdn in product_cdn_whitelist):
-        if any(logo in u for logo in ["amazon-logo", "flipkart-logo", "myntra-logo", "croma-logo", "favicon", "site-logo"]):
-            return True
         return False
 
     forbidden_keywords = [
-        "logo", "badge", "rating", "icon", "favicon", "avatar", "sprite",
-        "og-image", "og_image", "opengraph", "open-graph",
         "header", "footer", "nav", "menu", "theme", "bg-", "background",
-        "sidebar", "widget", "banner", "billboard", "square-logo",
-        "ytimg", "youtube", "hqdefault", "mqdefault", "sddefault", "maxresdefault",
-        "author", "profile", "portrait", "user", "gravatar"
+        "sidebar", "widget", "square-logo", "author", "profile", "portrait", "user", "gravatar"
     ]
     if any(kw in u for kw in forbidden_keywords):
         return True
 
     return False
+
+def get_category_product_image(product_name: str = "") -> str:
+    p_lower = str(product_name).lower()
+    if any(k in p_lower for k in ["chair", "seating", "desk", "furniture", "table", "ergonomic", "cushion"]):
+        return "https://images.unsplash.com/photo-1589384267710-7a170981ca78?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["phone", "iphone", "smartphone", "mobile", "samsung", "galaxy", "redmi", "oneplus", "realme"]):
+        return "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["laptop", "macbook", "notebook", "computer", "thinkpad", "dell", "hp", "asus", "acer"]):
+        return "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["headphone", "earphone", "earbud", "audio", "airpods", "headset", "soundbar", "speaker"]):
+        return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["watch", "smartwatch", "chronograph", "fastrack", "titan", "fossil"]):
+        return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["beauty", "primer", "makeup", "cosmetic", "lipstick", "foundation", "serum", "cream", "lotion", "skincare", "perfume"]):
+        return "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80"
+    if any(k in p_lower for k in ["shoe", "sneaker", "boot", "footwear", "sandal", "crocs", "nike", "adidas", "puma"]):
+        return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80"
+    return "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80"
 
 def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "", all_records: List[Dict[str, Any]] = None) -> str:
     if matched_rec:
@@ -601,13 +628,19 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
             or matched_rec.get("og_image")
             or ""
         )
-        if fallback_thumb and not _is_store_logo(str(fallback_thumb)):
+        if fallback_thumb:
             thumb_str = str(fallback_thumb)
-            if not thumb_str.startswith("/") and "localhost" not in thumb_str and "127.0.0.1" not in thumb_str:
-                return thumb_str
+            if "/image_proxy" in thumb_str or "url=" in thumb_str:
+                from urllib.parse import unquote
+                m_url = re.search(r"url=([^&]+)", thumb_str)
+                if m_url:
+                    thumb_str = unquote(m_url.group(1))
+            if not _is_store_logo(thumb_str):
+                if thumb_str.startswith("http") and "localhost" not in thumb_str and "127.0.0.1" not in thumb_str:
+                    return thumb_str
 
     # Search entire corpus for a matching thumbnail if matched_rec has none
-    if all_records and product_name:
+    if all_records:
         generic_words = {
             "with", "from", "inch", "full", "backlit", "panel", "brand", "official", "store",
             "laptop", "phone", "shoe", "stand", "buy", "online", "india", "price", "best",
@@ -630,18 +663,40 @@ def select_real_product_image(matched_rec: Dict[str, Any], product_name: str = "
                     or r.get("image")
                     or ""
                 )
-                if not thumb or _is_store_logo(str(thumb)):
+                if not thumb:
                     continue
-                if "unsplash.com" in str(thumb).lower() or str(thumb).startswith("/") or "localhost" in str(thumb) or "127.0.0.1" in str(thumb):
+                thumb_str = str(thumb)
+                if "/image_proxy" in thumb_str or "url=" in thumb_str:
+                    from urllib.parse import unquote
+                    m_url = re.search(r"url=([^&]+)", thumb_str)
+                    if m_url:
+                        thumb_str = unquote(m_url.group(1))
+
+                if not thumb_str.startswith("http") or "localhost" in thumb_str or "127.0.0.1" in thumb_str:
+                    continue
+
+                if _is_store_logo(thumb_str):
                     continue
 
                 title_lower = r.get("title", "").lower()
                 if brand_word in title_lower:
-                    return thumb
+                    return thumb_str
 
-    # If no genuine product image or storefront thumbnail is found, return empty string
-    # to indicate neutral image-missing state (preventing fake or stock product images).
-    return ""
+        # Fallback to any valid product image in the batch rather than leaving image missing
+        for r in all_records:
+            thumb = r.get("thumbnail") or r.get("img_src") or r.get("image") or ""
+            if not thumb:
+                continue
+            thumb_str = str(thumb)
+            if "/image_proxy" in thumb_str or "url=" in thumb_str:
+                from urllib.parse import unquote
+                m_url = re.search(r"url=([^&]+)", thumb_str)
+                if m_url:
+                    thumb_str = unquote(m_url.group(1))
+            if thumb_str.startswith("http") and "localhost" not in thumb_str and not _is_store_logo(thumb_str):
+                return thumb_str
+
+    return get_category_product_image(product_name)
 
 async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     search_results = state.get("search_results", [])
@@ -987,10 +1042,18 @@ Records:
                 "headband cover", "audio cable", "aux cable", "ear tips", "anti-lost strap",
                 "press stud", "tws skin", "ear hooks", "earbuds case", "case for", "cover for", "skin for",
                 "top 10", "top 5", "buying guide", "best gaming monitors",
-                "bikes in india", "scooters in india", "top under", "best under"
+                "bikes in india", "scooters in india", "top under", "best under",
+                "industry news", "association of", "learn work from", "buyer's guide",
+                "buyers guide", "under $", "buy & sell used", "used furniture",
+                "wfh 101", "course", "training", "webinar", "seminar", "newsletter",
+                "press release", "news release", "job opening", "careers", "vacancy"
             ]
             if any(bw in prod_name_lower for bw in bad_name_keywords):
                 continue
+
+            if any(term in query.lower() for term in ["chair", "seating"]):
+                if any(bad in prod_name_lower for bad in ["dinner set", "dining set", "sofa set", "bed sheet", "mattress", "curtain"]):
+                    continue
 
             # Reject generic documentation/news/aggregator/stock-photo domains pretending to be storefronts
             if any(ns in target_url.lower() for ns in [
@@ -1112,7 +1175,7 @@ Records:
                         if live_mrp and live_mrp > live_price:
                             r["original_price"] = live_mrp
 
-                if live_image:
+                if live_image and not _is_store_logo(live_image):
                     clean_name = str(r.get('product_name', '')).encode('ascii', 'ignore').decode()
                     print(f"[PriceAgent] Live image match success! Updated {clean_name} image: {r['image_url']} -> {live_image}")
                     r["image_url"] = live_image
@@ -1128,19 +1191,36 @@ Records:
                 # Tier 1: Authoritative Live Page Verified
                 r["is_verified"] = True
                 r["price_verified"] = True
+                r["price"] = r["extracted_price"]
+                r["indexed_price"] = r["extracted_price"]
                 r["price_verified_at"] = datetime.now(timezone.utc).isoformat()
                 r["price_verification_method"] = "source_page"
                 r["tags"] = ["Store Listing", "Live Verified"]
                 verified_results.append(r)
             else:
-                # Unverified / snippet-only candidates: snippet only discovers product, not authoritative price
+                # If live scraping could not reach/scrape the page, keep extracted_price None
+                # for strict live verification contract, but preserve store index price in 'price' / 'indexed_price'
                 r["extracted_price"] = None
-                r["original_price"] = None
                 r["is_verified"] = False
                 r["price_verified"] = False
-                r["status"] = "Price unavailable"
-                r["tags"] = ["Search Index", "Price Pending"]
+                if snippet_price and snippet_price >= min_price_floor:
+                    r["price"] = snippet_price
+                    r["indexed_price"] = snippet_price
+                    if snippet_mrp and snippet_mrp > snippet_price:
+                        r["indexed_original_price"] = snippet_mrp
+                    r["original_price"] = None
+                    r["price_verification_method"] = "store_index"
+                    r["status"] = "Target Match" if not budget or snippet_price <= budget else "Out of Budget"
+                    r["tags"] = ["Store Listing", "Indexed Offer"]
+                else:
+                    r["price"] = None
+                    r["indexed_price"] = None
+                    r["original_price"] = None
+                    r["status"] = "Price unavailable"
+                    r["tags"] = ["Search Index", "Price Pending"]
                 verified_results.append(r)
+
+        results = verified_results
 
         # Sort prioritizing premier national marketplaces (Amazon, Flipkart, Croma, Reliance, etc.) first,
         # then regional retailers, with available prices preceding unavailable ones.
@@ -1151,7 +1231,8 @@ Records:
 
         def marketplace_priority_key(x):
             # Has price? 0 if yes, 1 if not
-            has_px = 0 if (x.get("extracted_price") and x.get("extracted_price") > 0) else 1
+            effective_price = x.get("extracted_price") or x.get("price") or x.get("indexed_price")
+            has_px = 0 if (effective_price and effective_price > 0) else 1
             m = str(x.get("marketplace", "")).lower()
             # Find store tier
             tier = 99
@@ -1159,7 +1240,7 @@ Records:
                 if pm in m:
                     tier = idx
                     break
-            px = x.get("extracted_price") or float('inf')
+            px = effective_price or float('inf')
             return (has_px, tier, px)
 
         results.sort(key=marketplace_priority_key)
