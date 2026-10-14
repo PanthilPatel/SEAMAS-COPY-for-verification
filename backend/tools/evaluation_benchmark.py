@@ -121,16 +121,17 @@ async def run_benchmark_case(case: Dict[str, Any]) -> Dict[str, Any]:
         "search_results": unverified_listing,
         "steering_mode": "balanced",
     }
-    price_res = await price_comparison_agent(price_state)
+    from unittest.mock import patch, AsyncMock
+    with patch("agents.price_comparison_agent.scrape_live_price", new_callable=AsyncMock) as mock_scrape, \
+         patch("agents.price_comparison_agent.resolve_ollama_model", return_value=None):
+        mock_scrape.return_value = {"price": None, "original_price": None, "image": None}
+        price_res = await price_comparison_agent(price_state)
     price_records = price_res.get("price_data", [])
 
     # Integrity check: no snippet item should be falsely verified without live page scrape
     has_falsely_verified_price = False
     for p in price_records:
-        if p.get("is_verified") and p.get("extracted_price") is not None:
-            # If it's verified, confirm it came from verified verification source
-            pass
-        elif not p.get("is_verified") and p.get("extracted_price") is not None:
+        if p.get("is_verified") is True or p.get("extracted_price") is not None:
             has_falsely_verified_price = True
 
     elapsed = time.perf_counter() - t0
@@ -138,8 +139,8 @@ async def run_benchmark_case(case: Dict[str, Any]) -> Dict[str, Any]:
     # Scoring
     cat_match = (
         detected_category == case["expected_category"]
-        or (case["expected_category"] in ("computing", "storage", "accessories", "gaming") and detected_category in ("laptops", "general", "gaming", "accessories", "computing", "storage"))
-        or (case["expected_category"] in ("home", "appliances") and detected_category in ("home", "appliances", "general"))
+        or (case["expected_category"] in ("computing", "storage", "accessories", "gaming") and detected_category in ("computing", "storage", "accessories", "gaming", "laptops"))
+        or (case["expected_category"] in ("home", "appliances") and detected_category in ("home", "appliances"))
     )
 
     budget_match = (

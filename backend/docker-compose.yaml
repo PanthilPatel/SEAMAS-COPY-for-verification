@@ -7,5 +7,5 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./settings.yml:/etc/searxng/settings.yml
+      - ./searxng-deploy/settings.yml:/etc/searxng/settings.yml:ro
     restart: unless-stopped

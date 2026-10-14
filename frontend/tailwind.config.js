@@ -9,8 +9,26 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Space Grotesk', 'Inter', 'sans-serif'],
+        editorial: ['"Instrument Serif"', 'Georgia', 'serif'],
+        mono: ['JetBrains Mono', 'Space Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
+        obsidian: {
+          DEFAULT: '#09090B',
+          surface: '#121215',
+          elevated: '#18181C',
+          border: 'rgba(255, 255, 255, 0.08)',
+        },
+        champagne: {
+          50: '#FCFBF7',
+          100: '#F9F5E8',
+          200: '#F1E6C2',
+          300: '#E6C762',
+          400: '#D4AF37',
+          500: '#C9A227',
+          600: '#A48018',
+        },
+        pearl: '#F4F4F6',
         brand: {
           50:  '#eef2ff',
           100: '#e0e7ff',
@@ -24,12 +42,12 @@ export default {
           900: '#312e81',
         },
         surface: {
-          DEFAULT: '#0a0a0f',
-          50:  '#12121a',
-          100: '#16161f',
-          200: '#1c1c28',
-          300: '#252533',
-          400: '#2e2e40',
+          DEFAULT: '#09090B',
+          50:  '#121215',
+          100: '#161619',
+          200: '#1c1c20',
+          300: '#25252a',
+          400: '#2e2e34',
         },
       },
       backgroundImage: {

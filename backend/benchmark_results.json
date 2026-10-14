@@ -4,9 +4,9 @@
   "budget_extraction_accuracy": 100.0,
   "budget_type_accuracy": 100.0,
   "price_verification_integrity_rate": 100.0,
-  "mean_latency_ms": 107.41,
-  "min_latency_ms": 0.18,
-  "max_latency_ms": 4286.39,
+  "mean_latency_ms": 0.93,
+  "min_latency_ms": 0.42,
+  "max_latency_ms": 16.56,
   "detailed_results": [
     {
       "query": "best smartphone under 20000 with amoled",
@@ -20,7 +20,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 4286.39
+      "latency_ms": 16.56
     },
     {
       "query": "iphone 15 pro 128gb natural titanium",
@@ -34,7 +34,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.56
+      "latency_ms": 0.79
     },
     {
       "query": "samsung galaxy s24 ultra 256gb",
@@ -48,7 +48,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.26
+      "latency_ms": 0.99
     },
     {
       "query": "budget 5g mobile phone under 12000",
@@ -62,7 +62,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.27
+      "latency_ms": 0.73
     },
     {
       "query": "oneplus 12r under 40000",
@@ -76,7 +76,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.51
     },
     {
       "query": "google pixel 8a 128gb obsidian",
@@ -90,7 +90,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.53
     },
     {
       "query": "xiaomi 14 civi under 45000",
@@ -104,7 +104,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.22
+      "latency_ms": 0.53
     },
     {
       "query": "motorola edge 50 pro around 30000",
@@ -118,7 +118,7 @@
       "detected_budget_type": "approximate",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.49
     },
     {
       "query": "lightweight coding laptop under 60000",
@@ -132,7 +132,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.2
+      "latency_ms": 0.44
     },
     {
       "query": "macbook air m2 16gb 512gb",
@@ -146,7 +146,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.18
+      "latency_ms": 0.42
     },
     {
       "query": "gaming laptop with rtx 4060 under 90000",
@@ -160,7 +160,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.22
+      "latency_ms": 0.46
     },
     {
       "query": "thinkpad e14 amd ryzen 7 under 55000",
@@ -174,7 +174,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.22
+      "latency_ms": 0.5
     },
     {
       "query": "asus rog zephyrus g14 2024",
@@ -188,7 +188,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.47
     },
     {
       "query": "student laptop under 35000 with ssd",
@@ -202,7 +202,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.2
+      "latency_ms": 0.73
     },
     {
       "query": "dell xps 13 plus oled display",
@@ -216,7 +216,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.65
     },
     {
       "query": "budget chromebook under 20000 for school",
@@ -230,7 +230,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.45
     },
     {
       "query": "sony wh-1000xm5 noise cancelling headphones",
@@ -244,7 +244,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.33
+      "latency_ms": 0.5
     },
     {
       "query": "anc wireless earbuds under 3000",
@@ -258,7 +258,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.27
+      "latency_ms": 0.51
     },
     {
       "query": "apple airpods pro 2nd generation type-c",
@@ -272,7 +272,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.49
     },
     {
       "query": "smartwatch with amoled display under 5000",
@@ -286,7 +286,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.26
+      "latency_ms": 0.5
     },
     {
       "query": "bose quietcomfort ultra headphones",
@@ -300,7 +300,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.4
+      "latency_ms": 0.49
     },
     {
       "query": "fitness tracker band under 2500 waterproof",
@@ -314,7 +314,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.39
+      "latency_ms": 0.49
     },
     {
       "query": "galaxy watch 6 classic lte",
@@ -328,7 +328,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.34
+      "latency_ms": 0.52
     },
     {
       "query": "bluetooth soundbar with subwoofer under 8000",
@@ -342,7 +342,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.47
     },
     {
       "query": "mirrorless camera for vlogging under 65000",
@@ -356,7 +356,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.51
     },
     {
       "query": "sony a7 iv full frame body only",
@@ -370,12 +370,12 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.5
     },
     {
       "query": "instant pot duo 7-in-1 electric cooker",
       "expected_category": "home",
-      "detected_category": "appliances",
+      "detected_category": "home",
       "category_correct": true,
       "expected_budget": null,
       "detected_budget": null,
@@ -384,12 +384,12 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.49
     },
     {
       "query": "hepa air purifier for bedroom under 9000",
       "expected_category": "home",
-      "detected_category": "appliances",
+      "detected_category": "home",
       "category_correct": true,
       "expected_budget": 9000,
       "detected_budget": 9000,
@@ -398,12 +398,12 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.5
     },
     {
       "query": "robot vacuum and mop combo under 25000",
       "expected_category": "home",
-      "detected_category": "appliances",
+      "detected_category": "home",
       "category_correct": true,
       "expected_budget": 25000,
       "detected_budget": 25000,
@@ -412,7 +412,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.47
     },
     {
       "query": "4k smart tv 55 inch under 40000",
@@ -426,7 +426,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.25
+      "latency_ms": 0.51
     },
     {
       "query": "espresso coffee machine for home under 15000",
@@ -440,7 +440,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.49
     },
     {
       "query": "kindle paperwhite 11th gen 16gb",
@@ -454,7 +454,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.48
     },
     {
       "query": "mechanical gaming keyboard under 4000 red switches",
@@ -468,7 +468,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.51
     },
     {
       "query": "playstation 5 slim disc edition",
@@ -482,12 +482,12 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.5
     },
     {
       "query": "ergonomic wireless mouse under 2000",
       "expected_category": "computing",
-      "detected_category": "accessories",
+      "detected_category": "computing",
       "category_correct": true,
       "expected_budget": 2000,
       "detected_budget": 2000,
@@ -496,7 +496,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.22
+      "latency_ms": 0.54
     },
     {
       "query": "27 inch 144hz ips gaming monitor under 18000",
@@ -510,7 +510,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.52
     },
     {
       "query": "nintendo switch oled mario edition",
@@ -524,7 +524,7 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.5
     },
     {
       "query": "power bank 20000mah 65w fast charge under 3000",
@@ -538,7 +538,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.23
+      "latency_ms": 0.52
     },
     {
       "query": "usb-c docking station with dual hdmi",
@@ -552,12 +552,12 @@
       "detected_budget_type": "none",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.24
+      "latency_ms": 0.49
     },
     {
       "query": "portable ssd 1tb under 7000 nvme",
       "expected_category": "storage",
-      "detected_category": "accessories",
+      "detected_category": "storage",
       "category_correct": true,
       "expected_budget": 7000,
       "detected_budget": 7000,
@@ -566,7 +566,7 @@
       "detected_budget_type": "hard_limit",
       "budget_type_correct": true,
       "price_integrity_preserved": true,
-      "latency_ms": 0.48
+      "latency_ms": 0.47
     }
   ]
 }

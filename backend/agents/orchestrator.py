@@ -25,11 +25,17 @@ def extract_intent_and_constraints(query: str, explicit_budget: Optional[float] 
         category = "cameras"
     elif any(k in q for k in ["playstation", "ps5", "xbox", "nintendo", "gaming keyboard", "gaming monitor"]):
         category = "gaming"
-    elif any(k in q for k in ["purifier", "vacuum", "cooker", "coffee machine", "espresso"]):
+    elif any(k in q for k in ["ssd", "nvme", "hard drive", "pen drive", "memory card", "storage"]):
+        category = "storage"
+    elif any(k in q for k in ["mouse", "computing", "desktop", "all-in-one pc"]):
+        category = "computing"
+    elif any(k in q for k in ["coffee machine", "espresso", "microwave", "refrigerator", "washing machine", "dishwasher", "toaster"]):
         category = "appliances"
+    elif any(k in q for k in ["purifier", "air purifier", "vacuum", "cooker", "instant pot", "home"]):
+        category = "home"
     elif any(k in q for k in ["kindle", "ipad", "tablet", "e-reader"]):
         category = "tablets"
-    elif any(k in q for k in ["keyboard", "mouse", "ssd", "power bank", "docking"]):
+    elif any(k in q for k in ["keyboard", "power bank", "docking", "charger", "cable", "adapter", "case", "cover"]):
         category = "accessories"
     elif any(k in q for k in ["tv", "television"]):
         category = "televisions"

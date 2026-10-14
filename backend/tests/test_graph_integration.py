@@ -109,8 +109,20 @@ async def test_streaming_event_sequence():
 @pytest.mark.asyncio
 async def test_fastapi_endpoints_execute_same_graph(authenticated_user):
     """Validates that /api/chat and /api/chat/stream both invoke the unified LangGraph workflow."""
+    from unittest.mock import AsyncMock
     transport = ASGITransport(app=app)
-    with patch("app.main.deduct_credit", return_value=True):
+    mock_search_results = [
+        {
+            "engine": "Amazon",
+            "title": "boAt Bassheads 225 in Ear Wired Earphones with Mic",
+            "content": "Price: ₹599 (MRP: ₹999). Super Extra Bass, 10mm drivers, passive noise cancellation.",
+            "url": "https://www.amazon.in/dp/B00S123",
+            "thumbnail": "https://images.amazon.com/sample.jpg"
+        }
+    ]
+    with patch("app.main.deduct_credit", return_value=True), \
+         patch("agents.search_agent.web_search_tool", new_callable=AsyncMock, return_value=mock_search_results), \
+         patch("agents.price_comparison_agent.scrape_live_price", new_callable=AsyncMock, return_value={"price": None, "original_price": None, "image": None}):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp_status = await client.get("/api/status")
             assert resp_status.status_code == 200

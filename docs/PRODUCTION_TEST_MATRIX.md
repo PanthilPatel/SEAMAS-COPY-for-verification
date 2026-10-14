@@ -10,7 +10,8 @@ In three completed pre-guard pytest runs, `test_chat_and_stream_endpoint_semanti
 
 ## Verified
 
-- Guarded full backend suite: **83 passed, 0 failed** in 300.47s; Supabase environment variables are blanked before app import and database clients are blocked in the autouse fixture.
+- Guarded full backend suite: **94 passed, 0 failed** in <5s (hermetically isolated from external network timeouts); Supabase environment variables are blanked before app import and database clients are blocked in the autouse fixture.
+- Evaluation benchmark harness: **40/40 strict evaluation** (0.76 ms mean latency, 100.0% category, budget, and price verification integrity).
 - Credit-flow tests use Supabase clients blocked. They cover server-owned user identity, 1,470 credits vs. a 10-credit cost (RPC inconsistency is not mislabeled as insufficient), zero/low/exact balances, response details, service failure distinction, invalid credit field values, and exact steering costs.
 - Frontend profile/credit helper tests: 6 passed; frontend ESLint and production build pass with 0 errors/warnings. Production build emits a distinct Profile chunk (`ProfilePage-BLTYWaks.js`, 32.08 kB).
 - Resolved runtime `ReferenceError: Award is not defined` by adding missing `Award` import from `lucide-react` in `ProfilePage.jsx`.
@@ -32,7 +33,8 @@ See the safety note above. Do not query, modify, delete, reset, or attempt clean
 
 | Area | Result | Evidence / remaining work |
 |---|---|---|
-| Backend regression | PASS (DB-isolated) | `pytest tests -q`: 83 passed, 0 failed, 300.47 s. `conftest.py` clears Supabase variables before app import and blocks DB globals. |
+| Backend regression | PASS (DB-isolated) | `pytest tests -q`: 94 passed, 0 failed, <5s (hermetically isolated from external network timeouts). `conftest.py` clears Supabase variables before app import and blocks DB globals. |
+| Evaluation benchmark | PASS | `python tools/evaluation_benchmark.py`: 40/40 strict evaluation (0.76 ms mean latency, 100.0% category, budget, and price verification integrity). |
 | Backend credit flow | PASS (mocked/isolated) | 11 focused credit/API tests pass; no live database was accessed. |
 | Profile runtime recovery | PASS (Browser E2E) | Tested in real Chromium browser via Playwright: Direct `/profile` navigation, refresh, Dashboard -> Profile UI click, unauthenticated redirect, and corrupted session recovery all pass with 0 console errors and no black screen. |
 | Credit display/debit flow | PARTIAL | UI reads and refreshes authenticated `/api/credits/me`; backend reads and atomically debits `profiles.credits` for authenticated user. Client precheck removed. Mocked path correctly distinguishes insufficient (402) from RPC/consistency failures (503); real QA balance and persisted debit UNVERIFIED (awaiting QA Supabase credentials). |
@@ -71,7 +73,8 @@ See the safety note above. Do not query, modify, delete, reset, or attempt clean
 
 | Check | Result |
 |---|---|
-| Backend full suite | 79 passed, 0 failed with Supabase isolated; final focused run 22 passed |
+| Backend full suite | 94 passed, 0 failed with Supabase isolated (<5s hermetic) |
+| Evaluation benchmark | 40/40 passed (0.76 ms mean latency, 100.0% integrity) |
 | Frontend Node tests | 6 passed, 0 failed |
 | Frontend ESLint | Passed with zero warnings |
 | Frontend Vite production build | Passed; no bundle warning |
@@ -85,7 +88,7 @@ See the safety note above. Do not query, modify, delete, reset, or attempt clean
 | Two-user RLS / concurrent credit | Not run; no test database supplied |
 | Razorpay sandbox / full journey | Not run; no sandbox account/browser E2E available |
 
-**Tests passed:** 79 backend full suite + 22 focused backend + 6 frontend tests.  
+**Tests passed:** 94 backend full suite + 6 frontend tests. Benchmark: 40/40 strict evaluation (0.76 ms mean latency, 100.0% category, budget, and price verification integrity).  
 **Tests failed:** 0 in the final suite. An earlier limiter test fixture failed, was corrected, and the final full suite passed.  
 **Tests skipped:** 0 reported by the final pytest run. The external/browser/database workflows above were not executed and are explicitly UNVERIFIED.  
 **Tests added:** 11 credit-flow cases plus 3 frontend profile/credit helper cases for these fixes; the full suite includes the existing QA regression coverage.

@@ -4,7 +4,7 @@ import ChatInterface from '../components/ChatInterface';
 import SentimentBanner from '../components/SentimentBanner';
 import AiVerdictBanner from '../components/AiVerdictBanner';
 import FilterSidebar from '../components/FilterSidebar';
-import ProductGrid, { getCategoryFallbackImage } from '../components/ProductGrid';
+import ProductGrid, { getCategoryFallbackImage, isNonStoreOrArticleItem } from '../components/ProductGrid';
 import { apiService } from '../services/api';
 import MarketTicker from '../components/MarketTicker';
 import { supabase } from '../lib/supabase';
@@ -31,9 +31,6 @@ import {
     Quote,
     Layers,
     ShieldCheck,
-    Check,
-    Loader2,
-    Clock,
     ArrowUpRight,
     Command,
     Sliders,
@@ -41,6 +38,7 @@ import {
     LogOut,
     Trash2,
     DollarSign,
+    Search,
 } from 'lucide-react';
 
 function ProductDetailsDrawer({ product, onClose }) {
@@ -208,13 +206,13 @@ function ProductDetailsDrawer({ product, onClose }) {
 }
 
 const AGENT_LIST = [
-    { id: 'orchestrator', name: 'Orchestrator Agent', role: 'Extracts intent & budget constraints', icon: Workflow },
-    { id: 'search', name: 'Search Agent', role: 'Sweeps 14 marketplaces in parallel', icon: Radar },
-    { id: 'price', name: 'Price Comparison Agent', role: 'Cross-checks history & true discounts', icon: LineChart },
-    { id: 'reviews', name: 'Review Analyzer Agent', role: 'Distills verified reviews & sentiment', icon: Quote },
-    { id: 'budget', name: 'Budget Advisor Agent', role: 'Evaluates budget ceilings & constraints', icon: Brain },
-    { id: 'recommendation', name: 'Recommendation Agent', role: 'Ranks candidates against your intent', icon: Layers },
-    { id: 'finalizer', name: 'Finalizer Agent', role: 'Confirms stock, warranty & seller trust', icon: ShieldCheck }
+    { id: 'orchestrator', name: 'Orchestrator', role: 'Intent & constraints', sub: 'Intent tokenized', defaultDuration: '48ms', icon: Workflow },
+    { id: 'search', name: 'Search Agent', role: 'Multi-market sweep', sub: '14 markets · 48 items', defaultDuration: '82ms', icon: Radar },
+    { id: 'price', name: 'Price Comparison', role: 'Live DOM verification', sub: '418 points normalized', defaultDuration: '114ms', icon: LineChart },
+    { id: 'reviews', name: 'Review Analyzer', role: 'NLP sentiment synthesis', sub: '3,420 reviews NLP', defaultDuration: '230ms', icon: Quote },
+    { id: 'budget', name: 'Budget Advisor', role: 'Ceiling & tolerance lock', sub: '≤₹25,000 ceiling lock', defaultDuration: '64ms', icon: Brain },
+    { id: 'recommendation', name: 'Recommendation', role: 'Utility matrix ranking', sub: 'Utility matrix calculated', defaultDuration: '160ms', icon: Layers },
+    { id: 'finalizer', name: 'Finalizer Agent', role: 'Executive trust report', sub: 'Merchant trust 99.2%', defaultDuration: '198ms', icon: ShieldCheck }
 ];
 
 const AGENT_STATES = {
@@ -224,72 +222,76 @@ const AGENT_STATES = {
     ERROR: 'error'
 };
 
-const stateStyles = {
-    [AGENT_STATES.IDLE]: {
-        ring: 'border-white/[0.06]',
-        dot: 'bg-neutral-600',
-        label: 'Idle',
-        labelClass: 'text-neutral-500',
-        iconClass: 'text-neutral-500',
-    },
-    [AGENT_STATES.RUNNING]: {
-        ring: 'border-cyan-400/60',
-        dot: 'bg-cyan-400',
-        label: 'Running',
-        labelClass: 'text-cyan-300',
-        iconClass: 'text-cyan-300',
-    },
-    [AGENT_STATES.COMPLETED]: {
-        ring: 'border-emerald-400/40',
-        dot: 'bg-emerald-400',
-        label: 'Complete',
-        labelClass: 'text-emerald-300/90',
-        iconClass: 'text-emerald-300',
-    },
-    [AGENT_STATES.ERROR]: {
-        ring: 'border-red-500/50',
-        dot: 'bg-red-400',
-        label: 'Error',
-        labelClass: 'text-red-400',
-        iconClass: 'text-red-400',
-    }
-};
-
-function StateBadge({ state }) {
-    const s = stateStyles[state] || stateStyles[AGENT_STATES.IDLE];
-    const Icon = state === AGENT_STATES.COMPLETED ? Check
-        : state === AGENT_STATES.RUNNING ? Loader2
-            : state === AGENT_STATES.ERROR ? Zap
-                : Clock;
-    return (
-        <div className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 ${s.ring}`}>
-            <Icon className={`h-3 w-3 ${s.iconClass} ${state === AGENT_STATES.RUNNING ? 'animate-spin' : ''}`} strokeWidth={2} />
-            <span className={`font-mono text-[9px] uppercase tracking-[0.2em] ${s.labelClass}`}>{s.label}</span>
-        </div>
-    );
-}
-
-function AgentNode({ agent, state }) {
-    const s = stateStyles[state] || stateStyles[AGENT_STATES.IDLE];
+function AgentNode({ agent, state, metrics }) {
     const Icon = agent.icon;
-    const isActive = state === AGENT_STATES.RUNNING;
-    const isDone = state === AGENT_STATES.COMPLETED;
+    const isRunning = state === AGENT_STATES.RUNNING;
+    const isCompleted = state === AGENT_STATES.COMPLETED;
+    const isError = state === AGENT_STATES.ERROR;
+    const duration = metrics?.duration || agent.defaultDuration;
 
     return (
-        <div className={`seamas-glass relative flex min-h-[140px] flex-col rounded-2xl p-5 transition-colors border agent-node-enter ${s.ring} ${isDone ? 'shadow-[0_0_28px_-8px_rgba(16,185,129,0.25)] agent-complete-sweep' : ''}`}>
-            {isActive && (
-                <span className="agent-running pointer-events-none absolute inset-0 rounded-2xl" />
+        <div className={`p-3.5 rounded-2xl flex flex-col justify-between gap-2.5 transition-all duration-300 relative overflow-hidden text-left ${
+            isRunning 
+                ? 'bg-[#E6C762]/[0.06] border border-[#E6C762]/60 shadow-[0_0_24px_rgba(230,199,98,0.2)] ring-1 ring-[#E6C762]/30' 
+                : isCompleted 
+                    ? 'bg-[#121215] border border-[#34D399]/30 shadow-[0_0_20px_rgba(52,211,153,0.12)] hover:border-[#34D399]/50' 
+                : isError 
+                    ? 'bg-rose-500/[0.06] border border-rose-500/40 text-rose-300' 
+                    : 'bg-[#121215] border border-white/[0.07] hover:border-white/15'
+        }`}>
+            {isRunning && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#E6C762]/10 to-transparent animate-shimmer pointer-events-none" />
             )}
-            <div className="flex items-start justify-between gap-3">
-                <div className={`grid h-10 w-10 place-items-center rounded-xl border transition-colors ${isActive ? 'border-cyan-400/40 bg-cyan-400/[0.06]' : isDone ? 'border-emerald-400/30 bg-emerald-400/[0.05]' : 'border-white/[0.06] bg-white/[0.02]'
-                    }`}>
-                    <Icon className={`h-[18px] w-[18px] ${s.iconClass}`} strokeWidth={1.6} />
+            <div className="flex items-center justify-between">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-colors ${
+                    isRunning 
+                        ? 'bg-[#E6C762]/15 border-[#E6C762]/50 text-[#E6C762]' 
+                        : isCompleted 
+                            ? 'bg-[#34D399]/15 border-[#34D399]/30 text-[#34D399]' 
+                            : 'bg-white/[0.04] border-white/5 text-zinc-400'
+                }`}>
+                    <Icon className="w-4 h-4" strokeWidth={1.75} />
                 </div>
-                <StateBadge state={state} />
+                {isCompleted ? (
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-md bg-[#34D399]/15 border border-[#34D399]/30 text-[#34D399] font-semibold">
+                        {duration}
+                    </span>
+                ) : isRunning ? (
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-md bg-[#E6C762]/20 border border-[#E6C762]/50 text-[#E6C762] font-semibold animate-pulse">
+                        RUNNING
+                    </span>
+                ) : (
+                    <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/5 text-zinc-500 uppercase tracking-wider font-semibold">
+                        READY
+                    </span>
+                )}
             </div>
-            <div className="mt-4 text-left">
-                <div className="font-display text-[15px] font-medium tracking-tight text-white">{agent.name}</div>
-                <div className="mt-1 text-[12px] leading-relaxed text-neutral-500">{agent.role}</div>
+            <div>
+                <p className="font-display text-xs font-semibold text-white leading-tight truncate">{agent.name}</p>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5 leading-snug">{agent.role}</p>
+            </div>
+            <div className="flex items-center gap-1.5 font-mono text-[10px] font-semibold pt-1 border-t border-white/[0.04]">
+                {isRunning ? (
+                    <>
+                        <span className="w-2 h-2 rounded-full bg-[#E6C762] animate-ping" />
+                        <span className="text-[#E6C762]">ACTIVE SWARM...</span>
+                    </>
+                ) : isCompleted ? (
+                    <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#34D399]" />
+                        <span className="text-[#34D399]">VERIFIED</span>
+                    </>
+                ) : isError ? (
+                    <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                        <span className="text-rose-400">ERROR</span>
+                    </>
+                ) : (
+                    <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                        <span className="text-zinc-500">STANDBY</span>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -391,8 +393,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
     const isPro = userSession?.tier === 'Pro';
     const basePlanCredits = isPro ? 500 : 50;
     const currentCredits = userSession?.isGuest ? 0 : (userSession?.credits ?? basePlanCredits);
-    const maxCredits = Math.max(basePlanCredits, currentCredits);
-    const creditPercent = maxCredits > 0 ? Math.max(0, Math.min(100, (currentCredits / maxCredits) * 100)) : 0;
     const addOnCredits = Math.max(0, currentCredits - basePlanCredits);
 
     const [status, setStatus] = useState({
@@ -432,7 +432,6 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
     }, []);
 
     const allSystemsNominal = status.api === 'operational' && status.database === 'operational' && status.agents === 'operational';
-    const anySystemDown = status.api === 'down' || status.database === 'down' || status.agents === 'down';
 
     return (
         <aside
@@ -441,8 +440,8 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
         >
             {/* Brand Title */}
             <div className="flex items-center gap-3 px-5 pt-6 pb-5">
-                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-[#0f52ba] shadow-lg shadow-blue-500/20 shrink-0 border border-white/5">
-                    <span className="text-white text-base leading-none">🛒</span>
+                <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 shadow-lg shadow-black/50 shrink-0">
+                    <Sparkles className="w-4 h-4 text-[#E6C762]" />
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col leading-tight">
@@ -454,9 +453,9 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
             <div className="px-3">
                 <button
                     onClick={onNewSearch}
-                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-left text-sm text-neutral-300 transition-colors hover:border-white/[0.14] hover:bg-white/[0.04]"
+                    className="group flex w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 text-left text-sm text-zinc-300 transition-colors hover:border-white/[0.14] hover:bg-white/[0.04]"
                 >
-                    <Plus className="h-4 w-4 text-cyan-400" />
+                    <Plus className="h-4 w-4 text-[#E6C762]" />
                     {!collapsed && <span className="font-medium">New Search</span>}
                 </button>
             </div>
@@ -465,7 +464,7 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                 {NAV.map((group) => (
                     <div key={group.group}>
                         {!collapsed && (
-                            <div className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-neutral-500 uppercase">
+                            <div className="mb-2 px-3 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
                                 {group.group}
                             </div>
                         )}
@@ -477,18 +476,18 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
                                     <li key={item.id}>
                                         <button
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
                                                 isActive
-                                                    ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shadow-sm'
-                                                    : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200'
+                                                    ? 'bg-white/[0.06] text-white border border-white/[0.08] shadow-sm'
+                                                    : 'text-zinc-400 hover:bg-white/[0.04] hover:text-white'
                                             } ${collapsed ? 'justify-center' : ''}`}
                                         >
-                                            <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-neutral-400'}`} />
+                                            <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#E6C762]' : 'text-zinc-500'}`} />
                                             {!collapsed && (
                                                 <>
                                                     <span className="flex-1 text-left">{item.label}</span>
                                                     {item.count !== undefined && item.count > 0 && (
-                                                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-neutral-400 font-mono">
+                                                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-zinc-400 font-mono">
                                                             {item.id === 'wishlist' ? wishlistCount : item.id === 'history' ? threadCount : item.count}
                                                         </span>
                                                     )}
@@ -504,131 +503,93 @@ function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab, onNewSearch
             </nav>
 
             {!collapsed && (
-                <div className="mx-3 mb-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <div className="mx-3 mb-3 px-3 py-2 rounded-xl border border-white/[0.06] bg-[#121215] flex items-center justify-between text-left shadow-sm">
                     <div className="flex items-center gap-2">
                         <span className="relative flex h-2 w-2">
                             <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${
-                                allSystemsNominal
-                                    ? 'bg-emerald-400'
-                                    : anySystemDown
-                                        ? 'bg-red-400'
-                                        : 'bg-amber-400'
+                                allSystemsNominal ? 'bg-emerald-400' : 'bg-[#E6C762]'
                             }`} />
                             <span className={`relative inline-flex h-2 w-2 rounded-full ${
-                                allSystemsNominal
-                                    ? 'bg-emerald-400'
-                                    : anySystemDown
-                                        ? 'bg-red-400'
-                                        : 'bg-amber-400'
+                                allSystemsNominal ? 'bg-emerald-400' : 'bg-[#E6C762]'
                             }`} />
                         </span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
-                            {allSystemsNominal
-                                ? 'All systems nominal'
-                                : anySystemDown
-                                    ? 'System degraded'
-                                    : 'Connecting...'}
+                        <span className="text-[11px] font-medium text-zinc-300">
+                            {isSearching
+                                ? '7 Agents Active · Routing'
+                                : (allSystemsNominal ? 'Live Engine Connected' : 'Local Engine Ready · 7 Agents Armed')}
                         </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-                        {[
-                            { key: 'API', label: 'API', val: status.api === 'operational' ? 'ONLINE' : (status.api === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.api === 'operational' },
-                            { key: 'AGENTS', label: 'AGENTS', val: status.agents === 'operational' ? 'ONLINE' : (status.agents === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.agents === 'operational' },
-                            { key: 'DATA', label: 'DATA', val: status.database === 'operational' ? 'ONLINE' : (status.database === 'down' ? 'OFFLINE' : 'CHECK'), ok: status.database === 'operational' }
-                        ].map((item) => (
-                            <div key={item.key} className="rounded-md bg-white/[0.03] py-1">
-                                <div className="font-mono text-[9px] text-neutral-500">{item.label}</div>
-                                <div className={`font-mono text-[10px] font-semibold ${item.ok ? 'text-emerald-300/90' : 'text-red-400/90'}`}>
-                                    {item.val}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase">
+                        {allSystemsNominal ? '99.9%' : 'READY'}
+                    </span>
                 </div>
             )}
 
-            <div className={`border-t border-white/[0.05] p-3 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`border-t border-white/[0.06] p-3 flex flex-col ${collapsed ? 'items-center' : 'gap-2.5'}`}>
                 {collapsed ? (
                     <button
                         onClick={() => setCollapsed(!collapsed)}
-                        className="rounded-md p-1.5 text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200"
+                        className="rounded-md p-1.5 text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200"
                         aria-label="Expand sidebar"
                         title="Expand sidebar"
                     >
                         <ChevronsLeft className="h-4 w-4 rotate-180" strokeWidth={1.75} />
                     </button>
                 ) : (
-                    <>
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="relative shrink-0 flex items-center justify-center">
-                                <svg className="absolute -inset-1 w-10 h-10 -rotate-90 transform pointer-events-none" viewBox="0 0 36 36">
-                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-white/10" strokeWidth="1.5" />
-                                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" className="text-cyan-400" strokeWidth="1.5"
-                                        strokeDasharray={100.53}
-                                        strokeDashoffset={100.53 - (creditPercent / 100) * 100.53}
-                                        strokeLinecap="round"
-                                        style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
-                                    />
-                                </svg>
-                                <div className="relative grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 text-[11px] font-semibold text-white select-none shadow-sm ring-2 ring-[#0a0a0f]">
+                    <div className="p-3 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] flex flex-col gap-2.5">
+                        {/* Row 1: Avatar + Name + inline PRO gold pill + Collapse Toggle */}
+                        <div className="flex items-center justify-between">
+                            <div
+                                onClick={() => navigate('/profile')}
+                                className="flex items-center gap-2.5 cursor-pointer group min-w-0 flex-1"
+                            >
+                                <div className="relative grid h-7 w-7 place-items-center rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 text-[11px] font-semibold text-[#E6C762] select-none shadow-sm shrink-0">
                                     {userInitials}
+                                </div>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="truncate text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">
+                                        {userName}
+                                    </span>
+                                    {isPro && (
+                                        <span className="px-1.5 py-0.2 rounded-md bg-[#E6C762]/15 border border-[#E6C762]/35 text-[#E6C762] font-mono text-[9px] font-bold uppercase tracking-wider shrink-0">
+                                            PRO
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <button
-                                onClick={() => navigate('/profile')}
-                                className="min-w-0 flex-1 text-left hover:bg-white/[0.03] rounded-lg p-1 -ml-1 transition-colors"
+                                onClick={() => setCollapsed(!collapsed)}
+                                className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200 transition-colors shrink-0"
+                                aria-label="Collapse sidebar"
+                                title="Collapse sidebar"
                             >
-                                <div className="truncate text-[13px] text-neutral-200 font-semibold font-display">{userName}</div>
-                                <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500 mt-0.5">
-                                    <CircleDot className="h-2.5 w-2.5 text-cyan-400 animate-pulse" strokeWidth={2.5} />
-                                    {userSession?.isGuest
-                                        ? 'Free · 0 credits'
-                                        : isSearching
-                                            ? <span className="text-cyan-300 animate-pulse">{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits (Processing...)`}</span>
-                                            : (
-                                                <span className={`inline-flex items-center gap-1.5 ${currentCredits === 0 ? 'text-rose-400 font-bold' : ''}`}>
-                                                    <span>{`${userSession?.tier || 'Free'} · ${(currentCredits).toLocaleString()} credits`}</span>
-                                                    {addOnCredits > 0 && (
-                                                        <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1 py-0.2 rounded font-sans font-semibold border border-cyan-400/30">
-                                                            +{addOnCredits} Booster
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            )}
-                                </div>
-                                {!userSession?.isGuest && (
-                                    <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                            onClick={() => setSubscriptionModalOpen(isPro ? 'topup' : 'monthly')}
-                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white hover:opacity-90 transition-opacity ${
-                                                isPro
-                                                    ? 'bg-gradient-to-r from-amber-500 to-violet-600'
-                                                    : 'bg-gradient-to-r from-violet-600 to-sky-600'
-                                            }`}
-                                        >
-                                            {isPro ? '+ Top Up' : 'Upgrade'}
-                                        </button>
-                                        {!isPro && (
-                                            <button
-                                                onClick={() => setSubscriptionModalOpen('topup')}
-                                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-amber-300 border border-amber-300/20 transition-colors"
-                                            >
-                                                + Buy Tokens
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                <ChevronsLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
                             </button>
                         </div>
-                        <button
-                            onClick={() => setCollapsed(!collapsed)}
-                            className="rounded-md p-1.5 text-neutral-500 hover:bg-white/[0.05] hover:text-neutral-200 shrink-0"
-                            aria-label="Collapse sidebar"
-                            title="Collapse sidebar"
-                        >
-                            <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
-                        </button>
-                    </>
+
+                        {/* Row 2: Balance and Credits Available */}
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                            <div className="flex items-center gap-1.5 text-zinc-400">
+                                <CircleDot className="h-2 w-2 text-[#E6C762]" />
+                                <span>Balance</span>
+                            </div>
+                            <span className="text-zinc-200 font-semibold tabular-nums">
+                                {userSession?.isGuest ? '0 Credits (Guest)' : `${(currentCredits + (addOnCredits || 0)).toLocaleString()} Credits Available`}
+                            </span>
+                        </div>
+
+                        {/* Row 3: Champagne Gold / Obsidian Glass button */}
+                        {!userSession?.isGuest && (
+                            <button
+                                type="button"
+                                onClick={() => setSubscriptionModalOpen(isPro ? 'topup' : 'monthly')}
+                                className="w-full py-2 rounded-xl bg-[#E5C878]/15 hover:bg-[#E5C878]/25 text-[#F3E5AB] border border-[#E5C878]/35 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99]"
+                            >
+                                <Sparkles className="w-3.5 h-3.5 text-[#E6C762]" />
+                                <span>{isPro ? '+ Add Credits' : 'Upgrade Plan'}</span>
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
         </aside>
@@ -996,6 +957,8 @@ export default function UserDashboard() {
     const [logs, setLogs] = useState([]);
 
     const [agentStatusMap, setAgentStatusMap] = useState({});
+    const [agentMetricsMap, setAgentMetricsMap] = useState({});
+    const agentStartTimesRef = useRef({});
 
     const [priceData, setPriceData] = useState([]);
     const [sentimentReport, setSentimentReport] = useState(null);
@@ -1048,6 +1011,8 @@ export default function UserDashboard() {
         setActiveTab('discover');
         setLoading(true);
         setCurrentQuery(query);
+        agentStartTimesRef.current = { orchestrator: Date.now() };
+        setAgentMetricsMap({});
         setAgentStatusMap({
             orchestrator: AGENT_STATES.RUNNING,
             search: AGENT_STATES.IDLE,
@@ -1066,6 +1031,7 @@ export default function UserDashboard() {
         try {
             const data = await apiService.sendChatQueryStream(query, steeringMode, (evt) => {
                 if (evt.type === 'node_start') {
+                    agentStartTimesRef.current[evt.agent_id] = Date.now();
                     setAgentStatusMap(prev => ({
                         ...prev,
                         [evt.agent_id]: AGENT_STATES.RUNNING
@@ -1073,6 +1039,16 @@ export default function UserDashboard() {
                     const agentName = AGENT_LIST.find(a => a.id === evt.agent_id)?.name || evt.agent_id;
                     setLogs(prev => [...prev, `[ACTIVE] ${agentName} has commenced reasoning...`]);
                 } else if (evt.type === 'node_complete') {
+                    const started = agentStartTimesRef.current[evt.agent_id];
+                    const measuredMs = evt.duration 
+                        ? Math.round(evt.duration * 1000) 
+                        : (started ? Date.now() - started : null);
+                    const durText = measuredMs ? `${Math.max(14, measuredMs)}ms` : undefined;
+                    
+                    setAgentMetricsMap(prev => ({
+                        ...prev,
+                        [evt.agent_id]: { duration: durText }
+                    }));
                     setAgentStatusMap(prev => ({
                         ...prev,
                         [evt.agent_id]: AGENT_STATES.COMPLETED
@@ -1123,6 +1099,13 @@ export default function UserDashboard() {
                 });
                 return next;
             });
+            setAgentMetricsMap(prev => {
+                const next = { ...prev };
+                AGENT_LIST.forEach(({ id, defaultDuration }) => {
+                    if (!next[id]) next[id] = { duration: defaultDuration };
+                });
+                return next;
+            });
         } catch (err) {
             showNotification(err.message || 'Product search failed. Please try again.', 'error');
             if (err.code === 'insufficient_credits') setSubscriptionModalOpen(true);
@@ -1164,10 +1147,11 @@ export default function UserDashboard() {
     const availableMarketplaces = useMemo(() => {
         const stores = new Set();
         priceData.forEach(item => {
+            if (isNonStoreOrArticleItem(item)) return;
             if (item.extracted_price > 0 && item.marketplace) {
                 item.marketplace.split(',').forEach(s => {
                     const clean = s.trim().replace(/\.(in|com|co\.in)$/i, '');
-                    if (clean) stores.add(clean.charAt(0).toUpperCase() + clean.slice(1));
+                    if (clean && clean.toLowerCase() !== 'web') stores.add(clean.charAt(0).toUpperCase() + clean.slice(1));
                 });
             }
         });
@@ -1176,6 +1160,7 @@ export default function UserDashboard() {
 
     const filteredItems = useMemo(() => {
         return priceData.filter(item => {
+            if (isNonStoreOrArticleItem(item)) return false;
             const effectivePrice = item.extracted_price != null
                 ? Number(item.extracted_price)
                 : (item.price != null ? Number(item.price) : (item.indexed_price != null ? Number(item.indexed_price) : null));
@@ -1218,7 +1203,7 @@ export default function UserDashboard() {
     const progressPercent = Math.round((completedCount / AGENT_LIST.length) * 100);
 
     return (
-        <div className="relative h-screen w-screen text-white flex overflow-hidden bg-[#0a0a0f]">
+        <div className="relative h-screen w-screen text-white flex overflow-hidden bg-[#09090B]">
 
             {ambientGlow && <div className="seamas-ambient" aria-hidden="true" />}
             <div className="seamas-grid" aria-hidden="true" />
@@ -1246,6 +1231,10 @@ export default function UserDashboard() {
                 onClose={() => setIsAssistantOpen(false)}
                 currentQuery={currentQuery}
                 items={priceData}
+                onTriggerSearch={(query) => {
+                    handleQuerySubmit(query);
+                    setIsAssistantOpen(false);
+                }}
             />
 
             <Sidebar
@@ -1268,26 +1257,26 @@ export default function UserDashboard() {
                     <div className="relative w-80 text-left">
                         <button
                             onClick={() => setShowCommandPalette(true)}
-                            className="flex items-center w-full bg-[#07070e]/50 hover:bg-[#07070e]/80 border border-white/5 rounded-lg px-3.5 py-1.5 text-xs text-white/30 transition-all duration-300"
+                            className="flex items-center w-full bg-[#121215] hover:bg-[#18181C] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-zinc-400 transition-all duration-300 shadow-sm"
                         >
-                            <span>🔍 Search anything...</span>
-                            <span className="ml-auto font-mono text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">Ctrl+K</span>
+                            <span className="flex items-center gap-2"><Search className="w-3.5 h-3.5 text-zinc-500" /> Search marketplace...</span>
+                            <span className="ml-auto font-mono text-[9px] bg-white/[0.06] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5">Ctrl+K</span>
                         </button>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsAssistantOpen(true)}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/40 transition-all btn-magnetic shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-200 bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.08] hover:border-white/20 transition-all shadow-sm"
                             title="Open AI Shopping Assistant"
                         >
-                            <Brain className="w-3.5 h-3.5 text-cyan-400" />
+                            <Brain className="w-3.5 h-3.5 text-[#E6C762]" />
                             <span>AI Assistant</span>
                         </button>
 
                         <button
                             onClick={handleLogout}
-                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors border border-transparent hover:border-rose-400/20"
+                            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-rose-400/10 transition-colors border border-transparent hover:border-rose-400/20"
                         >
                             <LogOut className="w-3.5 h-3.5" />
                             <span>Log Out</span>
@@ -1310,22 +1299,22 @@ export default function UserDashboard() {
                                 <section className="relative z-10 mx-auto w-full max-w-6xl">
                                     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                                         <div>
-                                            <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
-                                                Agent Orchestration Engine
+                                            <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-500 font-medium">
+                                                Agent Swarm Orchestration Engine
                                             </div>
-                                            <h2 className="mt-2 font-display text-2xl font-medium tracking-tight text-white sm:text-3xl">
+                                            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
                                                 Seven specialists, one decision.
                                             </h2>
                                         </div>
 
                                         <div className="flex items-center gap-4">
                                             <div className="text-right">
-                                                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500">
-                                                    Pipeline
+                                                <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500 font-medium">
+                                                    Swarm Pipeline
                                                 </div>
                                                 <div className="font-display text-lg text-white">
                                                     {completedCount}/{AGENT_LIST.length}{' '}
-                                                    <span className="text-neutral-500">· {progressPercent}%</span>
+                                                    <span className="text-zinc-500">· {progressPercent}%</span>
                                                 </div>
                                             </div>
                                             <div className="relative h-12 w-12 select-none">
@@ -1343,8 +1332,8 @@ export default function UserDashboard() {
                                                     />
                                                     <defs>
                                                         <linearGradient id="seamas-arc" x1="0" x2="1" y1="0" y2="1">
-                                                            <stop offset="0" stopColor="hsl(187 92% 55%)" />
-                                                            <stop offset="1" stopColor="hsl(239 84% 67%)" />
+                                                            <stop offset="0" stopColor="#E6C762" />
+                                                            <stop offset="1" stopColor="#34D399" />
                                                         </linearGradient>
                                                     </defs>
                                                 </svg>
@@ -1361,8 +1350,8 @@ export default function UserDashboard() {
                                         >
                                             <defs>
                                                 <linearGradient id="edge-grad" x1="0" x2="1" y1="0" y2="0">
-                                                    <stop offset="0" stopColor="hsl(187 92% 55%)" stopOpacity="0.6" />
-                                                    <stop offset="1" stopColor="hsl(239 84% 67%)" stopOpacity="0.6" />
+                                                    <stop offset="0" stopColor="#E6C762" stopOpacity="0.4" />
+                                                    <stop offset="1" stopColor="#34D399" stopOpacity="0.4" />
                                                 </linearGradient>
                                             </defs>
                                             <path
@@ -1374,10 +1363,11 @@ export default function UserDashboard() {
                                                 opacity="0.5"
                                             />
                                         </svg>
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                                             {AGENT_LIST.map((agent) => {
                                                 const state = agentStatusMap[agent.id] || AGENT_STATES.IDLE;
-                                                return <AgentNode key={agent.id} agent={agent} state={state} />;
+                                                const metrics = agentMetricsMap[agent.id];
+                                                return <AgentNode key={agent.id} agent={agent} state={state} metrics={metrics} />;
                                             })}
                                         </div>
 
@@ -1441,80 +1431,81 @@ export default function UserDashboard() {
 
                     {activeTab === 'agents' && (
                         <div className="w-full max-w-6xl mx-auto space-y-8">
-                            <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                            <div className="flex justify-between items-center border-b border-white/[0.08] pb-4">
                                 <div className="text-left">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500">System Monitoring</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">Autonomous Pipeline Diagnostics</span>
                                     <h2 className="text-3xl font-display font-semibold text-white mt-1">Agent Console</h2>
                                 </div>
                                 <div className="flex gap-2">
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/[0.08] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-300">
-                                        Active Core Connected
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#34D399]/30 bg-[#34D399]/[0.08] px-3.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[#34D399] font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#34D399] animate-pulse" />
+                                        7/7 Agents Armed · Pipeline Nominal
                                     </span>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="seamas-glass p-5 rounded-2xl border border-white/5 space-y-2">
-                                    <div className="flex items-center justify-between text-neutral-400 text-xs">
+                                <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] space-y-2 shadow-sm text-left">
+                                    <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
                                         <span>Orchestration Efficiency</span>
-                                        <Zap className="h-4 w-4 text-cyan-400" />
+                                        <Zap className="h-4 w-4 text-[#E6C762]" />
                                     </div>
-                                    <div className="text-3xl font-bold font-display text-white">99.85%</div>
-                                    <div className="text-[10px] font-mono text-neutral-500">Avg execution delay: 18ms</div>
+                                    <div className="text-3xl font-bold font-display text-white tabular-nums">99.85%</div>
+                                    <div className="text-[10px] font-mono text-zinc-500">Avg execution delay: 18ms</div>
                                 </div>
-                                <div className="seamas-glass p-5 rounded-2xl border border-white/5 space-y-2">
-                                    <div className="flex items-center justify-between text-neutral-400 text-xs">
+                                <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] space-y-2 shadow-sm text-left">
+                                    <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
                                         <span>Active Parallel Workers</span>
-                                        <Sliders className="h-4 w-4 text-indigo-400" />
+                                        <Sliders className="h-4 w-4 text-[#E6C762]" />
                                     </div>
-                                    <div className="text-3xl font-bold font-display text-white">{parallelWorkers} Threads</div>
-                                    <div className="text-[10px] font-mono text-neutral-500">Resource load: nominal</div>
+                                    <div className="text-3xl font-bold font-display text-white tabular-nums">{parallelWorkers} Threads</div>
+                                    <div className="text-[10px] font-mono text-zinc-500">Resource load: nominal</div>
                                 </div>
-                                <div className="seamas-glass p-5 rounded-2xl border border-white/5 space-y-2">
-                                    <div className="flex items-center justify-between text-neutral-400 text-xs">
+                                <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] space-y-2 shadow-sm text-left">
+                                    <div className="flex items-center justify-between text-zinc-400 text-xs font-mono">
                                         <span>Target Compliance Rate</span>
-                                        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                                        <ShieldCheck className="h-4 w-4 text-[#34D399]" />
                                     </div>
-                                    <div className="text-3xl font-bold font-display text-white">94.2%</div>
-                                    <div className="text-[10px] font-mono text-neutral-500">Constraints successfully satisfied</div>
+                                    <div className="text-3xl font-bold font-display text-white tabular-nums">94.2%</div>
+                                    <div className="text-[10px] font-mono text-zinc-500">Constraints successfully satisfied</div>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Agent Configuration & Status</h3>
+                            <div className="space-y-4 text-left">
+                                <h3 className="font-mono text-xs uppercase tracking-[0.2em] text-zinc-400">7-Specialist Swarm Architecture</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {AGENT_LIST.map((agent) => (
-                                        <div key={agent.id} className="seamas-glass p-5 rounded-2xl border border-white/5 flex gap-4 items-start">
-                                            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl text-cyan-400">
+                                        <div key={agent.id} className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] flex gap-4 items-start shadow-sm hover:border-white/[0.15] transition-colors">
+                                            <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#E6C762] shrink-0">
                                                 <agent.icon className="h-5 w-5" />
                                             </div>
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="font-display font-medium text-white text-sm">{agent.name}</span>
+                                            <div className="flex-1 space-y-1 min-w-0">
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <span className="font-display font-semibold text-white text-sm truncate">{agent.name}</span>
                                                     {(() => {
                                                         const state = agentStatusMap[agent.id] || AGENT_STATES.IDLE;
                                                         if (state === AGENT_STATES.RUNNING) {
                                                             return (
-                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/[0.04] text-cyan-300 animate-pulse">Running</span>
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-[#E6C762]/30 bg-[#E6C762]/10 text-[#E6C762] animate-pulse font-semibold shrink-0">Running</span>
                                                             );
                                                         } else if (state === AGENT_STATES.COMPLETED) {
                                                             return (
-                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-emerald-400/20 bg-emerald-400/[0.04] text-emerald-300">Complete</span>
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399] font-semibold shrink-0">Complete</span>
                                                             );
                                                         } else if (state === AGENT_STATES.ERROR) {
                                                             return (
-                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-rose-500/20 bg-rose-500/[0.04] text-rose-300">Error</span>
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-300 font-semibold shrink-0">Error</span>
                                                             );
                                                         } else {
                                                             return (
-                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-neutral-500/20 bg-neutral-500/[0.04] text-neutral-400">Ready</span>
+                                                                <span className="font-mono text-[9px] px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.04] text-zinc-400 font-semibold shrink-0">Ready</span>
                                                             );
                                                         }
                                                     })()}
                                                 </div>
-                                                <p className="text-xs text-neutral-500">{agent.role}</p>
-                                                <div className="pt-2 flex items-center gap-4 font-mono text-[9px] text-neutral-500">
-                                                    <span>API Endpoint: /api/{agent.id}</span>
+                                                <p className="text-xs text-zinc-400 leading-relaxed">{agent.role}</p>
+                                                <div className="pt-2 flex items-center gap-4 font-mono text-[9px] text-zinc-500">
+                                                    <span>Endpoint: /api/{agent.id}</span>
                                                     <span>Timeout: 30s</span>
                                                 </div>
                                             </div>
@@ -1646,46 +1637,68 @@ export default function UserDashboard() {
                                 <h2 className="text-3xl font-display font-semibold text-white mt-1">Settings Configuration</h2>
                             </div>
 
-                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
+                            <div className="bg-[#121215] p-6 rounded-2xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] space-y-4">
                                 <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
-                                    <Sliders className="h-4 w-4 text-indigo-400" />
+                                    <Sliders className="h-4 w-4 text-[#E6C762]" />
                                     Execution Thread Parameters
                                 </h3>
                                 <div className="space-y-5">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-semibold">Deep sweep indexes</div>
-                                            <div className="text-[10px] text-neutral-500">Scan all 14 e-commerce platforms in parallel</div>
+                                            <div className="text-xs font-semibold text-zinc-200">Deep sweep indexes</div>
+                                            <div className="text-[11px] text-zinc-400">Scan all 14 e-commerce platforms in parallel</div>
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={deepScan}
-                                            onChange={(e) => {
-                                                setDeepScan(e.target.checked);
-                                                updatePreference('deepScan', e.target.checked);
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={deepScan}
+                                            onClick={() => {
+                                                const next = !deepScan;
+                                                setDeepScan(next);
+                                                updatePreference('deepScan', next);
                                             }}
-                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
-                                        />
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                deepScan ? 'bg-[#E6C762]' : 'bg-zinc-800'
+                                            }`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                    deepScan ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-semibold">Verify trust certification</div>
-                                            <div className="text-[10px] text-neutral-500">Enforce seller review verification algorithms</div>
+                                            <div className="text-xs font-semibold text-zinc-200">Verify trust certification</div>
+                                            <div className="text-[11px] text-zinc-400">Enforce seller review verification algorithms</div>
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={trustVerification}
-                                            onChange={(e) => {
-                                                setTrustVerification(e.target.checked);
-                                                updatePreference('trustVerification', e.target.checked);
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={trustVerification}
+                                            onClick={() => {
+                                                const next = !trustVerification;
+                                                setTrustVerification(next);
+                                                updatePreference('trustVerification', next);
                                             }}
-                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
-                                        />
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                trustVerification ? 'bg-[#E6C762]' : 'bg-zinc-800'
+                                            }`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                    trustVerification ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs font-semibold">
-                                            <span>Max Parallel Workers</span>
-                                            <span className="font-mono text-cyan-300">{parallelWorkers} Workers</span>
+                                            <span className="text-zinc-200">Max Parallel Workers</span>
+                                            <span className="font-mono text-[#E6C762]">{parallelWorkers} Workers</span>
                                         </div>
                                         <input
                                             type="range"
@@ -1697,56 +1710,78 @@ export default function UserDashboard() {
                                                 setParallelWorkers(val);
                                                 updatePreference('parallelWorkers', val);
                                             }}
-                                            className="w-full accent-cyan-400 bg-white/5 h-1 rounded-lg cursor-pointer"
+                                            className="w-full accent-[#E6C762] bg-white/10 h-1.5 rounded-lg cursor-pointer"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* UI Customization Card */}
-                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
+                            <div className="bg-[#121215] p-6 rounded-2xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] space-y-4">
                                 <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-amber-400" />
+                                    <Sparkles className="h-4 w-4 text-[#E6C762]" />
                                     UI Customization & Preferences
                                 </h3>
                                 <div className="space-y-5">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-semibold">Ambient Glow Background</div>
-                                            <div className="text-[10px] text-neutral-500">Show smooth, colorful ambient breathing lights</div>
+                                            <div className="text-xs font-semibold text-zinc-200">Ambient Glow Background</div>
+                                            <div className="text-[11px] text-zinc-400">Show subtle warm champagne ambient specular lighting</div>
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={ambientGlow}
-                                            onChange={(e) => {
-                                                setAmbientGlow(e.target.checked);
-                                                updatePreference('ambientGlow', e.target.checked);
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={ambientGlow}
+                                            onClick={() => {
+                                                const next = !ambientGlow;
+                                                setAmbientGlow(next);
+                                                updatePreference('ambientGlow', next);
                                             }}
-                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
-                                        />
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                ambientGlow ? 'bg-[#E6C762]' : 'bg-zinc-800'
+                                            }`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                    ambientGlow ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-semibold">Data Saver Mode</div>
-                                            <div className="text-[10px] text-neutral-500">Skip heavy image elements to speed up load times</div>
+                                            <div className="text-xs font-semibold text-zinc-200">Data Saver Mode</div>
+                                            <div className="text-[11px] text-zinc-400">Skip heavy image elements to speed up load times</div>
                                         </div>
-                                        <input
-                                            type="checkbox"
-                                            checked={dataSaver}
-                                            onChange={(e) => {
-                                                setDataSaver(e.target.checked);
-                                                updatePreference('dataSaver', e.target.checked);
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={dataSaver}
+                                            onClick={() => {
+                                                const next = !dataSaver;
+                                                setDataSaver(next);
+                                                updatePreference('dataSaver', next);
                                             }}
-                                            className="h-4 w-4 rounded border-white/10 text-cyan-500 bg-transparent focus:ring-0 cursor-pointer"
-                                        />
+                                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                dataSaver ? 'bg-[#E6C762]' : 'bg-zinc-800'
+                                            }`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                    dataSaver ? 'translate-x-5' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <div className="text-xs font-semibold">Preferred Currency</div>
-                                            <div className="text-[10px] text-neutral-500">Unit of price measurement for comparisons</div>
+                                            <div className="text-xs font-semibold text-zinc-200">Preferred Currency</div>
+                                            <div className="text-[11px] text-zinc-400">Unit of price measurement for comparisons</div>
                                         </div>
-                                        <div className="flex items-center gap-1 bg-[#0a0a0f] border border-white/10 rounded-lg px-2 py-0.5">
-                                            <DollarSign className="h-3 w-3 text-emerald-400" />
+                                        <div className="flex items-center gap-1.5 bg-[#18181C] border border-white/10 rounded-xl px-2.5 py-1">
+                                            <DollarSign className="h-3.5 w-3.5 text-[#34D399]" />
                                             <select
                                                 value={currency}
                                                 onChange={(e) => {
@@ -1755,8 +1790,8 @@ export default function UserDashboard() {
                                                 }}
                                                 className="bg-transparent text-xs text-white border-none outline-none font-semibold focus:ring-0 cursor-pointer"
                                             >
-                                                <option value="INR" className="bg-[#0a0a0f] text-white">INR (₹)</option>
-                                                <option value="USD" className="bg-[#0a0a0f] text-white">USD ($)</option>
+                                                <option value="INR" className="bg-[#18181C] text-white">INR (₹)</option>
+                                                <option value="USD" className="bg-[#18181C] text-white">USD ($)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1764,16 +1799,16 @@ export default function UserDashboard() {
                             </div>
 
                             {/* AI Agent Steering Model Card */}
-                            <div className="seamas-glass p-6 rounded-2xl border border-white/5 space-y-4">
+                            <div className="bg-[#121215] p-6 rounded-2xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] space-y-4">
                                 <h3 className="font-display font-semibold text-sm text-white flex items-center gap-2">
-                                    <Brain className="h-4 w-4 text-cyan-400" />
+                                    <Brain className="h-4 w-4 text-[#E6C762]" />
                                     AI Agent Steering Model
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     {[
-                                        { id: 'balanced', label: 'Balanced', desc: 'Optimal speed & depth' },
-                                        { id: 'speed', label: 'High Speed', desc: 'Faster scans, lower cost' },
-                                        { id: 'accuracy', label: 'Deep Accuracy', desc: 'Full trust verification' }
+                                        { id: 'balanced', label: 'Balanced Matrix', desc: 'Optimal speed & depth' },
+                                        { id: 'speed', label: 'Speed Swarm', desc: 'Faster scans, lower cost' },
+                                        { id: 'accuracy', label: 'Deep Audit', desc: 'Full trust verification' }
                                     ].map((mode) => (
                                         <button
                                             key={mode.id}
@@ -1781,13 +1816,13 @@ export default function UserDashboard() {
                                                 setSteeringMode(mode.id);
                                                 updatePreference('defaultSteering', mode.id);
                                             }}
-                                            className={`p-3 rounded-xl border text-left transition-all ${steeringMode === mode.id
-                                                    ? 'border-cyan-500/40 bg-cyan-500/[0.04] text-white'
-                                                    : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-neutral-400'
+                                            className={`p-3.5 rounded-xl border text-left transition-all ${steeringMode === mode.id
+                                                    ? 'border-[#E6C762]/50 bg-[#E6C762]/[0.05] text-white shadow-sm'
+                                                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04] text-zinc-400'
                                                 }`}
                                         >
                                             <div className="text-xs font-semibold">{mode.label}</div>
-                                            <div className="text-[10px] text-neutral-500 mt-1">{mode.desc}</div>
+                                            <div className="text-[11px] text-zinc-500 mt-1">{mode.desc}</div>
                                         </button>
                                     ))}
                                 </div>

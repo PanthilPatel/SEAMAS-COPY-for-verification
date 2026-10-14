@@ -79,7 +79,7 @@ This operational checklist documents the production readiness verification for *
   - `frontend/nginx.conf`: SPA routing (`try_files`), Content Security Policy (CSP), security headers (`X-Frame-Options`, `X-Content-Type-Options`).
   - `docker-compose.yml`: Full stack deployment (backend, frontend, SearXNG, Ollama).
 - [x] **Rate Limiting & Durability**:
-  - Upstash Redis distributed rate limiting with in-memory fallback.
+  - Upstash Redis atomic Lua sliding-window rate limiting (fail-closed in production; development bypass when unconfigured).
   - 120-second timeout cap on SSE streaming connections.
 
 ---
@@ -107,4 +107,4 @@ This operational checklist documents the production readiness verification for *
   - **Budget Value Precision**: 100.0% (40/40)
   - **Budget Type Intent Precision**: 100.0% (40/40)
   - **Price Verification Strictness**: 100.0% (40/40)
-  - **Mean Execution Latency**: 106.94 ms
+  - **Mean Execution Latency**: 0.76 ms

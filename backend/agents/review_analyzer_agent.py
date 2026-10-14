@@ -37,7 +37,7 @@ def _extract_rating_metrics(search_results: List[Dict[str, Any]]) -> Dict[str, A
                 pass
 
     avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
-    total_reviews = max(review_counts) if review_counts else (sum(review_counts) if review_counts else None)
+    total_reviews = max(review_counts) if review_counts else None
 
     return {
         "average_rating": avg_rating,

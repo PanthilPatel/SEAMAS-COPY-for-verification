@@ -16,16 +16,16 @@ function Divider() {
 export default function FilterSidebar({
     marketplaces = [],
     selectedMarketplaces = [],
-    setSelectedMarketplaces,
+    setSelectedMarketplaces = () => {},
     maxPriceLimit = 250000,
     priceRange = 250000,
-    setPriceRange,
+    setPriceRange = () => {},
     sortBy = 'default',
-    setSortBy,
+    setSortBy = () => {},
     verifiedOnly = false,
-    setVerifiedOnly,
+    setVerifiedOnly = () => {},
     inBudgetOnly = false,
-    setInBudgetOnly,
+    setInBudgetOnly = () => {},
     hasBudget = false,
 }) {
     const toggleMarketplace = (store) => {

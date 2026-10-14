@@ -5,6 +5,7 @@
 *.log
 out.json
 repomix-output.xml
+repomix*.xml
 
 # Environment variables
 .env

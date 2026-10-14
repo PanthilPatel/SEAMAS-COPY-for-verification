@@ -85,6 +85,20 @@ NON_SHOPPING_DOMAINS = [
     "deccanherald.com", "financialexpress.com", "thequint.com", "outlookindia.com",
     "kotaku.com", "polygon.com", "ign.com", "gamespot.com", "eurogamer.net",
     "macrumors.com", "9to5mac.com", "appleinsider.com", "xdaforums.com",
+    # Editorial, Comparison, Tech Specs & FinTech / EMI Portals
+    "pcquest.com", "bajajfinserv.in", "bajajfinservmarkets.in", "bankbazaar.com", "paisabazaar.com",
+    "goodreturns.in", "gizbot.com", "cybermedia.co.in", "telecrunch.com", "phonearena.com",
+    "notebookcheck.net", "kimovil.com", "nanoreview.net", "versus.com", "pricebaba.com",
+    "pricedekho.com", "compareraja.in", "findyogi.com", "herzindagi.com", "mensxp.com",
+    "idiva.com", "scoopwhoop.com", "yourstory.com", "inc42.com", "entrackr.com",
+    # Regional and National Indian News Portals (Articles & Press)
+    "pragativadi.com", "odishatv.in", "sambadenglish.com", "kalingatv.com", "theshillongtimes.com",
+    "telanganatoday.com", "deccanchronicle.com", "thestatesman.com", "mid-day.com", "tribuneindia.com",
+    "dailypioneer.com", "millenniumpost.in", "asianage.com", "theprint.in", "scroll.in",
+    "thewire.in", "newslaundry.com", "opindia.com", "swarajyamag.com", "dainikbhaskar.com",
+    "bhaskar.com", "patrika.com", "sandesh.com", "punjabkesari.in", "amarujala.com",
+    "navbharattimes.indiatimes.com", "lokmat.com", "eenadu.net", "sakshi.com", "manoramaonline.com",
+    "mathrubhumi.com", "dinamalar.com", "dailythanthi.com", "prajavani.net", "anandabazar.com",
     # Academic / Medical / Government / Non-Profit Repositories
     "nih.gov", "ncbi.nlm.nih.gov", "pmc.ncbi.nlm.nih.gov", "researchgate.net", "academia.edu",
     # B2B Directories & Classifieds (Not consumer e-commerce shopping storefronts)
@@ -101,14 +115,117 @@ NON_SHOPPING_DOMAINS = [
     "gettyimages.com", "istockphoto.com", "alamy.com"
 ]
 
+NEWS_AND_MEDIA_SUBSTRINGS = [
+    "news", "times", "daily", "express", "post", "patrika", "sandesh", "bhaskar",
+    "jagran", "vadi", "journal", "chronicle", "herald", "tribune", "gazette", "epaper",
+    "samachar", "khabar", "wire", "feed", "bulletin", "media", "press", "tv",
+    "channel", "radio", "report", "editorial", "mag", "magazine", "review",
+    "geek", "guide", "portal", "telecrunch", "gizmo", "beebom", "digit", "smartprix",
+    "mysmartprice", "91mobiles", "techradar", "tomsguide", "gsmarena", "cnet", "pcmag",
+    "theverge", "firstpost", "moneycontrol", "livemint", "ndtv", "hindustan",
+    "indiatimes", "indianexpress", "thehindu", "deccan", "indiatoday", "thequint",
+    "outlook", "mashable", "engadget", "slashgear", "wired", "reuters", "bloomberg",
+    "bbc", "cnn", "nytimes", "wsj", "pragativadi", "odishatv", "kalingatv",
+    "sambad", "theshillongtimes", "telanganatoday", "thestatesman", "theprint",
+    "scroll", "thewire", "newslaundry", "opindia", "swarajyamag", "anandabazar",
+    "amarujala", "lokmat", "eenadu", "sakshi", "manorama", "mathrubhumi", "dinamalar",
+    "dailythanthi", "prajavani"
+]
+
+ARTICLE_PATH_PATTERNS = [
+    "/article/", "/articles/", "/news/", "/epaper/", "/story/", "/stories/",
+    "/post/", "/posts/", "/blog/", "/blogs/", "/politics/", "/national/",
+    "/world/", "/sports/", "/entertainment/", "/business/", "/tech/", "/opinion/",
+    "/trending/", "/author/", "/tag/", "/category/", "/feed/", "/updates/",
+    "/explained/", "/editorial/", "/archive/", "/photo/", "/photos/", "/video/",
+    "/videos/", "/web-stories/", "/webstories/", "/hindi/", "/tamil/", "/telugu/"
+]
+
+ARTICLE_SLUG_KEYWORDS = [
+    "-now-available-", "-now-available", "-available-in-india-", "delayed",
+    "-release-date-", "-release-date", "-launch-date-", "-launch-in-india-",
+    "-rumors-", "-rumour-", "-leaks-", "-leaked-", "-what-we-know",
+    "-everything-we-know", "-specs-and-price", "-specifications-",
+    "-announced-", "-confirmed-", "-expected-", "-first-look",
+    "-hands-on", "-unboxing", "two-held", "arrested", "assault",
+    "murder", "killed", "police", "court", "parliament", "election"
+]
+
+ARTICLE_TITLE_PATTERNS = [
+    "now available in india", "base iphone 18 delayed", "iphone 18 delayed",
+    "delayed", "release date", "launch date", "everything we know",
+    "what we know", "first look", "hands on", "leaked", "rumors",
+    "held for", "arrested", "assault", "murder", "pragativadi",
+    "times of india", "hindustan times", "livemint", "ndtv",
+    "indian express", "the hindu", "deccan herald", "india today",
+    "the quint", "the print", "scroll.in"
+]
+
+
+def is_article_or_news_url(url: str, title: str = "") -> bool:
+    """
+    Returns True if the URL or title belongs to a news article, blog post, editorial,
+    or rumor portal rather than an authentic e-commerce shopping storefront.
+    """
+    if not url:
+        return True
+    try:
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower().replace("www.", "")
+        path = parsed.path.lower()
+        title_lower = (title or "").lower()
+
+        # If it's a known verified shopping store (Amazon, Flipkart, Croma, Apple, etc.)
+        # allow it unless it explicitly points to a corporate newsroom or blog
+        is_known_store = any(
+            hostname == dom or hostname.endswith("." + dom)
+            for dom in _DOMAIN_STORE_MAP.keys()
+        )
+        if is_known_store:
+            if any(app in path for app in ["/blog/", "/blogs/", "/news/", "/press-release/", "/newsroom/"]):
+                return True
+            return False
+
+        # If domain matches explicit non-shopping domains
+        if any(nsd in hostname for nsd in NON_SHOPPING_DOMAINS):
+            return True
+
+        # Foreign non-Indian storefronts (e.g. Tashkent, Uzbekistan, UAE)
+        foreign_indicators = ["tashkent", "uzbekistan", ".uz", ".ru", ".pk", ".bd", ".ng", "dubai", "uae", ".ae"]
+        if any(fi in hostname or fi in path for fi in foreign_indicators):
+            return True
+
+        # Non-store domain containing news/media indicators (e.g. pragativadi.com)
+        if any(nsub in hostname for nsub in NEWS_AND_MEDIA_SUBSTRINGS):
+            return True
+
+        # Path contains article / editorial directory
+        if any(app in path for app in ARTICLE_PATH_PATTERNS):
+            return True
+
+        # Path contains news slug keywords
+        if any(ask in path for ask in ARTICLE_SLUG_KEYWORDS):
+            return True
+
+        # Title contains news headline phrases or outlet names
+        if any(atp in title_lower for atp in ARTICLE_TITLE_PATTERNS):
+            return True
+
+        # Date paths (e.g., /2024/09/ or /2026/02/) typical of blog/news CMSs
+        if re.search(r"/\d{4}/\d{2}/", path):
+            return True
+
+        return False
+    except Exception:
+        return True
+
 
 def _domain_to_store(url: str) -> str:
     """
     Extracts a human-readable store label from a result URL.
-    Falls back to the clean main domain name if no direct mapping is found,
-    or 'Web' if domain is a known non-shopping portal.
+    Returns 'Web' if domain is a known non-shopping portal or article page.
     """
-    if not url:
+    if not url or is_article_or_news_url(url):
         return "Web"
     try:
         hostname = urlparse(url).hostname or ""
@@ -164,9 +281,8 @@ async def _query_tavily(effective_query: str, max_results: int, page: int, tavil
                     url = r.get("url", "")
                     if not url or url in seen_urls:
                         continue
-                    # Skip any non-shopping domains that bypassed the API filter
-                    url_lower = url.lower()
-                    if any(nsd in url_lower for nsd in NON_SHOPPING_DOMAINS):
+                    # Skip any non-shopping domains or news articles
+                    if is_article_or_news_url(url, r.get("title", "")):
                         continue
                     seen_urls.add(url)
                     store_label = _domain_to_store(url)
@@ -243,10 +359,10 @@ async def web_search_tool(
                             url = r.get("url", "")
                             if not url or url in seen_urls:
                                 continue
-                            url_lower = url.lower()
-                            if any(nsd in url_lower for nsd in NON_SHOPPING_DOMAINS):
+                            if is_article_or_news_url(url, r.get("title", "")):
                                 continue
                             seen_urls.add(url)
+                            store_label = _domain_to_store(url)
                             raw_thumb = r.get("thumbnail") or r.get("img_src") or r.get("image") or ""
                             if raw_thumb and ("/image_proxy" in raw_thumb or "url=" in raw_thumb):
                                 from urllib.parse import unquote

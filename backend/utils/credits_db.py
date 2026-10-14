@@ -10,14 +10,17 @@ def get_credits(user_id: str) -> dict:
     if not supabase:
         raise CreditServiceUnavailable("Credit database is not configured")
     try:
-        response = supabase.table("profiles").select("tier,credits").eq("id", user_id).single().execute()
+        try:
+            response = supabase.table("profiles").select("tier,credits,subscription_renew_at").eq("id", user_id).single().execute()
+        except Exception:
+            response = supabase.table("profiles").select("tier,credits").eq("id", user_id).single().execute()
         row = response.data
         if not isinstance(row, dict):
             raise ValueError("Profile credit record is missing")
         credits = row.get("credits")
         if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
             raise ValueError("Profile credit balance is invalid")
-        return {"tier": row.get("tier") or "free", "credits": credits, "renew_at": None}
+        return {"tier": row.get("tier") or "free", "credits": credits, "renew_at": row.get("subscription_renew_at")}
     except Exception as exc:
         raise CreditServiceUnavailable("Credit balance could not be loaded") from exc
 

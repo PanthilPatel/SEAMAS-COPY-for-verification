@@ -27,13 +27,17 @@ export default function AuthModal({ isOpen, onClose }) {
                 if (error) throw error;
                 onClose();
             } else {
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password
                 });
                 if (error) throw error;
-                setSuccessMsg('Signup successful! You can now sign in.');
-                setIsLogin(true);
+                if (data?.session) {
+                    onClose();
+                } else {
+                    setSuccessMsg('Signup successful! Please check your email to confirm your account.');
+                    setIsLogin(true);
+                }
             }
         } catch (err) {
             setError(err.message);
@@ -43,7 +47,7 @@ export default function AuthModal({ isOpen, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:pl-[360px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} />
             
             <div className="relative z-50 w-full max-w-sm animate-scale-in">

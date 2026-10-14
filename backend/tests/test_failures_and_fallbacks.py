@@ -26,9 +26,11 @@ async def test_empty_search_results_graceful_handling():
         "logs": []
     }
 
-    res = await seamas_graph.ainvoke(state)
-    assert "final_output" in res
-    assert "SEAMAS Product Evaluation Report" in res["final_output"]
+    from unittest.mock import patch, AsyncMock
+    with patch("agents.search_agent.web_search_tool", new_callable=AsyncMock, return_value=[]):
+        res = await seamas_graph.ainvoke(state)
+        assert "final_output" in res
+        assert "SEAMAS Product Evaluation Report" in res["final_output"]
 
 
 @pytest.mark.asyncio

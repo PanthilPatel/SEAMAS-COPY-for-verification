@@ -1,22 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, User, Star, Eye, EyeOff, MoreHorizontal, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { 
+    Mail, 
+    Lock, 
+    User, 
+    Star, 
+    Eye, 
+    EyeOff, 
+    Headphones, 
+    TrendingUp, 
+    ShieldCheck, 
+    CheckCircle2, 
+    Zap, 
+    ArrowRight, 
+    BarChart3, 
+    Share2, 
+    Sparkles,
+    Loader2
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-/* ── Bento Grid layout replaces old floating cards ── */
-
-
-
 export default function AuthPage({ defaultIsLogin = true }) {
-    const isLogin = defaultIsLogin;
+    const [isLogin, setIsLogin] = useState(defaultIsLogin);
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [activeSpreadTab, setActiveSpreadTab] = useState('live');
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Live email validation
+    const isEmailValid = useMemo(() => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    }, [formData.email]);
+
+    // Reactive Password Entropy Assessment
+    const entropy = useMemo(() => {
+        const pass = formData.password;
+        if (!pass) {
+            return { score: 0, label: 'Awaiting input', color: 'bg-zinc-700', width: '0%' };
+        }
+        let score = 0;
+        if (pass.length >= 6) score++;
+        if (pass.length >= 10) score++;
+        if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+        if (/[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass)) score++;
+
+        switch (score) {
+            case 1:
+                return { score: 1, label: 'Weak', color: 'bg-rose-500', width: '25%' };
+            case 2:
+                return { score: 2, label: 'Fair', color: 'bg-amber-400', width: '50%' };
+            case 3:
+                return { score: 3, label: 'Good', color: 'bg-[#E6C762]', width: '75%' };
+            case 4:
+            default:
+                return { score: 4, label: 'Cryptographic High', color: 'bg-emerald-400', width: '100%' };
+        }
+    }, [formData.password]);
+
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleModeSwitch = (loginMode) => {
+        setIsLogin(loginMode);
+        setError(null);
+        navigate(loginMode ? '/login' : '/signup', { replace: true });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -25,7 +75,6 @@ export default function AuthPage({ defaultIsLogin = true }) {
 
         try {
             if (isLogin) {
-                // Sign In using Supabase auth
                 const { data, error: authError } = await supabase.auth.signInWithPassword({
                     email: formData.email,
                     password: formData.password
@@ -41,7 +90,6 @@ export default function AuthPage({ defaultIsLogin = true }) {
                 }));
                 navigate('/dashboard');
             } else {
-                // Register using Supabase auth
                 const { data, error: authError } = await supabase.auth.signUp({
                     email: formData.email,
                     password: formData.password,
@@ -78,13 +126,13 @@ export default function AuthPage({ defaultIsLogin = true }) {
         try {
             setLoading(true);
             setError(null);
-            const { error } = await supabase.auth.signInWithOAuth({
+            const { error: authError } = await supabase.auth.signInWithOAuth({
                 provider: provider,
                 options: {
                     redirectTo: window.location.origin + '/dashboard'
                 }
             });
-            if (error) throw error;
+            if (authError) throw authError;
         } catch (err) {
             console.error(`${provider} sign in error:`, err);
             setError(err.message || `Failed to sign in with ${provider}.`);
@@ -93,263 +141,450 @@ export default function AuthPage({ defaultIsLogin = true }) {
     };
 
     const handleDemoLogin = () => {
-        localStorage.setItem('seamas_user_session', JSON.stringify({ name: 'Guest User', email: 'guest@seamas.ai', isLoggedIn: false, isGuest: true, tier: 'Free', credits: 0 }));
+        localStorage.setItem('seamas_user_session', JSON.stringify({
+            id: 'guest-explorer-uuid',
+            name: 'Guest Explorer',
+            email: 'guest@seamas.ai',
+            isLoggedIn: false,
+            isGuest: true,
+            tier: 'Free',
+            credits: 0
+        }));
         navigate('/dashboard', { replace: true });
     };
 
     return (
-        <div className="min-h-screen flex text-white overflow-hidden bg-[#070d19] font-sans relative">
-            <style>{`
-                @keyframes fadeSlideIn {
-                    from { opacity:0; transform: translateY(20px); }
-                    to   { opacity:1; transform: translateY(0); }
-                }
-                .fade-in { animation: fadeSlideIn 0.5s ease forwards; }
-                
-                /* Custom scrollbar for the charts */
-                .mini-bar {
-                    background: linear-gradient(to top, #3b82f6, #93c5fd);
-                    border-radius: 2px 2px 0 0;
-                }
-                .mini-bar.alt { background: linear-gradient(to top, #94a3b8, #e2e8f0); }
-                .mini-bar.dark { background: linear-gradient(to top, #1e293b, #64748b); }
-            `}</style>
+        <div className="min-h-screen w-full bg-[#09090B] text-white flex flex-col font-sans relative selection:bg-[#E6C762]/30 selection:text-white">
+            <div className="w-full min-h-screen grid grid-cols-1 lg:grid-cols-12 relative overflow-hidden">
 
-            {/* Background glowing effects & grid */}
-            <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)', backgroundSize: '100px 100px' }}></div>
-            <div className="absolute top-0 right-[20%] w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+                {/* Subtle warm champagne specular lighting */}
+                <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-gradient-to-b from-[#E6C762]/[0.05] via-white/[0.01] to-transparent blur-3xl pointer-events-none" />
 
-            {/* LEFT PANEL - Dashboard Grid */}
-            <div className="hidden lg:flex flex-1 items-center justify-center p-12 relative z-10">
-                <div className="w-full max-w-[640px] grid grid-cols-2 gap-4">
-
-                    {/* Box 1: Stores Scanned */}
-                    <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col justify-between shadow-2xl relative overflow-hidden group">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">Stores Scanned</span>
-                            <MoreHorizontal className="w-4 h-4 text-neutral-500" />
-                        </div>
-                        <div>
-                            <div className="text-4xl font-bold tracking-tight text-white mb-1">18,450+</div>
-                            <div className="text-xs text-neutral-400 mb-6">Active Stores</div>
-                        </div>
-                        {/* Mock Line Chart */}
-                        <div className="h-16 w-full flex items-end justify-between gap-1 mt-auto">
-                            {[40, 30, 50, 40, 60, 55, 70, 65, 80, 75, 90].map((h, i) => (
-                                <div key={i} className="w-full bg-blue-500/20 rounded-t-sm" style={{ height: `${h}%` }}>
-                                    <div className="w-full bg-blue-400 rounded-t-sm opacity-50" style={{ height: '2px' }}></div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="absolute bottom-5 left-5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
-                            Trending Now
-                        </div>
-                    </div>
-
-                    {/* Box 2: Trending Product */}
-                    <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col shadow-2xl">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">Trending Product</span>
-                            <MoreHorizontal className="w-4 h-4 text-neutral-500" />
-                        </div>
-                        <div className="w-full h-28 bg-[#e2e8f0] rounded-xl flex items-center justify-center text-4xl mb-3 shadow-inner">
-                            🎧
-                        </div>
-                        <div className="text-sm font-bold text-white">Sony WH-1000XM5</div>
-                        <div className="flex justify-between items-center mt-1 mb-4">
-                            <span className="text-lg font-bold text-white">₹26,990</span>
-                            <div className="flex items-center gap-1 bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                <Star className="w-3 h-3 fill-amber-400" /> 4.8
-                            </div>
-                        </div>
-                        {/* Mini sparkline */}
-                        <div className="h-6 w-full flex items-end justify-between gap-0.5 mt-auto">
-                            {[20, 30, 25, 40, 35, 50, 45, 60, 70, 80].map((h, i) => (
-                                <div key={i} className="w-full bg-blue-500/40 rounded-t-sm" style={{ height: `${h}%` }}></div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Box 3: Price Comparison */}
-                    <div className="col-span-2 bg-[#111827]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 shadow-2xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">Price Comparison</span>
-                            <div className="bg-white/5 px-2 py-1 rounded text-[10px] font-medium text-neutral-300 flex items-center gap-1 cursor-pointer">
-                                Last 7 Days <ChevronRight className="w-3 h-3 rotate-90" />
-                            </div>
-                        </div>
-                        {/* Legend */}
-                        <div className="flex items-center gap-4 justify-center mb-6 text-[10px] font-medium text-neutral-400">
-                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#1e293b]"></div> Amazon</div>
-                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3b82f6]"></div> BestBuy</div>
-                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#94a3b8]"></div> Target</div>
-                        </div>
-                        {/* Chart */}
-                        <div className="flex items-end justify-around h-32 mt-4 px-4 border-l border-b border-white/10 relative pb-2 pt-2">
-                            {/* Y-axis labels */}
-                            <div className="absolute -left-6 bottom-0 h-full flex flex-col justify-between text-[8px] text-neutral-500 py-2">
-                                <span>$30k</span><span>$20k</span><span>$10k</span><span>0</span>
-                            </div>
-
-                            {[1, 2, 3, 4].map(group => (
-                                <div key={group} className="flex items-end gap-1.5 h-full">
-                                    <div className="w-4 mini-bar dark" style={{ height: `${40 + Math.random() * 20}%` }}></div>
-                                    <div className="w-4 mini-bar" style={{ height: `${60 + Math.random() * 30}%` }}></div>
-                                    <div className="w-4 mini-bar alt" style={{ height: `${30 + Math.random() * 30}%` }}></div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex justify-around text-[10px] text-neutral-500 mt-3 font-medium">
-                            <span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span>
-                        </div>
-                    </div>
-
-                    {/* Box 4: Savings */}
-                    <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col justify-between shadow-2xl">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">Total Savings</span>
-                            <MoreHorizontal className="w-4 h-4 text-neutral-500" />
-                        </div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="flex items-center text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                <ArrowUpRight className="w-3 h-3 mr-0.5" /> 24.8%
-                            </div>
-                        </div>
-                        <div className="text-3xl font-bold tracking-tight text-white mt-1">₹14,230</div>
-                    </div>
-
-                    {/* Box 5: Insights */}
-                    <div className="bg-[#111827]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 flex flex-col justify-between shadow-2xl">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-[10px] font-bold tracking-widest text-neutral-400 uppercase">Data Insights</span>
-                            <MoreHorizontal className="w-4 h-4 text-neutral-500" />
-                        </div>
-                        <div className="text-xl font-bold text-white mb-2">Inter</div>
-                        <div className="h-12 w-full flex items-end justify-between gap-1 mt-auto">
-                            {[10, 20, 15, 30, 25, 40, 35, 50, 45, 60].map((h, i) => (
-                                <div key={i} className="w-full bg-indigo-500/30 rounded-t-sm" style={{ height: `${h}%` }}>
-                                    <div className="w-full bg-indigo-400 rounded-t-sm opacity-60" style={{ height: '2px' }}></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            {/* RIGHT PANEL - Glassmorphism Login */}
-            <div className="flex-1 flex items-center justify-center p-8 relative z-20">
-                <div className="w-full max-w-[440px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-10 shadow-2xl fade-in text-center relative overflow-hidden">
-                    {/* Glass shine effect */}
-                    <div className="absolute top-0 left-[-50%] w-[200%] h-32 bg-gradient-to-r from-transparent via-white/10 to-transparent -rotate-12 pointer-events-none"></div>
-
+                {/* LEFT COLUMN: Editorial Private Client Showcase */}
+                <div className="lg:col-span-7 p-6 sm:p-10 lg:p-14 flex flex-col justify-between relative bg-[#09090B] border-r border-white/[0.07]">
+                    
                     {/* Header */}
-                    <div className="flex items-center justify-center gap-2 mb-8">
-                        <div className="w-8 h-8 rounded-lg bg-[#0f52ba] flex items-center justify-center shadow-lg shadow-blue-500/20 text-sm">
-                            🛒
+                    <div className="relative z-10 mb-8 text-left">
+                        <div className="flex items-center gap-3 mb-4">
+                            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.1] text-zinc-300 font-mono text-[10px] uppercase font-semibold tracking-widest shadow-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#E6C762] shadow-[0_0_8px_#E6C762]" />
+                                SEAMAS PRIVATE CLIENT · INDIA MARKETPLACE INDEX
+                            </span>
+                            <span className="font-mono text-[11px] text-zinc-500 tracking-wider">LATENCY: 14ms</span>
                         </div>
-                        <span className="font-bold text-xl tracking-tight text-white">SEAMAS</span>
+                        <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-bold tracking-tight text-white max-w-xl leading-[1.12]">
+                            Curated market intelligence, <span className="font-editorial italic font-normal text-[#E6C762]">negotiated autonomously.</span>
+                        </h1>
+                        <p className="text-zinc-400 text-sm sm:text-base mt-4 max-w-lg leading-relaxed font-normal">
+                            Seven specialized autonomous agents deploy across verified retail ecosystems, analyzing price convergence, historical spread, and authorized seller legitimacy in milliseconds.
+                        </p>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-white mb-2">
-                        {isLogin ? 'Welcome back!' : 'Create an account'}
-                    </h2>
-                    <p className="text-sm text-neutral-400 mb-8">
-                        {isLogin ? 'Sign in to your account' : 'Sign up to start saving'}
-                    </p>
-
-                    {location.state?.infoMessage && (
-                        <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 text-left flex items-start gap-2">
-                            <span className="shrink-0 text-sm">ℹ️</span>
-                            <span>{location.state.infoMessage}</span>
+                    {/* Bento Grid of Real-Time Proof Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10 my-auto text-left">
+                        
+                        {/* Card 1: Indexed Marketplaces */}
+                        <div className="p-6 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.7)] flex flex-col justify-between">
+                            <div className="flex items-start justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Verified Retail Partners</span>
+                                    <span className="text-3xl sm:text-4xl text-[#F4F4F6] font-bold mt-1.5 tabular-nums tracking-tight">18,450+</span>
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-zinc-300">
+                                    <Share2 className="w-4 h-4" />
+                                </div>
+                            </div>
+                            <div className="my-4">
+                                <svg className="w-full h-9 text-[#E6C762]" fill="none" preserveAspectRatio="none" viewBox="0 0 100 24">
+                                    <path d="M0 20 L15 17 L30 19 L45 12 L60 14 L75 7 L90 9 L100 2" stroke="currentColor" strokeLinecap="round" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                                    <path d="M0 20 L15 17 L30 19 L45 12 L60 14 L75 7 L90 9 L100 2 V 24 H 0 Z" fill="currentColor" fillOpacity="0.1" />
+                                </svg>
+                            </div>
+                            <p className="text-xs text-zinc-400 truncate font-normal">
+                                Amazon India, Flipkart, Croma, Reliance Digital, Tata CLiQ
+                            </p>
                         </div>
-                    )}
 
-                    {error && (
-                        <div className="mb-6 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 text-left">
-                            {error}
+                        {/* Card 2: Featured Arbitrage Case Study */}
+                        <div className="p-6 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.7)] flex flex-col justify-between">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-200">
+                                        <Headphones className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Featured Deal</span>
+                                        <span className="text-sm font-semibold text-white truncate max-w-[140px]">Sony WH-1000XM5</span>
+                                    </div>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full bg-[#E6C762]/10 border border-[#E6C762]/30 text-[#E6C762] text-[11px] font-semibold flex items-center gap-1">
+                                    <Star className="w-3 h-3 fill-[#E6C762] text-[#E6C762]" /> 4.8
+                                </span>
+                            </div>
+                            <div className="mt-4 flex items-baseline gap-2.5">
+                                <span className="text-2xl font-bold text-[#F4F4F6] tabular-nums tracking-tight">₹24,990</span>
+                                <span className="text-xs line-through text-zinc-500 tabular-nums">₹31,990</span>
+                                <span className="text-[11px] font-semibold text-[#E6C762] bg-[#E6C762]/10 border border-[#E6C762]/25 px-2 py-0.5 rounded-md ml-auto tabular-nums">
+                                    -22% Privileged Delta
+                                </span>
+                            </div>
+                            <div className="mt-2.5 flex items-center justify-between text-xs text-zinc-400">
+                                <span>Target price achieved</span>
+                                <span className="text-[#34D399] font-medium flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> Prime Verified
+                                </span>
+                            </div>
                         </div>
-                    )}
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4 text-left">
-                        {!isLogin && (
-                            <div className="relative">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                                <input type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} required={!isLogin}
-                                    className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm text-white outline-none transition-all bg-[#0f172a]/60 border border-white/5 placeholder:text-neutral-500 focus:border-blue-500/50 focus:bg-[#0f172a]/80"
-                                />
+                        {/* Card 3: Wide Architectural Store Spread Analysis */}
+                        <div className="sm:col-span-2 p-6 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.7)]">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-zinc-300">
+                                        <BarChart3 className="w-4 h-4" />
+                                    </span>
+                                    <span className="text-base text-white font-semibold">Active Store Spread Analysis</span>
+                                </div>
+                                <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setActiveSpreadTab('live')}
+                                        className={`px-2.5 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-all ${activeSpreadTab === 'live' ? 'bg-white/10 text-white shadow-sm font-semibold' : 'text-zinc-400 hover:text-white'}`}
+                                    >
+                                        Live Radar
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setActiveSpreadTab('7days')}
+                                        className={`px-2.5 py-1 rounded font-mono text-[10px] uppercase tracking-wider transition-all ${activeSpreadTab === '7days' ? 'bg-white/10 text-white shadow-sm font-semibold' : 'text-zinc-400 hover:text-white'}`}
+                                    >
+                                        7-Day Average
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+                                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-[#E6C762]/30 flex flex-col">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-mono text-[10px] text-[#E6C762] font-semibold uppercase">Amazon</span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#E6C762] shadow-[0_0_6px_#E6C762]" />
+                                    </div>
+                                    <span className="text-base font-bold text-white tabular-nums">₹24,990</span>
+                                    <span className="text-[10px] text-[#34D399] mt-0.5 font-medium">Best Offer</span>
+                                </div>
+                                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-mono text-[10px] text-zinc-400 font-semibold uppercase">Flipkart</span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                                    </div>
+                                    <span className="text-base font-bold text-zinc-200 tabular-nums">₹25,490</span>
+                                    <span className="text-[10px] text-zinc-500 mt-0.5">+₹500 delta</span>
+                                </div>
+                                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-mono text-[10px] text-zinc-400 font-semibold uppercase">Croma</span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                                    </div>
+                                    <span className="text-base font-bold text-zinc-200 tabular-nums">₹26,990</span>
+                                    <span className="text-[10px] text-zinc-500 mt-0.5">+₹2,000 delta</span>
+                                </div>
+                                <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="font-mono text-[10px] text-zinc-400 font-semibold uppercase">Reliance Dig.</span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                                    </div>
+                                    <span className="text-base font-bold text-zinc-200 tabular-nums">₹27,500</span>
+                                    <span className="text-[10px] text-zinc-500 mt-0.5">+₹2,510 delta</span>
+                                </div>
+                            </div>
+
+                            {/* Multi-Bar Arbitrage Distribution */}
+                            <div className="w-full pt-1">
+                                <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5">
+                                    <span>Cross-Marketplace Price Spread</span>
+                                    <span className="text-[#E6C762] font-semibold tabular-nums">Spread Delta: 10.04%</span>
+                                </div>
+                                <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden flex gap-0.5 border border-white/5">
+                                    <div className="h-full bg-[#E6C762] rounded-l-full" style={{ width: '42%' }} />
+                                    <div className="h-full bg-zinc-400" style={{ width: '28%' }} />
+                                    <div className="h-full bg-zinc-600" style={{ width: '18%' }} />
+                                    <div className="h-full bg-zinc-700 rounded-r-full" style={{ width: '12%' }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Card 4: Accumulated Value Created */}
+                        <div className="p-6 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.7)] flex flex-col justify-between">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Accumulated Value Created</span>
+                                    <div className="text-3xl font-bold text-white mt-1 tabular-nums tracking-tight">₹4.82 Cr</div>
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[#34D399]">
+                                    <TrendingUp className="w-4 h-4" />
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-md bg-[#34D399]/15 border border-[#34D399]/30 text-[#34D399] text-[11px] font-semibold tabular-nums">
+                                    ↑ 24.8%
+                                </span>
+                                <span className="text-xs text-zinc-400">average client savings</span>
+                            </div>
+                        </div>
+
+                        {/* Card 5: Accuracy & Safety */}
+                        <div className="p-6 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.7)] flex flex-col justify-between">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-medium">Fraud & Risk Guard</span>
+                                    <div className="text-3xl font-bold text-white mt-1 tabular-nums tracking-tight">99.8%</div>
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[#E6C762]">
+                                    <ShieldCheck className="w-4 h-4" />
+                                </div>
+                            </div>
+                            <div className="mt-4 flex items-center justify-between">
+                                <span className="text-xs text-zinc-400">Authorized sellers strictly filtered</span>
+                                <span className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-zinc-300 font-mono text-[10px] font-semibold">ZERO FRAUD</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Bottom Ticker */}
+                    <div className="mt-8 pt-4 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-3 text-zinc-500 font-mono text-[11px] relative z-10">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse" />
+                            <span>Live index: Sony WH-1000XM5 verified best price ₹24,990 on Amazon India</span>
+                        </div>
+                        <div>END-TO-END TLS 1.3 · SUPABASE RLS</div>
+                    </div>
+                </div>
+
+                {/* RIGHT COLUMN: Elevated Private Client Auth Console */}
+                <div className="lg:col-span-5 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-[#0D0D11] relative">
+                    <div className="max-w-md w-full mx-auto">
+                        
+                        {/* Logo Header */}
+                        <div className="mb-8 flex flex-col items-start text-left">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-b from-zinc-800 to-zinc-950 border border-white/15 flex items-center justify-center shadow-lg shadow-black/50">
+                                    <Sparkles className="w-5 h-5 text-[#E6C762]" />
+                                </div>
+                                <span className="text-2xl font-bold tracking-tight text-white font-sans">SEAMAS</span>
+                            </div>
+                            <p className="text-xs text-zinc-400 tracking-wide">
+                                Private Client Multi-Agent Shopping Engine
+                            </p>
+                        </div>
+
+                        {/* Segmented Pill Toggle: Sign In vs Create Account */}
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-2xl font-bold text-white text-left tracking-tight">
+                                    {isLogin ? 'Sign In' : 'Create Account'}
+                                </h2>
+                                <button 
+                                    onClick={handleDemoLogin} 
+                                    type="button" 
+                                    className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.12] text-zinc-200 transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                                >
+                                    <Zap className="w-3.5 h-3.5 text-[#E6C762]" /> Instant Guest Preview
+                                </button>
+                            </div>
+                            <div className="w-full bg-black/50 p-1 rounded-xl flex items-center border border-white/[0.08]">
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleModeSwitch(true)}
+                                    className={`flex-1 py-2 text-center rounded-lg text-xs font-semibold transition-all ${
+                                        isLogin 
+                                            ? 'bg-white text-zinc-950 shadow-sm font-bold' 
+                                            : 'text-zinc-400 hover:text-white'
+                                    }`}
+                                >
+                                    Sign In
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => handleModeSwitch(false)}
+                                    className={`flex-1 py-2 text-center rounded-lg text-xs font-semibold transition-all ${
+                                        !isLogin 
+                                            ? 'bg-white text-zinc-950 shadow-sm font-bold' 
+                                            : 'text-zinc-400 hover:text-white'
+                                    }`}
+                                >
+                                    Create Account
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Alert Banners */}
+                        {location.state?.infoMessage && (
+                            <div className="mb-6 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 text-left flex items-start gap-2.5">
+                                <Zap className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                                <span>{location.state.infoMessage}</span>
                             </div>
                         )}
-                        <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                            <input type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required
-                                className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm text-white outline-none transition-all bg-[#0f172a]/60 border border-white/5 placeholder:text-neutral-500 focus:border-blue-500/50 focus:bg-[#0f172a]/80"
-                            />
+
+                        {error && (
+                            <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 text-left">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+                            {!isLogin && (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs text-zinc-400 font-medium">Full Name</label>
+                                    <div className="relative flex items-center">
+                                        <User className="absolute left-3.5 text-zinc-500 w-4 h-4" />
+                                        <input 
+                                            type="text" 
+                                            name="name" 
+                                            placeholder="Jane Doe" 
+                                            value={formData.name} 
+                                            onChange={handleChange} 
+                                            required={!isLogin}
+                                            className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#121215] border border-white/[0.08] text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:border-[#E6C762]/60 focus:ring-1 focus:ring-[#E6C762]/40 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Email Field */}
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs text-zinc-400 font-medium">Email Address</label>
+                                    {isEmailValid && (
+                                        <span className="text-[11px] text-[#34D399] flex items-center gap-1 font-medium">
+                                            <CheckCircle2 className="w-3 h-3 text-[#34D399]" /> Valid
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center">
+                                    <Mail className="absolute left-3.5 text-zinc-500 w-4 h-4" />
+                                    <input 
+                                        type="email" 
+                                        name="email" 
+                                        placeholder="client@private.seamas.ai" 
+                                        value={formData.email} 
+                                        onChange={handleChange} 
+                                        required
+                                        className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#121215] border border-white/[0.08] text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:border-[#E6C762]/60 focus:ring-1 focus:ring-[#E6C762]/40 transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password Field */}
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs text-zinc-400 font-medium">Password</label>
+                                    {isLogin && (
+                                        <a href="#" className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">Forgot?</a>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center">
+                                    <Lock className="absolute left-3.5 text-zinc-500 w-4 h-4" />
+                                    <input 
+                                        type={showPassword ? "text" : "password"} 
+                                        name="password" 
+                                        placeholder="••••••••••••" 
+                                        value={formData.password} 
+                                        onChange={handleChange} 
+                                        required
+                                        className="w-full h-11 pl-10 pr-11 rounded-xl bg-[#121215] border border-white/[0.08] text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:border-[#E6C762]/60 focus:ring-1 focus:ring-[#E6C762]/40 transition-all"
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3.5 text-zinc-500 hover:text-white transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
+
+                                {/* Password Strength Bar */}
+                                <div className="mt-1">
+                                    <div className="flex items-center justify-between text-[11px] text-zinc-500 mb-1">
+                                        <span>Security Strength</span>
+                                        <span className="font-medium text-zinc-400">{entropy.label}</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                        <div 
+                                            className={`h-full ${entropy.color} transition-all duration-300`} 
+                                            style={{ width: entropy.width }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Primary Liquid Pearl White Submit Button */}
+                            <div className="pt-2">
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    className="w-full h-12 rounded-xl bg-[#F4F4F6] text-[#09090B] hover:bg-white font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.3),0_0_24px_rgba(255,255,255,0.12)] transition-all active:scale-[0.99] disabled:opacity-60"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+                                    ) : (
+                                        <>
+                                            <span>{isLogin ? 'Sign In to SEAMAS' : 'Create Private Client Account'}</span>
+                                            <ArrowRight className="w-4 h-4 text-zinc-950 transition-transform group-hover:translate-x-0.5" />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* Divider */}
+                        <div className="relative my-6 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-white/[0.08]" />
+                            </div>
+                            <span className="relative px-3 bg-[#0D0D11] text-[11px] text-zinc-500 uppercase tracking-wider font-medium">
+                                Or continue with
+                            </span>
                         </div>
-                        <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-                            <input type={showPassword ? "text" : "password"} name="password" placeholder="Password" value={formData.password} onChange={handleChange} required
-                                className="w-full pl-11 pr-11 py-3.5 rounded-xl text-sm text-white outline-none transition-all bg-[#0f172a]/60 border border-white/5 placeholder:text-neutral-500 focus:border-blue-500/50 focus:bg-[#0f172a]/80"
-                            />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+
+                        {/* Social OAuth Row */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button 
+                                type="button" 
+                                onClick={() => handleOAuthSignIn('google')}
+                                disabled={loading}
+                                className="h-11 rounded-xl bg-[#121215] border border-white/[0.08] hover:bg-white/[0.04] flex items-center justify-center gap-2 text-white text-xs font-medium transition-all shadow-sm disabled:opacity-60"
                             >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                                </svg>
+                                <span>Google</span>
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => handleOAuthSignIn('github')}
+                                disabled={loading}
+                                className="h-11 rounded-xl bg-[#121215] border border-white/[0.08] hover:bg-white/[0.04] flex items-center justify-center gap-2 text-white text-xs font-medium transition-all shadow-sm disabled:opacity-60"
+                            >
+                                <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" />
+                                </svg>
+                                <span>GitHub</span>
                             </button>
                         </div>
 
-                        {isLogin && (
-                            <div className="text-right">
-                                <a href="#" className="text-[11px] font-medium text-blue-400 hover:text-blue-300 transition-colors">Forgot Password?</a>
-                            </div>
-                        )}
-
-                        <button type="submit" disabled={loading}
-                            className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 bg-[#0f52ba] shadow-lg shadow-blue-900/20 mt-2"
-                        >
-                            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
-                        </button>
-                    </form>
-
-                    <div className="relative my-8">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-white/10"></div>
+                        {/* Security Proof Badge */}
+                        <div className="mt-8 flex items-center justify-center gap-2 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-zinc-400 text-xs">
+                            <ShieldCheck className="w-4 h-4 text-[#E6C762]" />
+                            <span>Institutional Grade TLS 1.3 Encryption</span>
                         </div>
-                        <div className="relative flex justify-center text-[11px]">
-                            <span className="bg-transparent px-2 text-neutral-500 font-medium tracking-wide">Or sign in with</span>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-4 justify-center mb-8">
-                        <button onClick={() => handleOAuthSignIn('google')} type="button" disabled={loading} className="flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-[#1e293b]/50 border border-white/10 hover:bg-[#1e293b] transition-colors text-sm font-bold text-white shadow-lg disabled:opacity-60">
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                            </svg>
-                            Google
-                        </button>
-                        <button onClick={() => handleOAuthSignIn('github')} type="button" disabled={loading} className="flex-1 flex items-center justify-center gap-2.5 py-3.5 rounded-2xl bg-[#1e293b]/50 border border-white/10 hover:bg-[#1e293b] transition-colors text-sm font-bold text-white shadow-lg disabled:opacity-60">
-                            <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" /></svg>
-                            Github
-                        </button>
-                    </div>
-
-                    <p className="text-[11px] text-neutral-500 font-medium">
-                        {isLogin ? "Don't have an account? " : "Already have one? "}
-                        <button onClick={() => { navigate(isLogin ? '/signup' : '/login'); setFormData({ name: '', email: '', password: '' }); }} className="text-blue-400 hover:text-blue-300 ml-1 font-bold">
-                            {isLogin ? 'Sign Up' : 'Sign In'}
-                        </button>
-                    </p>
-
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                        <button onClick={handleDemoLogin} className="text-[11px] text-neutral-500 hover:text-white transition-colors">
-                            Or continue as Guest User
-                        </button>
                     </div>
                 </div>
+
             </div>
         </div>
     );

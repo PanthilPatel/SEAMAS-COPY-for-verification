@@ -37,7 +37,7 @@ services:
     environment:
       - SEARXNG_BASE_URL=http://localhost:8080
     volumes:
-      - ./searxng-settings:/etc/searxng:rw
+      - ./backend/searxng-deploy/settings.yml:/etc/searxng/settings.yml:ro
     restart: unless-stopped
 
   ollama:

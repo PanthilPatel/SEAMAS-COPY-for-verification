@@ -107,6 +107,18 @@ def test_parse_snippet_pricing():
     assert res["original_price"] == 79900
 
 
+def test_parse_snippet_pricing_emi_and_bonus_rejected():
+    snippet_bonus = "Croma iPhone 16 Pro pre-orders open with ₹12,000 bonus"
+    res_bonus = parse_snippet_pricing(snippet_bonus)
+    assert res_bonus["current_price"] != 12000
+    assert 12000 not in res_bonus["all_prices"]
+
+    snippet_emi = "iPhone 16 Pro Max on EMI ₹3,000/month: Price and Specifications"
+    res_emi = parse_snippet_pricing(snippet_emi)
+    assert res_emi["current_price"] != 3000
+    assert 3000 not in res_emi["all_prices"]
+
+
 # ==============================================================================
 # 4. Review Analyzer Agent Tests
 # ==============================================================================

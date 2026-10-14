@@ -11,7 +11,7 @@ import httpx
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-from tools.search_tools import _domain_to_store, NON_SHOPPING_DOMAINS
+from tools.search_tools import _domain_to_store, NON_SHOPPING_DOMAINS, is_article_or_news_url
 from core.config import resolve_ollama_model, settings
 
 class PriceItem(BaseModel):
@@ -72,12 +72,88 @@ def clean_price(value: Any) -> int:
         pass
     return 0
 
+DISCOUNT_OR_EMI_WORDS = [
+    "emi", "/mo", "per month", "monthly", "bonus", "cashback", "off",
+    "discount", "save", "saving", "exchange", "up to", "upto", "voucher",
+    "coupon", "down payment", "starting from rs. 99"
+]
+
+DISCOUNT_OR_EMI_BEFORE_PATTERNS = [
+    r"\b(?:save|saving|cashback|bonus|discount|exchange|voucher|coupon|down\s+payment)\s+(?:up\s+to\s+|upto\s+|flat\s+|of\s+|worth\s+)?$",
+    r"\b(?:emi\s+of|emi\s+from|emi\s+starting|on\s+emi|starts\s+at\s+emi|starting\s+from\s+rs\.?)\s*$",
+    r"\b(?:emi)\s*[:\-–]?\s*$",
+]
+
+DISCOUNT_OR_EMI_AFTER_PATTERNS = [
+    r"^\s*(?:\/mo|\/month|per\s+month|monthly|p\.m\.)\b",
+    r"^\s*(?:bonus|cashback|off|discount|voucher|coupon|exchange|down\s+payment)\b",
+]
+
+def is_discount_or_emi_context(text: str, start: int, end: int) -> bool:
+    """
+    Checks if a number match is bound directly to EMI, discount, bonus, or cashback terms,
+    which must never be parsed as actual product purchase prices.
+    """
+    window_before = text[max(0, start - 35):start].lower()
+    window_after = text[end:min(len(text), end + 35)].lower()
+
+    for pat in DISCOUNT_OR_EMI_BEFORE_PATTERNS:
+        if re.search(pat, window_before):
+            return True
+
+    for pat in DISCOUNT_OR_EMI_AFTER_PATTERNS:
+        if re.search(pat, window_after):
+            return True
+
+    # Tight context window check (within 15 chars)
+    close_before = text[max(0, start - 15):start].lower()
+    close_after = text[end:min(len(text), end + 15)].lower()
+    if any(w in close_after for w in ["bonus", "cashback", "off", "discount", "/mo", "/month"]):
+        return True
+    if any(w in close_before for w in ["bonus", "cashback", "on emi", "emi of", "emi from", "save", "saving"]):
+        return True
+
+    return False
+
+def validate_price_sanity(price: Optional[int], product_name: str = "", query: str = "", category: str = "") -> Optional[int]:
+    """
+    Applies deterministic price sanity floors based on hardware category and query keywords
+    to prevent foreign currencies, EMI rates, or accessories from masquerading as device prices.
+    """
+    if price is None or price <= 0:
+        return None
+    name_and_query = (str(product_name) + " " + str(query)).lower()
+    cat = (category or "").lower()
+
+    # Flagship Smartphone Check (iPhone, Galaxy S23/S24/S25, Pixel 8/9, OnePlus 12, Xiaomi 14)
+    flagship_keywords = [
+        "iphone", "galaxy s23", "galaxy s24", "galaxy s25", "pixel 8", "pixel 9",
+        "oneplus 12", "xiaomi 14"
+    ]
+    is_flagship = any(fk in name_and_query for fk in flagship_keywords)
+    is_accessory = any(acc in name_and_query for acc in ["case", "cover", "skin", "protector", "tempered glass", "strap", "pouch", "cable", "adapter"])
+
+    if is_flagship and not is_accessory:
+        if price < 18000 or price > 250000:
+            return None
+    elif cat in ("laptops", "laptop"):
+        if price < 12000 or price > 500000:
+            return None
+    elif cat in ("smartphones", "smartphone", "mobile"):
+        if not is_accessory and (price < 4000 or price > 250000):
+            return None
+    elif cat in ("televisions", "television", "tv"):
+        if price < 6000 or price > 500000:
+            return None
+
+    return price
+
 def parse_snippet_pricing(text: str) -> Dict[str, Any]:
     """
     Extracts authentic current sale price and genuine original MRP from search snippets or titles.
-    Supports table markdown (| Price: 390 | | MRP: | 445 |), labeled prices (Best Price of Rs 390, OFF 662 MRP 755),
+    Supports table markdown (| Price: 390 | | MRP: | 445 |), labeled prices,
     Indian comma formats (1,44,900), and unit retail labels (650/Bottle).
-    Filters out per-month EMIs, card discounts, and cachebacks.
+    Strictly filters out per-month EMIs, card discounts, exchange bonuses, and cashbacks.
     """
     if not text:
         return {"current_price": None, "original_price": None, "all_prices": set()}
@@ -96,9 +172,11 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
     for pat in sale_label_patterns:
         for m in re.finditer(pat, text_clean, re.IGNORECASE):
             try:
+                if is_discount_or_emi_context(text_clean, m.start(), m.end()):
+                    continue
                 val = int(float(m.group(1).replace(",", "")))
                 if 20 <= val <= 5000000:
-                    context = text_clean[max(0, m.start() - 15):min(len(text_clean), m.end() + 15)].lower()
+                    context = text_clean[max(0, m.start() - 30):min(len(text_clean), m.end() + 30)].lower()
                     if not any(u in context for u in ["per g", "/g", "/kg", "/month", "emi", "month"]):
                         if not current_price:
                             current_price = val
@@ -120,6 +198,8 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
     for pat in mrp_patterns:
         for m in re.finditer(pat, text_clean, re.IGNORECASE):
             try:
+                if is_discount_or_emi_context(text_clean, m.start(), m.end()):
+                    continue
                 val = int(float(m.group(1).replace(",", "")))
                 if 20 <= val <= 5000000:
                     if not original_price:
@@ -131,12 +211,7 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
     # 3. Match standard currency expressions (₹390, Rs. 1,44,900, $89)
     for m in re.finditer(r"(?:₹|rs\.?|\$|inr|usd)\s*([\d,]+(?:\.\d+)?)", text_clean, re.IGNORECASE):
         symbol = m.group(0).lower()
-        prec = text_clean[max(0, m.start() - 20):m.start()].lower()
-        immediate_foll = text_clean[m.end():min(len(text_clean), m.end() + 10)].lower().strip()
-        if any(immediate_foll.startswith(u) for u in ["/month", "per month", "/m", "/g", "per g", "/kg", "per kg"]):
-            continue
-        # If the prefix indicates a discount amount or EMI rate, skip it
-        if any(u in prec for u in ["save ", "cashback ", "flat ", "upto ", "emi of ", "emi from ", "emi starting "]):
+        if is_discount_or_emi_context(text_clean, m.start(), m.end()):
             continue
         try:
             raw_v = float(m.group(1).replace(",", ""))
@@ -150,6 +225,8 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
 
     # 4. Match unit-based retail pricing (e.g. "650/Bottle", "450/piece", "390/jar")
     for m in re.finditer(r"\b([\d,]+)\s*\/\s*(?:bottle|jar|piece|item|pc|pack|unit|box)\b", text_clean, re.IGNORECASE):
+        if is_discount_or_emi_context(text_clean, m.start(), m.end()):
+            continue
         try:
             val = int(float(m.group(1).replace(",", "")))
             if 20 <= val <= 5000000:
@@ -161,9 +238,11 @@ def parse_snippet_pricing(text: str) -> Dict[str, Any]:
 
     # 5. Match Indian comma numbers without symbol (e.g. "1,44,900" or "1,295")
     for m in re.finditer(r"\b(\d{1,3}(?:,\d{2,3})+)\b", text_clean):
+        if is_discount_or_emi_context(text_clean, m.start(), m.end()):
+            continue
         try:
             val = int(float(m.group(1).replace(",", "")))
-            context = text_clean[max(0, m.start() - 15):min(len(text_clean), m.end() + 15)].lower()
+            context = text_clean[max(0, m.start() - 25):min(len(text_clean), m.end() + 25)].lower()
             if not any(spec in context for spec in ["gb", "ram", "rom", "hz", "mah", "fps", "ml", "gm", "watt", "pin"]):
                 if 100 <= val <= 5000000:
                     all_prices.add(val)
@@ -225,83 +304,53 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
     except Exception:
         pass
 
-    # Reject empty responses, challenge blocks, and CAPTCHAs without attempting unsafe curl execution
+    # Reject empty responses, challenge blocks, and CAPTCHAs
     if not html_content or len(html_content) < 300 or "captcha" in html_content.lower():
         return res_data
 
     soup = BeautifulSoup(html_content, "html.parser")
     domain = urlparse(url).netloc.lower()
 
-    # 1. Image extraction
-    og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
-    if og_image and og_image.get("content") and og_image.get("content").startswith("http"):
-        res_data["image"] = og_image.get("content")
-    if not res_data["image"]:
-        tw_image = soup.find("meta", attrs={"name": "twitter:image"}) or soup.find("meta", property="twitter:image")
-        if tw_image and tw_image.get("content") and tw_image.get("content").startswith("http"):
-            res_data["image"] = tw_image.get("content")
+    # Priority 1: Authoritative Structured Schema.org JSON-LD (<script type="application/ld+json">)
+    # Recursively search for Product nodes, verify INR currency, extract price/mrp/image
+    for script in soup.find_all("script", type="application/ld+json"):
+        if not script.string:
+            continue
+        try:
+            data = json.loads(script.string)
+            def scan_ld(obj):
+                if isinstance(obj, dict):
+                    # Check for genuine product image asset
+                    if not res_data["image"] and "image" in obj:
+                        im = obj["image"]
+                        if isinstance(im, str) and im.startswith("http"):
+                            res_data["image"] = im
+                        elif isinstance(im, list) and im and isinstance(im[0], str):
+                            res_data["image"] = im[0]
+                        elif isinstance(im, dict) and "url" in im:
+                            res_data["image"] = im["url"]
 
-    # 2. Store-specific high precision CSS selectors
-    if "amazon." in domain:
-        pw = soup.select_one(".a-price-whole")
-        if pw:
-            clean_txt = re.sub(r"[^\d]", "", pw.get_text())
-            if clean_txt:
-                res_data["price"] = int(clean_txt)
-        smrp = soup.select_one(".a-price.a-text-price[data-a-strike='true'] .a-offscreen")
-        if smrp:
-            clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
-            if clean_mrp:
-                res_data["original_price"] = int(clean_mrp)
+                    node_type = str(obj.get("@type", ""))
+                    is_product = "Product" in node_type or "Offer" in node_type
 
-    elif "flipkart." in domain:
-        pw = soup.select_one(".Nx95tz, ._30jeq3, ._16Jk6d, .CxhGGd")
-        if pw:
-            clean_txt = re.sub(r"[^\d]", "", pw.get_text())
-            if clean_txt:
-                res_data["price"] = int(clean_txt)
-        smrp = soup.select_one("._3I9_wc, ._2p6lqe")
-        if smrp:
-            clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
-            if clean_mrp:
-                res_data["original_price"] = int(clean_mrp)
+                    if is_product or "offers" in obj or "price" in obj or "lowPrice" in obj:
+                        offers = obj.get("offers", obj)
+                        offer_list = offers if isinstance(offers, list) else [offers] if isinstance(offers, dict) else []
 
-    elif "croma." in domain:
-        pw = soup.select_one(".pdp-price, .amount, #pdp-price")
-        if pw:
-            clean_txt = re.sub(r"[^\d]", "", pw.get_text())
-            if clean_txt:
-                res_data["price"] = int(clean_txt)
-        smrp = soup.select_one(".pdp-mrp, .old-price")
-        if smrp:
-            clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
-            if clean_mrp:
-                res_data["original_price"] = int(clean_mrp)
+                        for off in offer_list:
+                            if not isinstance(off, dict):
+                                continue
+                            # Strict Currency Check: MUST be INR / ₹; reject foreign currencies like USD, UZS, EUR, GBP, AED
+                            curr = off.get("priceCurrency") or obj.get("priceCurrency")
+                            if curr:
+                                curr_str = str(curr).strip().upper()
+                                if curr_str not in ("INR", "₹", "RS", "RS."):
+                                    if curr_str in ("USD", "UZS", "EUR", "GBP", "AED", "CAD", "AUD", "SGD", "RUB", "CNY", "JPY"):
+                                        print(f"[PriceAgent] Rejecting non-INR listing with currency {curr_str} on {url}")
+                                        res_data["price"] = None
+                                        return res_data
 
-    elif "tatacliq." in domain or "myntra." in domain:
-        pw = soup.select_one(".pdp-price, .product-price, .discountedPrice")
-        if pw:
-            clean_txt = re.sub(r"[^\d]", "", pw.get_text())
-            if clean_txt:
-                res_data["price"] = int(clean_txt)
-
-    # 3. Deep JSON-LD schema.org parsing
-    if not res_data["price"]:
-        for script in soup.find_all("script", type="application/ld+json"):
-            if not script.string:
-                continue
-            try:
-                data = json.loads(script.string)
-                def scan_ld(obj):
-                    if isinstance(obj, dict):
-                        if not res_data["image"] and "image" in obj:
-                            im = obj["image"]
-                            if isinstance(im, str) and im.startswith("http"):
-                                res_data["image"] = im
-                            elif isinstance(im, list) and im and isinstance(im[0], str):
-                                res_data["image"] = im[0]
-                        if obj.get("@type") in ("Offer", "Product") or "price" in obj or "lowPrice" in obj:
-                            p = obj.get("price") or obj.get("lowPrice")
+                            p = off.get("price") or off.get("lowPrice")
                             if p and not res_data["price"]:
                                 try:
                                     pval = int(float(str(p).replace(",", "").replace("₹", "").strip()))
@@ -309,7 +358,8 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
                                         res_data["price"] = pval
                                 except:
                                     pass
-                            m = obj.get("highPrice")
+
+                            m = off.get("highPrice") or (off.get("priceSpecification", {}).get("price") if isinstance(off.get("priceSpecification"), dict) else None)
                             if m and not res_data["original_price"]:
                                 try:
                                     mval = int(float(str(m).replace(",", "").replace("₹", "").strip()))
@@ -317,17 +367,92 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
                                         res_data["original_price"] = mval
                                 except:
                                     pass
-                        for v in obj.values():
-                            scan_ld(v)
-                    elif isinstance(obj, list):
-                        for it in obj:
-                            scan_ld(it)
-                scan_ld(data)
-            except Exception:
-                pass
 
-    # 4. Meta tag price extraction
+                    for v in obj.values():
+                        scan_ld(v)
+                elif isinstance(obj, list):
+                    for it in obj:
+                        scan_ld(it)
+
+            scan_ld(data)
+            if res_data["price"]:
+                break
+        except Exception:
+            pass
+
+    # Priority 2: Store-Specific Main Product Container Selectors (Updated for 2025/2026 DOMs)
     if not res_data["price"]:
+        if "amazon." in domain:
+            # Amazon.in: Scope strictly to core PDP desktop price containers; avoid bottom carousels
+            pw = (
+                soup.select_one("#corePriceDisplay_desktop_feature_div .a-price-whole") or
+                soup.select_one("#corePrice_feature_div .a-price .a-offscreen") or
+                soup.select_one("#apex_desktop .a-price .a-offscreen") or
+                soup.select_one("#priceblock_ourprice") or
+                soup.select_one("#priceblock_dealprice") or
+                soup.select_one(".a-price:not([data-a-strike='true']) .a-price-whole") or
+                soup.select_one(".a-price-whole")
+            )
+            if pw:
+                clean_txt = re.sub(r"[^\d]", "", pw.get_text())
+                if clean_txt:
+                    res_data["price"] = int(clean_txt)
+            smrp = (
+                soup.select_one("#corePriceDisplay_desktop_feature_div .a-price[data-a-strike='true'] .a-offscreen") or
+                soup.select_one("#corePrice_feature_div .a-price.a-text-price[data-a-strike='true'] .a-offscreen") or
+                soup.select_one(".a-price.a-text-price[data-a-strike='true'] .a-offscreen")
+            )
+            if smrp:
+                clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
+                if clean_mrp:
+                    res_data["original_price"] = int(clean_mrp)
+
+        elif "flipkart." in domain:
+            pw = soup.select_one(".Nx9bqj.CxhGGd, div._30jeq3._16Jk6d, .hl05eU .Nx9bqj, .Nx95tz, ._30jeq3")
+            if pw:
+                clean_txt = re.sub(r"[^\d]", "", pw.get_text())
+                if clean_txt:
+                    res_data["price"] = int(clean_txt)
+            smrp = soup.select_one("._3I9_wc._2p6lqe, .yRaY8j.A68aAq, ._3I9_wc")
+            if smrp:
+                clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
+                if clean_mrp:
+                    res_data["original_price"] = int(clean_mrp)
+
+        elif "croma." in domain:
+            pw = soup.select_one(".pdp-price, .main-price, .amount, #pdp-price")
+            if pw:
+                clean_txt = re.sub(r"[^\d]", "", pw.get_text())
+                if clean_txt:
+                    res_data["price"] = int(clean_txt)
+            smrp = soup.select_one(".pdp-mrp, .old-price")
+            if smrp:
+                clean_mrp = re.sub(r"[^\d]", "", smrp.get_text())
+                if clean_mrp:
+                    res_data["original_price"] = int(clean_mrp)
+
+        elif "reliancedigital." in domain:
+            pw = soup.select_one(".pdp__offerPrice, .pdp__price, .price-section .amount")
+            if pw:
+                clean_txt = re.sub(r"[^\d]", "", pw.get_text())
+                if clean_txt:
+                    res_data["price"] = int(clean_txt)
+
+        elif "tatacliq." in domain or "myntra." in domain:
+            pw = soup.select_one(".pdp-price, .pdp-discounted-price, .product-price, .discountedPrice, .pdp-titlePrice")
+            if pw:
+                clean_txt = re.sub(r"[^\d]", "", pw.get_text())
+                if clean_txt:
+                    res_data["price"] = int(clean_txt)
+
+    # Priority 2.5: Meta tags with currency check
+    if not res_data["price"]:
+        meta_curr = soup.find("meta", property="product:price:currency") or soup.find("meta", attrs={"name": "product:price:currency"})
+        if meta_curr and meta_curr.get("content"):
+            c_val = meta_curr.get("content").strip().upper()
+            if c_val not in ("INR", "₹", "RS", "RS.") and c_val in ("USD", "UZS", "EUR", "GBP", "AED"):
+                return res_data
+
         meta_selectors = [
             {"property": "product:price:amount"},
             {"property": "og:price:amount"},
@@ -344,39 +469,49 @@ async def scrape_live_price(url: str) -> Dict[str, Any]:
                         res_data["price"] = pval
                         break
 
-    # 5. Embedded hydration JSON state scan (Next.js __NEXT_DATA__, Redux, React state)
+    # Priority 3: Strictly Guarded PDP Container Fallback (No generic body text regex counter)
     if not res_data["price"]:
-        state_patterns = [
-            r'\"selling_price\":\s*"?([0-9.]+)"?',
-            r'\"final_price\":\s*"?([0-9.]+)"?',
-            r'\"offer_price\":\s*"?([0-9.]+)"?',
-            r'\"special_price\":\s*"?([0-9.]+)"?',
-            r'\"discountedPrice\":\s*"?([0-9.]+)"?',
-            r'\"sp\":\s*([0-9.]+)',
-            r'\"price\":\s*([0-9.]+)'
-        ]
-        sample_text = html_content[:400000]
-        for pat in state_patterns:
-            matches = re.findall(pat, sample_text)
-            for m in matches:
+        price_containers = soup.select("[class*='price'], [id*='price'], [class*='pdp'], [id*='pdp']")
+        for el in price_containers[:15]:
+            # Do not pick strikethrough/MRP containers as current price
+            if el.get("data-a-strike") == "true" or any(c in el.get("class", []) for c in ["a-text-price", "strike", "mrp", "old-price"]):
+                continue
+            el_text = el.get_text().strip()
+            if any(w in el_text.lower() for w in ["emi", "/mo", "per month", "bonus", "cashback", "off", "save", "exchange", "discount"]):
+                continue
+            m = re.search(r"(?:₹|rs\.?)\s*([\d,]+)", el_text, re.IGNORECASE)
+            if m:
                 try:
-                    val = int(float(m))
-                    if 50 <= val <= 5000000:
-                        res_data["price"] = val
+                    pval = int(m.group(1).replace(",", ""))
+                    if 50 <= pval <= 5000000:
+                        res_data["price"] = pval
                         break
                 except:
                     pass
-            if res_data["price"]:
-                break
+
+    # Extract og:image if not found yet
+    if not res_data["image"]:
+        og_image = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+        if og_image and og_image.get("content") and og_image.get("content").startswith("http"):
+            res_data["image"] = og_image.get("content")
+    if not res_data["image"]:
+        tw_image = soup.find("meta", attrs={"name": "twitter:image"}) or soup.find("meta", property="twitter:image")
+        if tw_image and tw_image.get("content") and tw_image.get("content").startswith("http"):
+            res_data["image"] = tw_image.get("content")
 
     return res_data
 
 def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
     if url:
+        if is_article_or_news_url(url):
+            return "Web"
         from urllib.parse import urlparse
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower().replace("www.", "")
+
+            if any(ns in domain for ns in NON_SHOPPING_DOMAINS):
+                return "Web"
 
             store_map = {
                 "amazon.": "Amazon",
@@ -410,6 +545,8 @@ def clean_marketplace_name(raw_marketplace: str, url: str = "") -> str:
 
             domain_parts = domain.split(".")
             main_name = domain_parts[-2] if len(domain_parts) >= 2 and domain_parts[-2] not in {"co", "com", "org", "gov", "net"} else domain_parts[0]
+            if any(nsub in main_name.lower() for nsub in NEWS_AND_MEDIA_SUBSTRINGS):
+                return "Web"
             if main_name and len(main_name) > 2:
                 return main_name.capitalize()
         except Exception:
@@ -499,6 +636,8 @@ def find_source_record(search_results: List[Dict[str, Any]], marketplace: str, p
 def is_specific_product_page(url: str) -> bool:
     if not url:
         return False
+    if is_article_or_news_url(url):
+        return False
     from urllib.parse import urlparse
     parsed = urlparse(url)
     path = parsed.path.lower()
@@ -508,6 +647,11 @@ def is_specific_product_page(url: str) -> bool:
 
     # Never treat non-shopping domains, blogs, news, or vehicle portals as product pages
     if any(ns in domain for ns in NON_SHOPPING_DOMAINS):
+        return False
+
+    # Foreign non-Indian storefronts (e.g. Tashkent, Uzbekistan, UAE) must not be treated as target retail pages
+    foreign_indicators = ["tashkent", "uzbekistan", ".uz", ".ru", ".pk", ".bd", ".ng", "dubai", "uae", ".ae"]
+    if any(fi in domain or fi in path for fi in foreign_indicators):
         return False
 
     known_domains = [
@@ -715,9 +859,15 @@ async def price_comparison_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         return {"price_data": [], "logs": ["No search results found."]}
 
     cleaned_records = []
+    foreign_indicators = ["tashkent", "uzbekistan", ".uz/", ".uz", ".ru/", ".ru", ".pk/", ".pk", ".bd/", ".bd", ".ng/", ".ng", "dubai", "uae", ".ae/", ".ae"]
     for r in search_results:
         url = (r.get("url") or "").lower()
+        title = (r.get("title") or "").lower()
+        if is_article_or_news_url(url, title):
+            continue
         if any(ignored in url for ignored in NON_SHOPPING_DOMAINS):
+            continue
+        if any(fi in url or fi in title for fi in foreign_indicators):
             continue
         if any(ext in url for ext in [".pdf", ".doc", ".docx", ".ppt"]):
             continue
@@ -869,6 +1019,8 @@ Records:
 
         for i, r in enumerate(filtered_records, start=1):
             url = (r.get("url") or "").lower()
+            if is_article_or_news_url(url, r.get("title", "")):
+                continue
             if any(bad in url for bad in ["/blog/", "/news/", "/article/", "wikipedia.org", "youtube.com", "youtu.be", "buying-guide", "price-list", "pricelist"]):
                 continue
             if any(ns in url for ns in NON_SHOPPING_DOMAINS):
@@ -877,7 +1029,7 @@ Records:
                 continue
             s_text = ((r.get("content") or "") + " " + (r.get("title") or ""))
             s_pricing = parse_snippet_pricing(s_text)
-            curr = s_pricing.get("current_price")
+            curr = validate_price_sanity(s_pricing.get("current_price"), r.get("title", ""), query, state.get("category", "general"))
             r_url = r.get("url", "")
             is_prod = is_specific_product_page(r_url)
             if (curr and curr >= 50) or is_prod:
@@ -923,10 +1075,9 @@ Records:
             if price < min_price_floor and not is_product_page:
                 continue
 
-            if (price == 0 and not is_product_page) or marketplace.lower() in {"", "india"}:
-                continue
-
             clean_store = clean_marketplace_name(marketplace or (matched_rec.get("engine") if matched_rec else ""), target_url)
+            if clean_store.lower() in ("web", "india") or is_article_or_news_url(target_url, prod_name):
+                continue
 
             # Check if source record has a cleaner, genuine title from the store
             src_title = (matched_rec.get("title") or "").strip() if matched_rec else ""
@@ -941,9 +1092,10 @@ Records:
             # Source snippet price verification double-lock
             source_snippet = ((matched_rec.get("content") or "") + " " + (matched_rec.get("title") or "")) if matched_rec else ""
             snippet_pricing = parse_snippet_pricing(source_snippet)
-            snippet_current = snippet_pricing.get("current_price")
+            snippet_current = validate_price_sanity(snippet_pricing.get("current_price"), prod_name, query, detected_category)
             snippet_mrp = snippet_pricing.get("original_price")
             snippet_prices = snippet_pricing.get("all_prices") or set()
+            price = validate_price_sanity(price, prod_name, query, detected_category) or 0
 
             snippet_verified = False
             if snippet_current and snippet_current >= min_price_floor:
@@ -1069,7 +1221,7 @@ Records:
             ]):
                 continue
 
-            if clean_store.lower() in ("web", "india", "historiadenia", "techlusive", "ndtvprofit", "notebookcheck", "indiatoday", "buyhatke", "fundacionsierrablanca", "pricehistory", "pexels", "pixabay", "freepik", "unsplash", "deshgujarat", "mymobileindia"):
+            if is_article_or_news_url(target_url, prod_name) or clean_store.lower() in ("web", "india", "historiadenia", "techlusive", "ndtvprofit", "notebookcheck", "indiatoday", "buyhatke", "fundacionsierrablanca", "pricehistory", "pexels", "pixabay", "freepik", "unsplash", "deshgujarat", "mymobileindia"):
                 continue
             t_url_lower = target_url.lower()
             if any(tld in t_url_lower for tld in [".gov", ".edu", ".mil", ".ac.in"]):
@@ -1153,7 +1305,7 @@ Records:
             scraped_data_list = await asyncio.gather(*scrape_tasks)
             for idx, live_data in zip(scrape_indices, scraped_data_list):
                 r = results[idx]
-                live_price = live_data.get("price")
+                live_price = validate_price_sanity(live_data.get("price"), r.get("product_name", ""), query, detected_category)
                 live_mrp = live_data.get("original_price")
                 live_image = live_data.get("image")
 
@@ -1206,6 +1358,7 @@ Records:
                 r["extracted_price"] = None
                 r["is_verified"] = False
                 r["price_verified"] = False
+                snippet_price = validate_price_sanity(snippet_price, r.get("product_name", ""), query, detected_category)
                 if snippet_price and snippet_price >= min_price_floor:
                     r["price"] = snippet_price
                     r["indexed_price"] = snippet_price

@@ -4,6 +4,7 @@ from agents.search_agent import compute_relevance_score, normalize_url
 from agents.price_comparison_agent import (
     parse_snippet_pricing, clean_marketplace_name, price_comparison_agent
 )
+from tools.search_tools import is_article_or_news_url
 
 
 def test_relevance_airpods_pro_2_vs_airpods_2():
@@ -13,7 +14,9 @@ def test_relevance_airpods_pro_2_vs_airpods_2():
     snippet_non_pro = "Buy Apple AirPods (2nd generation) with Charging Case online in India."
     
     score = compute_relevance_score(title_non_pro, snippet_non_pro, query_tokens, "audio")
-    assert "pro" not in title_non_pro.lower()
+    pro_score = compute_relevance_score("Apple AirPods Pro (2nd generation)", snippet_non_pro, query_tokens, "audio")
+    assert score < pro_score
+    assert score <= 0.75
 
 
 def test_relevance_airpods_pro_2_vs_cloned_counterfeit():
@@ -106,11 +109,48 @@ async def test_price_agent_controlled_batching_processes_all_candidates():
         "search_results": mock_candidates
     }
     
-    res = await price_comparison_agent(state)
-    assert len(res.get("price_data", [])) > 0
-    for p in res.get("price_data", []):
-        assert "AirPods" in p["product_name"] or "Apple" in p["product_name"]
-        assert p["extracted_price"] is None
-        assert p["price_verified"] is False
-        assert p["availability_status"] == "unknown"
-        assert p["quantity"] is None
+    from unittest.mock import patch, AsyncMock
+    with patch("agents.price_comparison_agent.scrape_live_price", new_callable=AsyncMock) as mock_scrape:
+        mock_scrape.return_value = {"price": None, "original_price": None, "image": None}
+        res = await price_comparison_agent(state)
+        assert len(res.get("price_data", [])) > 0
+        for p in res.get("price_data", []):
+            assert "AirPods" in p["product_name"] or "Apple" in p["product_name"]
+            assert p["extracted_price"] is None
+            assert p["price_verified"] is False
+            assert p["availability_status"] == "unknown"
+            assert p["quantity"] is None
+
+
+def test_is_article_or_news_url_filters_media_and_rumors():
+    """Ensure news portals, rumor articles, and press reports are strictly filtered."""
+    pragativadi_url = "https://pragativadi.com/iphone-18-pro-pro-max-now-available-in-india-base-iphone-18-delayed/"
+    pragativadi_title = "iPhone 18 Pro, Pro Max Now Available In India - Pragativadi"
+    assert is_article_or_news_url(pragativadi_url, pragativadi_title) is True
+
+    news_urls = [
+        ("https://timesofindia.indiatimes.com/gadgets-news/apple-iphone-launch/articleshow/12345.cms", "iPhone Launch Article"),
+        ("https://gadgets360.com/mobiles/news/iphone-16-pro-price-in-india-specifications-release-date", "iPhone 16 Pro News"),
+        ("https://odishatv.in/tech/apple-iphone-release-date-delayed", "Apple iPhone Delayed"),
+        ("https://pcquest.com/croma-iphone-16-pro-pre-orders-open-with-bonus", "Pre-orders bonus offer"),
+    ]
+    for url, title in news_urls:
+        assert is_article_or_news_url(url, title) is True
+
+    valid_store_urls = [
+        ("https://www.amazon.in/dp/B0BDHWFEMW", "Apple iPhone 16 Pro (128 GB) - Natural Titanium"),
+        ("https://www.flipkart.com/apple-iphone-16-pro-black-titanium-128-gb/p/itm12345", "Apple iPhone 16 Pro"),
+        ("https://www.croma.com/apple-iphone-16-pro-128gb-desert-titanium/p/308580", "Apple iPhone 16 Pro"),
+        ("https://www.reliancedigital.in/apple-iphone-16-pro-128-gb/p/494422998", "Apple iPhone 16 Pro"),
+    ]
+    for url, title in valid_store_urls:
+        assert is_article_or_news_url(url, title) is False
+
+
+def test_clean_marketplace_name_rejects_news_media():
+    """Ensure news and non-shopping sites return 'Web' or are rejected."""
+    assert clean_marketplace_name("Pragativadi", "https://pragativadi.com/iphone-18-pro-delayed/") == "Web"
+    assert clean_marketplace_name("Gadgets 360", "https://gadgets360.com/news/article123") == "Web"
+    assert clean_marketplace_name("Amazon", "https://amazon.in/dp/B0BDHWFEMW") == "Amazon"
+    assert clean_marketplace_name("Flipkart", "https://flipkart.com/p/itm123") == "Flipkart"
+

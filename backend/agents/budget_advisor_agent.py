@@ -62,10 +62,6 @@ def parse_budget_intent(query: str) -> Dict[str, Any]:
         re.IGNORECASE,
     )
     for m in currency_pattern.finditer(q):
-        # Avoid model numbers like 'iPhone 15'
-        prec = q[max(0, m.start() - 10):m.start()].strip()
-        if any(w in prec for w in ["iphone", "galaxy", "pixel", "s24", "s23", "oneplus"]):
-            continue
         num = _to_int(m.group(1), (m.group(2) or "").lower())
         if 500 <= num <= 10_000_000:
             return {

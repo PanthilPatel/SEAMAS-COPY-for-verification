@@ -1,5 +1,8 @@
 # Price Mismatch Fix - Summary
 
+> [!NOTE]
+> **Production Architecture Notice**: Snippet-based price guessing is strictly disabled in production in favor of strict live source-page verification (`is_verified: True` only on HTTP 200 DOM-verified prices, returning `None` / "Price unavailable" otherwise), completely eliminating price hallucination and stale snippet drift (matching `docs/CHANGELOG_VS_REPORT.md`).
+
 ## Problem
 The prices displayed on the website (e.g., ₹499) were not matching the actual prices on the original marketplace websites (e.g., ₹699). This discrepancy was occurring because the system was relying on outdated or incorrect price information from search result snippets.
 

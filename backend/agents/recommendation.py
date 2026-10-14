@@ -159,6 +159,8 @@ Output only the bullet points, clear, factual, and strictly grounded in the cand
         fallback = _algorithmic_fallback(price_data, budget_status, analysis_report, budget_evaluations)
         return {
             "recommendations": fallback,
+            "budget_status": budget_status,
+            "budget_evaluations": budget_evaluations,
             "logs": ["Recommendation Agent: Deterministic algorithmic fallback engaged (no LLM model configured/available)."]
         }
 

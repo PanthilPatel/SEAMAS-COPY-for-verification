@@ -116,10 +116,15 @@ def resolve_ollama_model() -> str | None:
     if _OLLAMA_CHECKED:
         return _RESOLVED_OLLAMA_MODEL
 
+    if settings.LLM_PROVIDER.lower() == "fallback" or (not settings.OLLAMA_HOST.strip() and settings.ENVIRONMENT.lower() == "production"):
+        _OLLAMA_CHECKED = True
+        _RESOLVED_OLLAMA_MODEL = None
+        return None
+
     _OLLAMA_CHECKED = True
     try:
         import ollama
-        client = ollama.Client(host=settings.OLLAMA_HOST)
+        client = ollama.Client(host=settings.OLLAMA_HOST, timeout=1.5)
         models_resp = client.list()
         installed_models = []
         if hasattr(models_resp, "models"):

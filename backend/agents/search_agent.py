@@ -3,7 +3,7 @@ import os
 import re
 from typing import List, Dict, Any, Set
 from urllib.parse import urlparse
-from tools.search_tools import web_search_tool, NON_SHOPPING_DOMAINS
+from tools.search_tools import web_search_tool, NON_SHOPPING_DOMAINS, is_article_or_news_url
 
 MAX_SEARCH_PAGES = int(os.getenv("MAX_SEARCH_PAGES", "2"))
 
@@ -140,56 +140,59 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         f"{query} performance pros cons buyer opinions"
     ]
 
-    raw_shopping_results: List[Dict[str, Any]] = []
-    raw_sentiment_results: List[Dict[str, Any]] = []
+    raw_shopping_results: List[Dict[str, Any]] = list(state.get("search_results") or [])
+    raw_sentiment_results: List[Dict[str, Any]] = list(state.get("search_results") or [])
     page_logs: List[str] = []
     page_raw_counts: Dict[int, int] = {}
 
-    clean_q_words = [w for w in re.findall(r"\b\w+\b", query) if w.lower() not in {"under", "best", "for", "with", "and", "the", "in", "a", "of", "to", "price", "buy", "online"}]
-    core_terms = " ".join(clean_q_words[:4]) if len(clean_q_words) > 4 else query
+    if raw_shopping_results:
+        page_logs.append(f"Pre-supplied search results loaded ({len(raw_shopping_results)} records).")
+    else:
+        clean_q_words = [w for w in re.findall(r"\b\w+\b", query) if w.lower() not in {"under", "best", "for", "with", "and", "the", "in", "a", "of", "to", "price", "buy", "online"}]
+        core_terms = " ".join(clean_q_words[:4]) if len(clean_q_words) > 4 else query
 
-    # Prepare concurrent fetch tasks across pages 1 to max_search_pages
-    shopping_tasks = []
-    for current_page in range(1, max_search_pages + 1):
-        qualifier = store_coverage_qualifiers[(current_page - 1) % len(store_coverage_qualifiers)]
-        q_to_use = core_terms if current_page >= 3 and core_terms != query else query
-        q_lower = q_to_use.lower()
-        if any(cw in q_lower for cw in ["buy", "price", "flipkart", "amazon"]):
-            shop_q = q_to_use
-        else:
-            shop_q = f"{q_to_use} {qualifier}".strip() if qualifier else q_to_use
-        shopping_tasks.append(
-            web_search_tool(shop_q, max_results=25, augment_query=False, page=current_page)
-        )
+        # Prepare concurrent fetch tasks across pages 1 to max_search_pages
+        shopping_tasks = []
+        for current_page in range(1, max_search_pages + 1):
+            qualifier = store_coverage_qualifiers[(current_page - 1) % len(store_coverage_qualifiers)]
+            q_to_use = core_terms if current_page >= 3 and core_terms != query else query
+            q_lower = q_to_use.lower()
+            if any(cw in q_lower for cw in ["buy", "price", "flipkart", "amazon"]):
+                shop_q = q_to_use
+            else:
+                shop_q = f"{q_to_use} {qualifier}".strip() if qualifier else q_to_use
+            shopping_tasks.append(
+                web_search_tool(shop_q, max_results=25, augment_query=False, page=current_page)
+            )
 
-    # Sentiment tasks (fetch 2 diverse sentiment pages)
-    sentiment_tasks = [
-        web_search_tool(sentiment_queries[0], max_results=12, augment_query=False, page=1),
-        web_search_tool(sentiment_queries[1], max_results=12, augment_query=False, page=2)
-    ]
+        # Sentiment tasks (fetch 2 diverse sentiment pages)
+        sentiment_tasks = [
+            web_search_tool(sentiment_queries[0], max_results=12, augment_query=False, page=1),
+            web_search_tool(sentiment_queries[1], max_results=12, augment_query=False, page=2)
+        ]
 
-    try:
-        shop_results = await asyncio.gather(*shopping_tasks, return_exceptions=True)
-        for p_idx, res in enumerate(shop_results, start=1):
-            if isinstance(res, Exception):
-                page_logs.append(f"Search page {p_idx} query warning: {res}")
-                page_raw_counts[p_idx] = 0
-            elif isinstance(res, list):
-                raw_shopping_results.extend(res)
-                page_raw_counts[p_idx] = len(res)
-                page_logs.append(f"Search page {p_idx}: {len(res)} raw results retrieved.")
-    except Exception as e:
-        page_logs.append(f"Multi-page shopping search exception: {e}")
+        try:
+            shop_results = await asyncio.gather(*shopping_tasks, return_exceptions=True)
+            for p_idx, res in enumerate(shop_results, start=1):
+                if isinstance(res, Exception):
+                    page_logs.append(f"Search page {p_idx} query warning: {res}")
+                    page_raw_counts[p_idx] = 0
+                elif isinstance(res, list):
+                    raw_shopping_results.extend(res)
+                    page_raw_counts[p_idx] = len(res)
+                    page_logs.append(f"Search page {p_idx}: {len(res)} raw results retrieved.")
+        except Exception as e:
+            page_logs.append(f"Multi-page shopping search exception: {e}")
 
-    try:
-        sent_results = await asyncio.gather(*sentiment_tasks, return_exceptions=True)
-        for s_idx, res in enumerate(sent_results, start=1):
-            if isinstance(res, Exception):
-                page_logs.append(f"Sentiment query {s_idx} warning: {res}")
-            elif isinstance(res, list):
-                raw_sentiment_results.extend(res)
-    except Exception as e:
-        page_logs.append(f"Sentiment search exception: {e}")
+        try:
+            sent_results = await asyncio.gather(*sentiment_tasks, return_exceptions=True)
+            for s_idx, res in enumerate(sent_results, start=1):
+                if isinstance(res, Exception):
+                    page_logs.append(f"Sentiment query {s_idx} warning: {res}")
+                elif isinstance(res, list):
+                    raw_sentiment_results.extend(res)
+        except Exception as e:
+            page_logs.append(f"Sentiment search exception: {e}")
 
     # Normalization, Validation, Deduplication & Relevance Filtering
     query_tokens = set(re.findall(r"\b\w{3,}\b", query.lower()))
@@ -238,8 +241,16 @@ async def search_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
         norm_url = normalize_url(raw_url)
 
-        # Validation: Exclude social media, news, blogs, and non-shopping domains from product catalog
-        if any(dom in norm_url for dom in excluded_domains):
+        # Validation: Exclude articles, news, rumors, blogs, and non-shopping domains from product catalog
+        if is_article_or_news_url(norm_url, title) or any(dom in norm_url for dom in excluded_domains):
+            count_non_product += 1
+            continue
+
+        # Validation: Exclude foreign non-Indian storefronts (e.g., Tashkent, Uzbekistan, UAE)
+        foreign_indicators = ["tashkent", "uzbekistan", ".uz/", ".uz", ".ru/", ".ru", ".pk/", ".pk", ".bd/", ".bd", ".ng/", ".ng", "dubai", "uae", ".ae/", ".ae"]
+        norm_url_lower = norm_url.lower()
+        title_lower = title.lower()
+        if any(fi in norm_url_lower or fi in title_lower for fi in foreign_indicators):
             count_non_product += 1
             continue
 

@@ -318,6 +318,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalo
     AND to_regprocedure('public.deduct_credits(uuid,integer)') IS NOT NULL
     AND to_regprocedure('public.complete_payment_and_credit(uuid,uuid,text)') IS NOT NULL
     AND to_regprocedure('public.delete_user()') IS NOT NULL
+    AND to_regprocedure('public.refund_credits(uuid,integer,text)') IS NOT NULL
     AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='on_auth_user_created' AND tgrelid='auth.users'::regclass AND NOT tgisinternal);
 $$;
 REVOKE ALL ON FUNCTION public.seamas_schema_is_ready() FROM PUBLIC, anon, authenticated;
@@ -341,19 +342,26 @@ create table if not exists public.price_alerts (
 
 alter table public.price_alerts enable row level security;
 
+REVOKE ALL ON public.price_alerts FROM PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.price_alerts TO authenticated, service_role;
+
+DROP POLICY IF EXISTS "Users can view own price alerts" ON public.price_alerts;
 create policy "Users can view own price alerts"
     on public.price_alerts for select
     using (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create own price alerts" ON public.price_alerts;
 create policy "Users can create own price alerts"
     on public.price_alerts for insert
     with check (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own price alerts" ON public.price_alerts;
 create policy "Users can update own price alerts"
     on public.price_alerts for update
     using (auth.uid() = user_id)
     with check (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own price alerts" ON public.price_alerts;
 create policy "Users can delete own price alerts"
     on public.price_alerts for delete
     using (auth.uid() = user_id);
@@ -374,10 +382,16 @@ create table if not exists public.recommendation_feedback (
 
 alter table public.recommendation_feedback enable row level security;
 
+REVOKE ALL ON public.recommendation_feedback FROM PUBLIC;
+GRANT INSERT ON public.recommendation_feedback TO anon, authenticated, service_role;
+GRANT SELECT ON public.recommendation_feedback TO authenticated, service_role;
+
+DROP POLICY IF EXISTS "Anyone can submit recommendation feedback" ON public.recommendation_feedback;
 create policy "Anyone can submit recommendation feedback"
     on public.recommendation_feedback for insert
     with check (true);
 
+DROP POLICY IF EXISTS "Users can view own recommendation feedback" ON public.recommendation_feedback;
 create policy "Users can view own recommendation feedback"
     on public.recommendation_feedback for select
     using (auth.uid() = user_id);
